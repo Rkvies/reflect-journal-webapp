@@ -7,6 +7,7 @@ import {
   subscribeToProfileSummary, 
   subscribeToInsights, 
   subscribeToNudges, 
+  subscribeToWeeklySummary,
   dismissNudge,
   saveNudge
 } from './lib/firebase';
@@ -15,11 +16,13 @@ import {
   ProfileSummary, 
   InsightReport, 
   ProactiveNudge, 
+  WeeklyReflectionReport,
   AppUser 
 } from './types';
 import { requestAgenticNudge } from './lib/api';
 import { Navbar } from './components/Navbar';
 import { NudgeBanner } from './components/NudgeBanner';
+import { WeeklyReflectionCard } from './components/WeeklyReflectionCard';
 import { JournalChat } from './components/JournalChat';
 import { EntryHistory } from './components/EntryHistory';
 import { InsightsPanel } from './components/InsightsPanel';
@@ -31,12 +34,32 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'journal' | 'history' | 'insights'>('journal');
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const saved = localStorage.getItem('reflect_theme');
+    if (saved === 'dark' || saved === 'light') return saved;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
+
+  // Apply theme to document root
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('reflect_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
+  };
 
   // Firestore real-time collections
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [profileSummary, setProfileSummary] = useState<ProfileSummary | null>(null);
   const [insights, setInsights] = useState<InsightReport[]>([]);
   const [nudges, setNudges] = useState<ProactiveNudge[]>([]);
+  const [weeklySummary, setWeeklySummary] = useState<WeeklyReflectionReport | null>(null);
 
   // Modals
   const [isMemoryOpen, setIsMemoryOpen] = useState(false);
@@ -44,6 +67,9 @@ export default function App() {
 
   // Prefill state from Nudge or Insight suggestion
   const [prefillPrompt, setPrefillPrompt] = useState<{ prompt: string; tag: string } | null>(null);
+
+  // Target entry highlight from Insights transparent reasoning link
+  const [targetEntryId, setTargetEntryId] = useState<string | null>(null);
 
   // Monitor Firebase Auth State
   useEffect(() => {
@@ -62,6 +88,7 @@ export default function App() {
         setProfileSummary(null);
         setInsights([]);
         setNudges([]);
+        setWeeklySummary(null);
       }
       setIsAuthLoading(false);
     });
@@ -89,11 +116,16 @@ export default function App() {
       setNudges(data);
     });
 
+    const unsubWeekly = subscribeToWeeklySummary(currentUser.uid, (data) => {
+      setWeeklySummary(data);
+    });
+
     return () => {
       unsubEntries();
       unsubSummary();
       unsubInsights();
       unsubNudges();
+      unsubWeekly();
     };
   }, [currentUser?.uid]);
 
@@ -161,18 +193,20 @@ export default function App() {
   const activeNudge = nudges.length > 0 ? nudges[0] : null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/30 to-slate-100 text-slate-800 flex flex-col relative selection:bg-indigo-500/20 selection:text-indigo-900 overflow-x-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/30 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-slate-800 dark:text-slate-100 flex flex-col relative selection:bg-indigo-500/20 selection:text-indigo-900 dark:selection:text-indigo-200 overflow-x-hidden transition-colors duration-200">
       
       {/* Ambient background glows for realistic frosted glass refraction */}
-      <div className="fixed top-[-10%] left-[-5%] w-[45vw] h-[45vw] bg-indigo-200/40 rounded-full blur-3xl pointer-events-none -z-10" />
-      <div className="fixed top-[30%] right-[-10%] w-[40vw] h-[40vw] bg-amber-100/50 rounded-full blur-3xl pointer-events-none -z-10" />
-      <div className="fixed bottom-[-10%] left-[20%] w-[50vw] h-[40vw] bg-sky-100/40 rounded-full blur-3xl pointer-events-none -z-10" />
+      <div className="fixed top-[-10%] left-[-5%] w-[45vw] h-[45vw] bg-indigo-200/40 dark:bg-indigo-950/30 rounded-full blur-3xl pointer-events-none -z-10" />
+      <div className="fixed top-[30%] right-[-10%] w-[40vw] h-[40vw] bg-amber-100/50 dark:bg-amber-950/20 rounded-full blur-3xl pointer-events-none -z-10" />
+      <div className="fixed bottom-[-10%] left-[20%] w-[50vw] h-[40vw] bg-sky-100/40 dark:bg-sky-950/20 rounded-full blur-3xl pointer-events-none -z-10" />
 
       {/* Top Navigation */}
       <Navbar
         user={currentUser}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        theme={theme}
+        onToggleTheme={toggleTheme}
         onOpenMemory={() => setIsMemoryOpen(true)}
         onOpenSecurity={() => setIsSecurityOpen(true)}
         onSignOut={handleSignOut}
@@ -187,7 +221,22 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
+        
+        {/* Your Week in Reflection Summary Card (Prominently featured on Dashboard & Insights) */}
+        {(activeTab === 'journal' || activeTab === 'insights') && (
+          <WeeklyReflectionCard
+            userId={currentUser.uid}
+            entries={entries}
+            profileSummary={profileSummary}
+            cachedWeeklySummary={weeklySummary}
+            onStartEntry={() => setActiveTab('journal')}
+            onReflectOnPrompt={(prompt, tag) => {
+              handleReflectOnPrompt(prompt, tag);
+            }}
+          />
+        )}
+
         {activeTab === 'journal' && (
           <JournalChat
             userId={currentUser.uid}
@@ -205,6 +254,9 @@ export default function App() {
           <EntryHistory
             userId={currentUser.uid}
             entries={entries}
+            targetEntryId={targetEntryId}
+            onClearTargetEntry={() => setTargetEntryId(null)}
+            onStartWriting={() => setActiveTab('journal')}
             onSelectEntryForReflection={(entry) => {
               setPrefillPrompt({
                 prompt: `Continuing reflection on "${entry.title}": `,
@@ -224,30 +276,34 @@ export default function App() {
             onReflectOnSuggestion={(prompt, tag) => {
               handleReflectOnPrompt(prompt, tag);
             }}
+            onNavigateToEntry={(entryId) => {
+              setTargetEntryId(entryId);
+              setActiveTab('history');
+            }}
           />
         )}
       </main>
 
       {/* Footer / Status Bar */}
-      <footer className="border-t border-white/60 bg-white/40 backdrop-blur-xl px-4 sm:px-6 py-3 text-xs text-slate-500 shadow-sm mt-auto">
+      <footer className="border-t border-white/60 dark:border-slate-800 bg-white/40 dark:bg-slate-900/60 backdrop-blur-xl px-4 sm:px-6 py-3 text-xs text-slate-500 dark:text-slate-400 shadow-sm mt-auto transition-colors">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-          <div className="flex items-center gap-2 font-mono text-[11px] text-slate-600">
+          <div className="flex items-center gap-2 font-mono text-[11px] text-slate-600 dark:text-slate-300">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span>Authenticated Tenant: {currentUser.uid.slice(0, 10)}...</span>
-            <span className="text-slate-300">|</span>
+            <span className="text-slate-300 dark:text-slate-700">|</span>
             <span>Firestore DB: ai-studio-2f5d1cf6-b82e-4783-86fd-399dce4d2e3a</span>
           </div>
 
-          <div className="flex items-center gap-4 text-[11px] text-slate-600">
+          <div className="flex items-center gap-4 text-[11px] text-slate-600 dark:text-slate-300">
             <button
               onClick={() => setIsSecurityOpen(true)}
-              className="hover:text-indigo-600 font-medium transition-colors cursor-pointer"
+              className="hover:text-indigo-600 dark:hover:text-indigo-400 font-medium transition-colors cursor-pointer"
             >
               Threat Model & ABAC Rules
             </button>
             <button
               onClick={() => setIsMemoryOpen(true)}
-              className="hover:text-indigo-600 font-medium transition-colors cursor-pointer"
+              className="hover:text-indigo-600 dark:hover:text-indigo-400 font-medium transition-colors cursor-pointer"
             >
               Memory Summary ({profileSummary ? 'Active' : 'Empty'})
             </button>

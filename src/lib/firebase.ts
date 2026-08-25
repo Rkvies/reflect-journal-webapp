@@ -22,7 +22,7 @@ import {
   updateDoc 
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { JournalEntry, ProfileSummary, InsightReport, ProactiveNudge } from '../types';
+import { JournalEntry, ProfileSummary, InsightReport, ProactiveNudge, WeeklyReflectionReport } from '../types';
 
 // Initialize Firebase App
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
@@ -94,7 +94,46 @@ export async function saveJournalEntry(uid: string, entry: JournalEntry): Promis
 }
 
 /**
- * Delete a journal entry
+ * Update the user's narrative content for an existing journal entry.
+ * Note: Gemini conversation, reflections, and sentiment are preserved as-is.
+ */
+export async function updateJournalEntryContent(
+  uid: string,
+  entryId: string,
+  updates: {
+    title: string;
+    content: string;
+    mood?: string;
+    tags?: string[];
+  }
+): Promise<void> {
+  if (!uid) throw new Error('Unauthenticated write rejected');
+  const entryRef = doc(db, 'users', uid, 'entries', entryId);
+  const now = new Date().toISOString();
+  const wordCount = updates.content.trim().split(/\s+/).filter(Boolean).length;
+  
+  const updatePayload: Record<string, any> = {
+    title: updates.title.trim(),
+    content: updates.content.trim(),
+    wordCount,
+    updatedAt: now,
+    editedAt: now,
+    isEdited: true,
+  };
+
+  if (updates.mood) {
+    updatePayload.mood = updates.mood;
+  }
+  if (updates.tags) {
+    updatePayload.tags = updates.tags;
+  }
+
+  const cleanData = cleanForFirestore(updatePayload);
+  await setDoc(entryRef, cleanData, { merge: true });
+}
+
+/**
+ * Delete a journal entry from users/{uid}/entries/{entryId}
  */
 export async function deleteJournalEntry(uid: string, entryId: string): Promise<void> {
   if (!uid) throw new Error('Unauthenticated delete rejected');
@@ -225,4 +264,44 @@ export async function dismissNudge(uid: string, nudgeId: string): Promise<void> 
   if (!uid) return;
   const nudgeRef = doc(db, 'users', uid, 'nudges', nudgeId);
   await updateDoc(nudgeRef, { isDismissed: true });
+}
+
+/**
+ * Save weekly reflection summary (users/{uid}/insights/weeklySummary)
+ */
+export async function saveWeeklySummary(uid: string, report: WeeklyReflectionReport): Promise<void> {
+  if (!uid) throw new Error('Unauthenticated weekly summary save rejected');
+  const summaryRef = doc(db, 'users', uid, 'insights', 'weeklySummary');
+  const cleanData = cleanForFirestore(report);
+  await setDoc(summaryRef, cleanData, { merge: true });
+}
+
+/**
+ * Get cached weekly reflection summary (users/{uid}/insights/weeklySummary)
+ */
+export async function getWeeklySummary(uid: string): Promise<WeeklyReflectionReport | null> {
+  if (!uid) return null;
+  const summaryRef = doc(db, 'users', uid, 'insights', 'weeklySummary');
+  const snap = await getDoc(summaryRef);
+  if (snap.exists()) {
+    return snap.data() as WeeklyReflectionReport;
+  }
+  return null;
+}
+
+/**
+ * Subscribe to weekly reflection summary (users/{uid}/insights/weeklySummary)
+ */
+export function subscribeToWeeklySummary(uid: string, callback: (report: WeeklyReflectionReport | null) => void) {
+  if (!uid) return () => {};
+  const summaryRef = doc(db, 'users', uid, 'insights', 'weeklySummary');
+  return onSnapshot(summaryRef, (snap) => {
+    if (snap.exists()) {
+      callback(snap.data() as WeeklyReflectionReport);
+    } else {
+      callback(null);
+    }
+  }, (err) => {
+    console.error('Weekly summary subscription error:', err);
+  });
 }

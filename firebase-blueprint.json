@@ -40,7 +40,9 @@
         },
         "createdAt": { "type": "string", "description": "ISO creation timestamp" },
         "updatedAt": { "type": "string", "description": "ISO update timestamp" },
-        "wordCount": { "type": "number", "description": "Word count" }
+        "wordCount": { "type": "number", "description": "Word count" },
+        "isEdited": { "type": "boolean", "description": "Whether entry has been edited by owner" },
+        "editedAt": { "type": "string", "description": "ISO timestamp of last content edit" }
       },
       "required": ["id", "userId", "title", "content", "mood", "createdAt"]
     },

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Search, 
   Trash2, 
@@ -8,22 +8,29 @@ import {
   Tag, 
   Sparkles, 
   Feather, 
-  FileText,
-  Filter,
-  Activity,
-  RefreshCw,
-  Sliders,
-  Check
+  FileText, 
+  Filter, 
+  Activity, 
+  RefreshCw, 
+  Pencil, 
+  Check, 
+  X, 
+  AlertTriangle, 
+  Lock,
+  Clock
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { JournalEntry, MoodType, EntrySentiment } from '../types';
-import { deleteJournalEntry, saveJournalEntry } from '../lib/firebase';
+import { deleteJournalEntry, updateJournalEntryContent, saveJournalEntry } from '../lib/firebase';
 import { analyzeEntrySentiment } from '../lib/api';
 
 interface EntryHistoryProps {
   userId: string;
   entries: JournalEntry[];
   onSelectEntryForReflection?: (entry: JournalEntry) => void;
+  onStartWriting?: (starterPrompt?: string) => void;
+  targetEntryId?: string | null;
+  onClearTargetEntry?: () => void;
 }
 
 const MOOD_EMOJIS: Record<string, string> = {
@@ -41,10 +48,10 @@ const SENTIMENT_THEMES: Record<string, {
   bg: string; 
   text: string; 
   border: string; 
-  badgeBg: string;
+  badgeBg: string; 
   dot: string; 
-  ring: string;
-  progressBar: string;
+  ring: string; 
+  progressBar: string; 
 }> = {
   emerald: {
     bg: 'bg-emerald-50/80',
@@ -115,12 +122,51 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
   userId,
   entries,
   onSelectEntryForReflection,
+  onStartWriting,
+  targetEntryId,
+  onClearTargetEntry,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMoodFilter, setSelectedMoodFilter] = useState<string>('all');
   const [expandedEntryId, setExpandedEntryId] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [analyzingIds, setAnalyzingIds] = useState<Record<string, boolean>>({});
+
+  // Delete modal state
+  const [entryToDelete, setEntryToDelete] = useState<JournalEntry | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Edit modal state
+  const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editContent, setEditContent] = useState('');
+  const [editMood, setEditMood] = useState<MoodType>('reflective');
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  // When targetEntryId is provided (e.g. from Insights transparent reasoning link),
+  // ensure the entry is un-filtered, expanded, and scrolled into view smoothly.
+  useEffect(() => {
+    if (targetEntryId) {
+      setExpandedEntryId(targetEntryId);
+
+      const targetEntry = entries.find((e) => e.id === targetEntryId);
+      if (targetEntry && selectedMoodFilter !== 'all' && targetEntry.mood !== selectedMoodFilter) {
+        setSelectedMoodFilter('all');
+      }
+      if (searchQuery.trim() !== '') {
+        setSearchQuery('');
+      }
+
+      const timer = setTimeout(() => {
+        const el = document.getElementById(`entry-card-${targetEntryId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 120);
+
+      return () => clearTimeout(timer);
+    }
+  }, [targetEntryId, entries]);
 
   const filteredEntries = useMemo(() => {
     return entries.filter((e) => {
@@ -138,16 +184,83 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
     });
   }, [entries, searchQuery, selectedMoodFilter]);
 
-  const handleDelete = async (entryId: string, e: React.MouseEvent) => {
+  // Open Delete Confirmation Modal (only allowed if current user owns the entry)
+  const handleOpenDelete = (entry: JournalEntry, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!window.confirm('Are you sure you want to delete this reflection entry?')) return;
+    if (entry.userId !== userId) {
+      console.warn('Unauthorized delete attempt blocked in UI');
+      return;
+    }
+    setEntryToDelete(entry);
+  };
+
+  // Confirm and execute delete from users/{uid}/entries/{entryId}
+  const handleConfirmDelete = async () => {
+    if (!entryToDelete || entryToDelete.userId !== userId) return;
+
     try {
-      setIsDeleting(entryId);
-      await deleteJournalEntry(userId, entryId);
+      setIsDeleting(true);
+      await deleteJournalEntry(userId, entryToDelete.id);
+      
+      // If deleted entry was active in target or expanded view, reset it
+      if (targetEntryId === entryToDelete.id && onClearTargetEntry) {
+        onClearTargetEntry();
+      }
+      if (expandedEntryId === entryToDelete.id) {
+        setExpandedEntryId(null);
+      }
+      setEntryToDelete(null);
     } catch (err) {
       console.error('Delete error:', err);
     } finally {
-      setIsDeleting(null);
+      setIsDeleting(false);
+    }
+  };
+
+  // Open Edit Modal (only allowed if current user owns the entry)
+  const handleOpenEdit = (entry: JournalEntry, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (entry.userId !== userId) {
+      console.warn('Unauthorized edit attempt blocked in UI');
+      return;
+    }
+    setEditingEntry(entry);
+    setEditTitle(entry.title || '');
+    setEditContent(entry.content || '');
+    setEditMood(entry.mood || 'reflective');
+    setEditError(null);
+  };
+
+  // Save edited entry narrative
+  const handleSaveEdit = async () => {
+    if (!editingEntry || editingEntry.userId !== userId) return;
+
+    if (!editTitle.trim()) {
+      setEditError('Please provide a title for your reflection.');
+      return;
+    }
+
+    if (!editContent.trim()) {
+      setEditError('Reflection narrative cannot be empty.');
+      return;
+    }
+
+    try {
+      setIsSavingEdit(true);
+      setEditError(null);
+
+      await updateJournalEntryContent(userId, editingEntry.id, {
+        title: editTitle,
+        content: editContent,
+        mood: editMood,
+      });
+
+      setEditingEntry(null);
+    } catch (err: any) {
+      console.error('Error saving edited entry:', err);
+      setEditError(err.message || 'Failed to save changes. Please check permissions.');
+    } finally {
+      setIsSavingEdit(false);
     }
   };
 
@@ -183,41 +296,81 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
     setExpandedEntryId((prev) => (prev === entryId ? null : entryId));
   };
 
+  // If user has zero journal entries overall, render the requested friendly onboarding screen
+  if (entries.length === 0) {
+    return (
+      <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
+        <div className="bg-white/70 dark:bg-slate-900/80 backdrop-blur-xl border border-white/80 dark:border-white/10 rounded-3xl p-8 sm:p-12 text-center shadow-md space-y-6">
+          <div className="w-16 h-16 rounded-3xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 mx-auto shadow-inner">
+            <Feather className="w-8 h-8" />
+          </div>
+
+          <div className="space-y-2 max-w-md mx-auto">
+            <h2 className="text-xl sm:text-2xl font-serif font-bold text-slate-900 dark:text-white">
+              Your Memory Archive is Waiting
+            </h2>
+            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-sans">
+              Write your first reflection — try starting with{' '}
+              <span className="font-semibold text-indigo-600 dark:text-indigo-400">"Today I..."</span>
+            </p>
+          </div>
+
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <button
+              id="btn-start-first-reflection"
+              onClick={() => onStartWriting?.("Today I ")}
+              className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-all shadow-md shadow-indigo-600/20 flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4 text-amber-300" />
+              <span>Begin First Reflection</span>
+            </button>
+          </div>
+
+          <div className="pt-4 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-center gap-4 text-xs text-slate-500 dark:text-slate-400 font-mono">
+            <span>🔒 Isolated user partition</span>
+            <span>•</span>
+            <span>🧠 Semantic profile memory</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       
       {/* Header & Filter Bar */}
-      <div className="bg-white/60 backdrop-blur-xl border border-white/70 rounded-3xl p-5 sm:p-6 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/60 pb-4 mb-4">
+      <div className="bg-white/60 dark:bg-slate-900/70 backdrop-blur-xl border border-white/70 dark:border-white/10 rounded-3xl p-5 sm:p-6 shadow-sm transition-colors">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/60 dark:border-slate-800/80 pb-4 mb-4">
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-xl font-serif font-bold text-slate-900">Journal Archive</h2>
-              <span className="text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
-                Gemini Sentiment Visualized
+              <h2 className="text-xl font-serif font-bold text-slate-900 dark:text-white">Journal Archive</h2>
+              <span className="text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                User Sovereignty & Security
               </span>
             </div>
-            <p className="text-xs text-slate-500 mt-1">
-              {entries.length} personal reflection{entries.length === 1 ? '' : 's'} with visual emotional indicators & themes
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              {entries.length} personal reflection{entries.length === 1 ? '' : 's'} with full edit and deletion sovereignty
             </p>
           </div>
 
           {/* Search bar */}
           <div className="relative w-full sm:w-72">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               id="input-search-entries"
               type="text"
               placeholder="Search reflections, tags, or sentiment..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 rounded-xl bg-white/80 border border-slate-200 text-slate-800 placeholder-slate-400 text-xs focus:outline-none focus:bg-white focus:border-indigo-400 shadow-xs"
+              className="w-full pl-9 pr-3 py-2 rounded-xl bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 text-xs focus:outline-none focus:bg-white dark:focus:bg-slate-800 focus:border-indigo-400 dark:focus:border-indigo-500 shadow-xs"
             />
           </div>
         </div>
 
         {/* Mood filter chips */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
-          <span className="text-slate-400 flex items-center gap-1 mr-2 text-[11px] font-semibold">
+          <span className="text-slate-400 dark:text-slate-500 flex items-center gap-1 mr-2 text-[11px] font-semibold">
             <Filter className="w-3 h-3" /> Filter:
           </span>
           <button
@@ -225,7 +378,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
             className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
               selectedMoodFilter === 'all'
                 ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-600/20'
-                : 'bg-white/60 text-slate-600 border-slate-200/70 hover:bg-white'
+                : 'bg-white/60 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 border-slate-200/70 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800'
             }`}
           >
             All Moods ({entries.length})
@@ -240,7 +393,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                 className={`px-3 py-1.5 rounded-xl text-xs font-medium border flex items-center gap-1.5 transition-all cursor-pointer ${
                   selectedMoodFilter === mood
                     ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-600/20 font-semibold'
-                    : 'bg-white/60 text-slate-600 border-slate-200/70 hover:bg-white'
+                    : 'bg-white/60 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 border-slate-200/70 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800'
                 }`}
               >
                 <span>{MOOD_EMOJIS[mood] || '📝'}</span>
@@ -254,13 +407,11 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
 
       {/* Entries List */}
       {filteredEntries.length === 0 ? (
-        <div className="bg-white/50 backdrop-blur-md border border-dashed border-slate-300 rounded-3xl p-12 text-center text-slate-500 space-y-3">
-          <FileText className="w-10 h-10 text-slate-400 mx-auto" />
-          <h3 className="text-sm font-semibold text-slate-700 font-serif">No journal entries found</h3>
-          <p className="text-xs text-slate-500 max-w-sm mx-auto">
-            {searchQuery || selectedMoodFilter !== 'all'
-              ? 'Try changing your search keywords or mood filter.'
-              : 'Write your first entry in the Daily Reflection tab to start building your personal memory archive.'}
+        <div className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-dashed border-slate-300 dark:border-slate-800 rounded-3xl p-12 text-center text-slate-500 dark:text-slate-400 space-y-3">
+          <FileText className="w-10 h-10 text-slate-400 dark:text-slate-600 mx-auto" />
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 font-serif">No matching journal entries found</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+            Try adjusting your search keywords or mood filter.
           </p>
         </div>
       ) : (
@@ -268,6 +419,8 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
           {filteredEntries.map((entry) => {
             const isExpanded = expandedEntryId === entry.id;
             const isAnalyzing = analyzingIds[entry.id];
+            const isOwner = entry.userId === userId;
+
             const dateStr = new Date(entry.createdAt).toLocaleDateString(undefined, {
               weekday: 'short',
               year: 'numeric',
@@ -280,13 +433,36 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
               ? (SENTIMENT_THEMES[entry.sentiment.color] || SENTIMENT_THEMES.indigo)
               : null;
 
+            const isTarget = targetEntryId === entry.id;
+
             return (
               <div
                 key={entry.id}
-                className={`bg-white/70 hover:bg-white/90 backdrop-blur-xl border ${
-                  sentimentTheme ? sentimentTheme.border : 'border-white/80'
-                } hover:border-indigo-300 rounded-3xl overflow-hidden transition-all shadow-xs`}
+                id={`entry-card-${entry.id}`}
+                className={`bg-white/70 dark:bg-slate-900/70 hover:bg-white/90 dark:hover:bg-slate-900/90 backdrop-blur-xl border transition-all shadow-xs rounded-3xl overflow-hidden ${
+                  isTarget
+                    ? 'border-indigo-500 ring-4 ring-indigo-500/20 shadow-md shadow-indigo-500/10'
+                    : sentimentTheme ? `${sentimentTheme.border} dark:border-slate-800` : 'border-white/80 dark:border-white/10'
+                } hover:border-indigo-300 dark:hover:border-indigo-500/40`}
               >
+                {/* Target Entry Focused Banner */}
+                {isTarget && (
+                  <div className="bg-indigo-600 text-white px-4 py-1.5 text-xs font-mono font-semibold flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                      <span>Referenced in Mindful Insights</span>
+                    </span>
+                    {onClearTargetEntry && (
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); onClearTargetEntry(); }}
+                        className="text-[11px] font-sans font-medium underline text-indigo-100 hover:text-white cursor-pointer"
+                      >
+                        Clear highlight
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 {/* Entry Header / Collapsible row */}
                 <div
                   onClick={() => toggleExpand(entry.id)}
@@ -297,8 +473,8 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                     <div 
                       className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xl flex-shrink-0 shadow-xs border transition-transform hover:scale-105 ${
                         sentimentTheme 
-                          ? `${sentimentTheme.bg} ${sentimentTheme.border} ${sentimentTheme.ring}`
-                          : 'bg-indigo-50 border-indigo-100'
+                          ? `${sentimentTheme.bg} ${sentimentTheme.border} ${sentimentTheme.ring} dark:bg-slate-800 dark:border-slate-700`
+                          : 'bg-indigo-50 dark:bg-slate-800 border-indigo-100 dark:border-slate-700'
                       }`}
                       title={entry.sentiment ? `Gemini Sentiment: ${entry.sentiment.label}` : `Mood: ${entry.mood}`}
                     >
@@ -307,14 +483,14 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
 
                     <div className="min-w-0 space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="text-sm sm:text-base font-serif font-bold text-slate-900 truncate">
+                        <h3 className="text-sm sm:text-base font-serif font-bold text-slate-900 dark:text-white truncate">
                           {entry.title || 'Untitled Reflection'}
                         </h3>
 
                         {/* Gemini-derived Sentiment Indicator Badge */}
                         {entry.sentiment ? (
                           <div 
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${sentimentTheme?.badgeBg} shadow-2xs`}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${sentimentTheme?.badgeBg} dark:bg-slate-800 dark:border-slate-700 dark:text-indigo-300 shadow-2xs`}
                             title={`Emotional Harmony: ${entry.sentiment.score}%`}
                           >
                             <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-current" />
@@ -328,51 +504,78 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                             onClick={(e) => handleAnalyzeSentiment(entry, e)}
                             disabled={isAnalyzing}
                             title="Derive visual sentiment indicator using Gemini"
-                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-700 border border-slate-200 hover:border-indigo-200 transition-colors cursor-pointer"
+                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-indigo-700 dark:hover:text-white border border-slate-200 dark:border-slate-700 hover:border-indigo-200 transition-colors cursor-pointer"
                           >
-                            <Sparkles className={`w-3 h-3 ${isAnalyzing ? 'animate-spin text-indigo-600' : 'text-amber-500'}`} />
+                            <Sparkles className={`w-3 h-3 ${isAnalyzing ? 'animate-spin text-indigo-600 dark:text-indigo-400' : 'text-amber-500'}`} />
                             <span>{isAnalyzing ? 'Evaluating...' : 'Detect Sentiment'}</span>
                           </button>
+                        )}
+
+                        {/* Edited badge indicator */}
+                        {entry.isEdited && (
+                          <span 
+                            title={entry.editedAt ? `Edited on ${new Date(entry.editedAt).toLocaleString()}` : 'Entry narrative edited'}
+                            className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 font-mono"
+                          >
+                            <Pencil className="w-2.5 h-2.5" />
+                            <span>edited</span>
+                          </span>
                         )}
 
                         {entry.tags && entry.tags.map((t) => (
                           <span
                             key={t}
-                            className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 font-mono"
+                            className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-mono"
                           >
                             #{t}
                           </span>
                         ))}
                       </div>
 
-                      <div className="flex items-center gap-2.5 text-xs text-slate-500 flex-wrap">
+                      <div className="flex items-center gap-2.5 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
                         <span className="flex items-center gap-1 font-mono text-[11px]">
-                          <Calendar className="w-3 h-3 text-slate-400" />
+                          <Calendar className="w-3 h-3 text-slate-400 dark:text-slate-500" />
                           {dateStr} at {timeStr}
                         </span>
                         <span>•</span>
                         <span className="font-mono text-[11px]">{entry.wordCount || 0} words</span>
                         <span>•</span>
-                        <span className="text-slate-600 font-medium capitalize flex items-center gap-1">
+                        <span className="text-slate-600 dark:text-slate-400 font-medium capitalize flex items-center gap-1">
                           <span>User mood:</span>
-                          <span className="text-slate-800 font-semibold">{entry.mood.replace('_', ' ')}</span>
+                          <span className="text-slate-800 dark:text-slate-200 font-semibold">{entry.mood.replace('_', ' ')}</span>
                         </span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <button
-                      id={`btn-delete-entry-${entry.id}`}
-                      onClick={(e) => handleDelete(entry.id, e)}
-                      disabled={isDeleting === entry.id}
-                      title="Delete entry"
-                      className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                  {/* Actions Header Row */}
+                  <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                    
+                    {/* Owner-Only Edit Button */}
+                    {isOwner && (
+                      <button
+                        id={`btn-edit-entry-${entry.id}`}
+                        onClick={(e) => handleOpenEdit(entry, e)}
+                        title="Edit reflection narrative"
+                        className="p-2 rounded-xl text-slate-400 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 transition-colors cursor-pointer"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    )}
 
-                    <div className="p-1 text-slate-400">
+                    {/* Owner-Only Delete Button */}
+                    {isOwner && (
+                      <button
+                        id={`btn-delete-entry-${entry.id}`}
+                        onClick={(e) => handleOpenDelete(entry, e)}
+                        title="Delete reflection from Firestore"
+                        className="p-2 rounded-xl text-slate-400 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition-colors cursor-pointer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+
+                    <div className="p-1 text-slate-400 dark:text-slate-500">
                       {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                     </div>
                   </div>
@@ -380,36 +583,36 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
 
                 {/* Expanded Content View */}
                 {isExpanded && (
-                  <div className="border-t border-slate-200/60 bg-white/40 backdrop-blur-md p-5 sm:p-6 space-y-4">
+                  <div className="border-t border-slate-200/60 dark:border-slate-800 bg-white/40 dark:bg-slate-950/40 backdrop-blur-md p-5 sm:p-6 space-y-4">
                     
                     {/* Visual Sentiment Detail Card */}
                     {entry.sentiment ? (
-                      <div className={`p-4 sm:p-5 rounded-2xl border ${sentimentTheme?.bg} ${sentimentTheme?.border} space-y-2.5 shadow-2xs`}>
+                      <div className={`p-4 sm:p-5 rounded-2xl border ${sentimentTheme?.bg} ${sentimentTheme?.border} dark:bg-slate-800/80 dark:border-slate-700 space-y-2.5 shadow-2xs`}>
                         <div className="flex items-center justify-between flex-wrap gap-2">
                           <div className="flex items-center gap-2">
                             <span className="text-2xl">{entry.sentiment.emoji}</span>
                             <div>
                               <div className="flex items-center gap-2">
-                                <span className={`text-sm font-serif font-bold ${sentimentTheme?.text}`}>
+                                <span className={`text-sm font-serif font-bold ${sentimentTheme?.text} dark:text-white`}>
                                   {entry.sentiment.label}
                                 </span>
-                                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-white/80 border border-slate-200 text-slate-700">
+                                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-white/80 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200">
                                   Color: {entry.sentiment.color.toUpperCase()}
                                 </span>
                               </div>
-                              <p className="text-xs text-slate-600 mt-0.5">
+                              <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
                                 {entry.sentiment.summary || 'Mindful psychological sentiment distilled from your writing.'}
                               </p>
                             </div>
                           </div>
 
                           {/* Emotional resonance score gauge */}
-                          <div className="flex items-center gap-3 bg-white/80 px-3.5 py-1.5 rounded-xl border border-slate-200/80 shadow-2xs">
+                          <div className="flex items-center gap-3 bg-white/80 dark:bg-slate-800 px-3.5 py-1.5 rounded-xl border border-slate-200/80 dark:border-slate-700 shadow-2xs">
                             <div className="text-right">
-                              <div className="text-[10px] text-slate-400 font-mono uppercase">Harmonic Score</div>
-                              <div className="text-xs font-bold font-mono text-slate-800">{entry.sentiment.score}/100</div>
+                              <div className="text-[10px] text-slate-400 dark:text-slate-400 font-mono uppercase">Harmonic Score</div>
+                              <div className="text-xs font-bold font-mono text-slate-800 dark:text-white">{entry.sentiment.score}/100</div>
                             </div>
-                            <div className="w-16 h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div className="w-16 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
                               <div 
                                 className={`h-full rounded-full ${sentimentTheme?.progressBar || 'bg-indigo-600'}`}
                                 style={{ width: `${entry.sentiment.score}%` }}
@@ -419,16 +622,16 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                               onClick={(e) => handleAnalyzeSentiment(entry, e)}
                               disabled={isAnalyzing}
                               title="Re-analyze with Gemini"
-                              className="p-1 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                              className="p-1 rounded-lg text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
                             >
-                              <RefreshCw className={`w-3.5 h-3.5 ${isAnalyzing ? 'animate-spin text-indigo-600' : ''}`} />
+                              <RefreshCw className={`w-3.5 h-3.5 ${isAnalyzing ? 'animate-spin text-indigo-600 dark:text-indigo-400' : ''}`} />
                             </button>
                           </div>
                         </div>
                       </div>
                     ) : (
-                      <div className="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-100 flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2.5 text-xs text-indigo-900">
+                      <div className="p-4 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/60 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5 text-xs text-indigo-900 dark:text-indigo-300">
                           <Sparkles className="w-4 h-4 text-amber-500 flex-shrink-0" />
                           <span>No sentiment indicator derived yet for this entry.</span>
                         </div>
@@ -443,13 +646,25 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                       </div>
                     )}
 
-                    {/* User Raw Narrative */}
+                    {/* User Raw Narrative Header + Quick Edit Option */}
                     <div className="space-y-2">
-                      <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 uppercase tracking-wider font-mono">
-                        <Feather className="w-3.5 h-3.5 text-slate-400" />
-                        <span>Journal Entry Narrative</span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider font-mono">
+                          <Feather className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+                          <span>Journal Entry Narrative</span>
+                        </div>
+                        {isOwner && (
+                          <button
+                            id={`btn-narrative-edit-${entry.id}`}
+                            onClick={(e) => handleOpenEdit(entry, e)}
+                            className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                          >
+                            <Pencil className="w-3 h-3" />
+                            <span>Edit Narrative</span>
+                          </button>
+                        )}
                       </div>
-                      <div className="p-4 rounded-2xl bg-white/80 border border-slate-200/80 text-sm text-slate-800 leading-relaxed font-sans whitespace-pre-wrap shadow-inner">
+                      <div className="p-4 rounded-2xl bg-white/80 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 text-sm text-slate-800 dark:text-slate-100 leading-relaxed font-sans whitespace-pre-wrap shadow-inner">
                         {entry.content || '(No narrative text)'}
                       </div>
                     </div>
@@ -457,7 +672,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                     {/* Dialogue / Reflections */}
                     {entry.conversation && entry.conversation.length > 0 && (
                       <div className="space-y-2">
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-indigo-700 uppercase tracking-wider font-mono">
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider font-mono">
                           <Sparkles className="w-3.5 h-3.5 text-amber-500" />
                           <span>Gemini Reflective Dialogue ({entry.conversation.length} turns)</span>
                         </div>
@@ -467,11 +682,11 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                               key={turn.id}
                               className={`p-4 rounded-2xl text-xs sm:text-sm ${
                                 turn.role === 'user'
-                                  ? 'bg-indigo-50/70 border border-indigo-100 text-slate-800 ml-4'
-                                  : 'bg-white/90 border border-slate-200/80 text-slate-800 mr-4 shadow-xs'
+                                  ? 'bg-indigo-50/70 dark:bg-indigo-950/50 border border-indigo-100 dark:border-indigo-900/60 text-slate-800 dark:text-slate-100 ml-4'
+                                  : 'bg-white/90 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700 text-slate-800 dark:text-slate-100 mr-4 shadow-xs'
                               }`}
                             >
-                              <div className="font-semibold text-xs mb-1 font-serif text-slate-600">
+                              <div className="font-semibold text-xs mb-1 font-serif text-slate-600 dark:text-slate-400">
                                 {turn.role === 'user' ? 'You' : 'Reflect AI Companion'}
                               </div>
                               <Markdown>{turn.text}</Markdown>
@@ -488,7 +703,248 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
         </div>
       )}
 
+      {/* ========================================================================= */}
+      {/* DELETE CONFIRMATION DIALOG MODAL (Requirement 2 & Security Isolation) */}
+      {/* ========================================================================= */}
+      {entryToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-md bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-white/80 dark:border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col transition-colors">
+            
+            {/* Modal Header */}
+            <div className="p-5 border-b border-slate-200/60 dark:border-slate-800 flex items-center justify-between bg-rose-50/40 dark:bg-rose-950/20">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-rose-100 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 flex items-center justify-center text-rose-600 dark:text-rose-400 shadow-xs">
+                  <Trash2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-serif font-bold text-slate-900 dark:text-white">
+                    Delete Journal Entry
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Confirm deletion from your Firestore partition
+                  </p>
+                </div>
+              </div>
+
+              <button
+                id="btn-close-delete-modal"
+                onClick={() => setEntryToDelete(null)}
+                disabled={isDeleting}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 sm:p-6 space-y-4 text-xs sm:text-sm text-slate-700 dark:text-slate-200">
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-1">
+                <div className="font-serif font-bold text-slate-900 dark:text-white">
+                  "{entryToDelete.title || 'Untitled Reflection'}"
+                </div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                  Created on {new Date(entryToDelete.createdAt).toLocaleDateString(undefined, {
+                    weekday: 'short',
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                  })} • {entryToDelete.wordCount || 0} words
+                </div>
+              </div>
+
+              <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-xs">
+                Are you sure you want to permanently delete this reflection? This action will remove the document from{' '}
+                <code className="text-[10px] font-mono px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                  users/{userId.slice(0, 8)}.../entries/{entryToDelete.id.slice(0, 8)}...
+                </code>
+              </p>
+
+              {/* Requirement 2 Isolation Notice */}
+              <div className="p-3 rounded-2xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-amber-900 dark:text-amber-300 text-[11px] flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                <span>
+                  <strong>Note:</strong> Deleting an entry removes its document directly. Your long-term memory summary profile is preserved and only updates through its normal periodic reflection cycle.
+                </span>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="p-4 sm:p-5 border-t border-slate-200/60 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 flex items-center justify-end gap-3">
+              <button
+                id="btn-cancel-delete"
+                onClick={() => setEntryToDelete(null)}
+                disabled={isDeleting}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                id="btn-confirm-delete"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-600/20 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <Trash2 className={`w-3.5 h-3.5 ${isDeleting ? 'animate-spin' : ''}`} />
+                <span>{isDeleting ? 'Deleting Entry...' : 'Confirm Delete'}</span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* EDIT JOURNAL ENTRY MODAL (Requirement 3 & Owner Data Sovereignty) */}
+      {/* ========================================================================= */}
+      {editingEntry && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-fade-in">
+          <div className="w-full max-w-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-white/80 dark:border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] transition-colors">
+            
+            {/* Modal Header */}
+            <div className="p-5 sm:p-6 border-b border-slate-200/60 dark:border-slate-800 flex items-center justify-between bg-indigo-50/40 dark:bg-indigo-950/30">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-100 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-700 dark:text-indigo-300 shadow-xs">
+                  <Pencil className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-serif font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <span>Edit Reflection Narrative</span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 font-medium">
+                      Owner Data Sovereignty
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Update your thoughts; original AI dialogues and sentiment remain preserved
+                  </p>
+                </div>
+              </div>
+
+              <button
+                id="btn-close-edit-modal"
+                onClick={() => setEditingEntry(null)}
+                disabled={isSavingEdit}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Scrollable Body */}
+            <div className="p-5 sm:p-6 overflow-y-auto space-y-4 text-xs sm:text-sm text-slate-700 dark:text-slate-200">
+              
+              {editError && (
+                <div className="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                  <span>{editError}</span>
+                </div>
+              )}
+
+              {/* Title input */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-mono uppercase tracking-wider">
+                  Reflection Title
+                </label>
+                <input
+                  id="input-edit-entry-title"
+                  type="text"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  placeholder="Title of this reflection..."
+                  className="w-full px-4 py-2.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-serif text-sm focus:outline-none focus:border-indigo-500 shadow-xs"
+                />
+              </div>
+
+              {/* Mood category selector */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-mono uppercase tracking-wider">
+                  Associated Mood Theme
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {(['reflective', 'peaceful', 'optimistic', 'grounded', 'seeking_clarity', 'anxious', 'fatigued', 'energized'] as MoodType[]).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setEditMood(m)}
+                      className={`px-3 py-2 rounded-xl text-xs font-medium border flex items-center gap-1.5 transition-all cursor-pointer ${
+                        editMood === m
+                          ? 'bg-indigo-50 dark:bg-indigo-950/70 border-indigo-400 dark:border-indigo-600 text-indigo-800 dark:text-indigo-200 font-semibold ring-2 ring-indigo-400/20'
+                          : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-750'
+                      }`}
+                    >
+                      <span>{MOOD_EMOJIS[m]}</span>
+                      <span className="capitalize">{m.replace('_', ' ')}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Content narrative textarea */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-mono uppercase tracking-wider">
+                    Written Reflection Narrative
+                  </label>
+                  <span className="text-[11px] font-mono text-slate-400 dark:text-slate-500">
+                    {editContent.trim().split(/\s+/).filter(Boolean).length} words • {editContent.length} chars
+                  </span>
+                </div>
+                <textarea
+                  id="textarea-edit-entry-content"
+                  rows={8}
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  placeholder="Your personal journal narrative..."
+                  className="w-full p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-sans text-xs sm:text-sm focus:outline-none focus:border-indigo-500 resize-none leading-relaxed shadow-inner"
+                />
+              </div>
+
+              {/* Requirement 3 AI dialogue preservation notice */}
+              <div className="p-3.5 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/60 text-indigo-900 dark:text-indigo-300 text-xs flex items-start gap-2.5">
+                <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <p className="font-semibold font-serif">Preserved AI Companion State</p>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400 font-sans leading-relaxed">
+                    Saving updates only your written journal content and timestamps. The Gemini reflection replies, dialogue history ({editingEntry.conversation?.length || 0} turns), and sentiment resonance score ({editingEntry.sentiment?.score || 0}%) remain intact.
+                  </p>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Modal Actions */}
+            <div className="p-4 sm:p-5 border-t border-slate-200/60 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-mono hidden sm:flex">
+                <Lock className="w-3 h-3 text-emerald-500" />
+                <span>users/{userId.slice(0, 6)}.../entries</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  id="btn-cancel-edit"
+                  onClick={() => setEditingEntry(null)}
+                  disabled={isSavingEdit}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  id="btn-save-edit"
+                  onClick={handleSaveEdit}
+                  disabled={isSavingEdit}
+                  className="px-5 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <Check className={`w-3.5 h-3.5 ${isSavingEdit ? 'animate-spin' : ''}`} />
+                  <span>{isSavingEdit ? 'Saving Changes...' : 'Save Changes'}</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
-

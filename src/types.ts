@@ -28,6 +28,8 @@ export interface JournalEntry {
   createdAt: string;
   updatedAt: string;
   wordCount: number;
+  isEdited?: boolean;
+  editedAt?: string;
 }
 
 export interface ProfileSummary {
@@ -43,6 +45,7 @@ export interface ThemeMetric {
   name: string;
   score: number;
   observation: string;
+  influencedBy?: string[];
 }
 
 export interface InsightReport {
@@ -52,7 +55,9 @@ export interface InsightReport {
   primaryMood: string;
   themes: ThemeMetric[];
   notableShift: string;
+  notableShiftInfluencedBy?: string[];
   suggestion: string;
+  suggestionInfluencedBy?: string[];
   sentimentDistribution: {
     positive: number;
     neutral: number;
@@ -72,6 +77,21 @@ export interface ProactiveNudge {
   createdAt: string;
   isDismissed?: boolean;
   source?: string;
+}
+
+export interface WeeklyReflectionReport {
+  id: string; // 'weeklySummary'
+  userId: string;
+  weekRange: string;
+  entryCount: number;
+  daysActive: number;
+  moodTrend: string;
+  dominantMood: string;
+  weekSummary: string;
+  topThemes: string[];
+  keyTakeaway: string;
+  highlights?: string[];
+  generatedAt: string;
 }
 
 export interface AppUser {

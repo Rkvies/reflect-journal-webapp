@@ -1,8 +1,25 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer base {
+  :root {
+    --color-bg-primary: #f8fafc;
+    --color-text-primary: #0f172a;
+    --color-text-secondary: #475569;
+    --color-border: rgba(226, 232, 240, 0.8);
+  }
+
+  .dark {
+    --color-bg-primary: #090d16;
+    --color-text-primary: #f8fafc;
+    --color-text-secondary: #94a3b8;
+    --color-border: rgba(255, 255, 255, 0.08);
+  }
+
   body {
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 
   h1, h2, h3, .font-serif {
@@ -10,25 +27,76 @@
   }
 }
 
-/* Glassmorphism helpers */
+/* Glassmorphism helpers with dark mode support */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.68);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.65);
   box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.04), 0 4px 6px -2px rgba(15, 23, 42, 0.02);
 }
 
+.dark .glass-panel {
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.4);
+}
+
 .glass-card {
-  background: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.6);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+}
+
+.dark .glass-card {
+  background: rgba(30, 41, 59, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .glass-input {
-  background: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.65);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(203, 213, 225, 0.6);
 }
+
+.dark .glass-input {
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #f1f5f9;
+}
+
+/* Subtle typing dot bounce keyframe animation */
+@keyframes typingBounce {
+  0%, 80%, 100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  40% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+.typing-dot-1 {
+  animation: typingBounce 1.3s infinite ease-in-out;
+  animation-delay: 0s;
+}
+
+.typing-dot-2 {
+  animation: typingBounce 1.3s infinite ease-in-out;
+  animation-delay: 0.2s;
+}
+
+.typing-dot-3 {
+  animation: typingBounce 1.3s infinite ease-in-out;
+  animation-delay: 0.4s;
+}
+

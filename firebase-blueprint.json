@@ -1,0 +1,129 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "User profile state and long-term memory summary document",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Authenticated user ID" },
+        "summary": { "type": "string", "description": "Running long-term memory summary (<2000 tokens)" },
+        "lastUpdated": { "type": "string", "description": "ISO timestamp of last summary update" },
+        "keyThemes": { "type": "array", "description": "Recurring personal themes and values", "items": { "type": "string" } },
+        "totalEntriesAnalyzed": { "type": "number", "description": "Count of entries synthesized" }
+      },
+      "required": ["userId", "summary", "lastUpdated"]
+    },
+    "JournalEntry": {
+      "title": "Journal Entry",
+      "description": "User's private reflective journal entry and Gemini dialogue turns with sentiment indicator",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique entry identifier" },
+        "userId": { "type": "string", "description": "Owner UID" },
+        "title": { "type": "string", "description": "Title of reflection" },
+        "content": { "type": "string", "description": "User's written journal thoughts" },
+        "mood": { "type": "string", "description": "User selected mood tag" },
+        "tags": { "type": "array", "description": "Topic tags", "items": { "type": "string" } },
+        "conversation": { "type": "array", "description": "Dialogue history", "items": { "type": "object" } },
+        "reflectionSummary": { "type": "string", "description": "Summary of AI reflection" },
+        "sentiment": {
+          "type": "object",
+          "description": "Gemini-derived sentiment analysis containing emoji, color classification, tone, and score",
+          "properties": {
+            "label": { "type": "string", "description": "Sentiment label (e.g. Uplifting, Reflective, Heavy, Grounded)" },
+            "emoji": { "type": "string", "description": "Visual sentiment emoji (e.g. ✨, 🌿, 🌊, 🌤️, 🌧️)" },
+            "color": { "type": "string", "description": "Color code / tone identifier (e.g. emerald, indigo, amber, rose, sky, purple)" },
+            "score": { "type": "number", "description": "Sentiment resonance score from 1 to 100" },
+            "summary": { "type": "string", "description": "1-sentence psychological sentiment summary" }
+          },
+          "required": ["label", "emoji", "color"]
+        },
+        "createdAt": { "type": "string", "description": "ISO creation timestamp" },
+        "updatedAt": { "type": "string", "description": "ISO update timestamp" },
+        "wordCount": { "type": "number", "description": "Word count" }
+      },
+      "required": ["id", "userId", "title", "content", "mood", "createdAt"]
+    },
+    "InsightReport": {
+      "title": "Insight Report",
+      "description": "Synthesized pattern and emotional trajectory report",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique insight ID" },
+        "userId": { "type": "string", "description": "Owner UID" },
+        "overallMoodTrend": { "type": "string", "description": "Emotional trajectory headline" },
+        "primaryMood": { "type": "string", "description": "Dominant sentiment category" },
+        "themes": { "type": "array", "description": "Thematic analysis", "items": { "type": "object" } },
+        "notableShift": { "type": "string", "description": "Identified cognitive or perspective shift" },
+        "suggestion": { "type": "string", "description": "Actionable journaling prompt" },
+        "sentimentDistribution": { "type": "object", "description": "Percentages of emotional polarities" },
+        "generatedAt": { "type": "string", "description": "ISO timestamp" },
+        "entriesAnalyzedCount": { "type": "number", "description": "Count of entries analyzed" }
+      },
+      "required": ["id", "userId", "overallMoodTrend", "primaryMood", "generatedAt"]
+    },
+    "ProactiveNudge": {
+      "title": "Proactive Nudge",
+      "description": "Gentle check-in prompt generated asynchronously by scheduled agent",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique nudge ID" },
+        "userId": { "type": "string", "description": "Owner UID" },
+        "title": { "type": "string", "description": "Short nudge title" },
+        "message": { "type": "string", "description": "Empathetic check-in message" },
+        "suggestedPrompt": { "type": "string", "description": "Recommended starting question" },
+        "topicTag": { "type": "string", "description": "Topic tag" },
+        "status": { "type": "string", "description": "unread or dismissed" },
+        "createdAt": { "type": "string", "description": "ISO creation timestamp" }
+      },
+      "required": ["id", "userId", "title", "message", "createdAt"]
+    }
+  },
+  "firestore": {
+    "structure": [
+      {
+        "collection": "users",
+        "document": "{userId}",
+        "description": "User root document",
+        "subcollections": [
+          {
+            "collection": "entries",
+            "document": "{entryId}",
+            "description": "User journal entries with Gemini sentiment & dialogue",
+            "security": {
+              "read": "request.auth.uid == userId",
+              "write": "request.auth.uid == userId"
+            }
+          },
+          {
+            "collection": "profile",
+            "document": "summary",
+            "description": "Long-term user memory summary",
+            "security": {
+              "read": "request.auth.uid == userId",
+              "write": "request.auth.uid == userId"
+            }
+          },
+          {
+            "collection": "insights",
+            "document": "{insightId}",
+            "description": "On-demand structured insight reports",
+            "security": {
+              "read": "request.auth.uid == userId",
+              "write": "request.auth.uid == userId"
+            }
+          },
+          {
+            "collection": "nudges",
+            "document": "{nudgeId}",
+            "description": "Proactive agentic check-in nudges",
+            "security": {
+              "read": "request.auth.uid == userId",
+              "write": "request.auth.uid == userId"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

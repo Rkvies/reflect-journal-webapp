@@ -247,7 +247,7 @@ export function subscribeToNudges(uid: string, callback: (nudges: ProactiveNudge
     const list: ProactiveNudge[] = [];
     snap.forEach((d) => {
       const data = d.data() as ProactiveNudge;
-      if (!data.isDismissed) {
+      if (!data.isDismissed && !data.dismissed) {
         list.push(data);
       }
     });
@@ -263,7 +263,11 @@ export function subscribeToNudges(uid: string, callback: (nudges: ProactiveNudge
 export async function dismissNudge(uid: string, nudgeId: string): Promise<void> {
   if (!uid) return;
   const nudgeRef = doc(db, 'users', uid, 'nudges', nudgeId);
-  await updateDoc(nudgeRef, { isDismissed: true });
+  await updateDoc(nudgeRef, {
+    isDismissed: true,
+    dismissed: true,
+    dismissedAt: new Date().toISOString()
+  });
 }
 
 /**

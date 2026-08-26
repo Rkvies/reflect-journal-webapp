@@ -199,7 +199,9 @@ export const WeeklyReflectionCard: React.FC<WeeklyReflectionCardProps> = ({
           </span>
           <span className="text-slate-300 dark:text-slate-700">•</span>
           <span className="text-[11px] text-slate-500 dark:text-slate-400 font-sans">
-            {summary.entryCount} reflections
+            {summary.entryCount < recent7DayEntries.length
+              ? `Recap of ${summary.entryCount} of ${recent7DayEntries.length} entries this week`
+              : `${summary.entryCount} ${summary.entryCount === 1 ? 'reflection' : 'reflections'} this week`}
           </span>
         </div>
 

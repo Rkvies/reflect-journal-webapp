@@ -592,7 +592,7 @@ Provide an insightful, nuanced assessment in JSON format with:
     res.json({
       insight: insightData,
       generatedAt: new Date().toISOString(),
-      entriesAnalyzedCount: entries.length,
+      entriesAnalyzedCount: candidateEntries.length,
     });
   } catch (error: any) {
     console.error('Error in /api/journal/generate-insights:', error);

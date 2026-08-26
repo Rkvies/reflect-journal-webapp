@@ -23,6 +23,7 @@ import Markdown from 'react-markdown';
 import { JournalEntry, MoodType, EntrySentiment } from '../types';
 import { deleteJournalEntry, updateJournalEntryContent, saveJournalEntry } from '../lib/firebase';
 import { analyzeEntrySentiment } from '../lib/api';
+import { ConfidenceTooltip } from './ConfidenceTooltip';
 
 interface EntryHistoryProps {
   userId: string;
@@ -496,7 +497,9 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                             <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-current" />
                             <span>{entry.sentiment.emoji}</span>
                             <span>{entry.sentiment.label}</span>
-                            <span className="text-[10px] opacity-75 font-mono">({entry.sentiment.score}%)</span>
+                            <ConfidenceTooltip explanation="Gemini's estimated confidence based on language and sentiment in this entry.">
+                              <span className="text-[10px] opacity-75 font-mono">({entry.sentiment.score}%)</span>
+                            </ConfidenceTooltip>
                           </div>
                         ) : (
                           <button
@@ -610,7 +613,11 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                           <div className="flex items-center gap-3 bg-white/80 dark:bg-slate-800 px-3.5 py-1.5 rounded-xl border border-slate-200/80 dark:border-slate-700 shadow-2xs">
                             <div className="text-right">
                               <div className="text-[10px] text-slate-400 dark:text-slate-400 font-mono uppercase">Harmonic Score</div>
-                              <div className="text-xs font-bold font-mono text-slate-800 dark:text-white">{entry.sentiment.score}/100</div>
+                              <div className="text-xs font-bold font-mono text-slate-800 dark:text-white flex items-center justify-end">
+                                <ConfidenceTooltip explanation="Gemini's estimated confidence based on language and sentiment in this entry.">
+                                  <span>{entry.sentiment.score}/100</span>
+                                </ConfidenceTooltip>
+                              </div>
                             </div>
                             <div className="w-16 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
                               <div 

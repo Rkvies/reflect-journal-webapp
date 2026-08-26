@@ -512,15 +512,15 @@ export const JournalChat: React.FC<JournalChatProps> = ({
         </div>
 
         {/* Mood & Tags Bar (Clean and Muted) */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-1 text-xs">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pt-1 text-xs">
           {/* Mood Selector Chips */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+          <div className="flex flex-wrap items-center gap-1.5 py-0.5 max-w-full">
             {MOODS.map((m) => (
               <button
                 key={m.type}
                 type="button"
                 onClick={() => setSelectedMood(m.type)}
-                className={`px-2.5 py-1 rounded-xl text-xs font-medium flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
+                className={`px-2.5 py-1 rounded-xl text-xs font-medium flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 transition-all cursor-pointer ${
                   selectedMood === m.type
                     ? 'bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 font-semibold ring-1 ring-indigo-300 dark:ring-indigo-700'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/80'
@@ -533,7 +533,7 @@ export const JournalChat: React.FC<JournalChatProps> = ({
           </div>
 
           {/* Tags */}
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex items-center gap-1.5 flex-wrap flex-shrink-0 pt-0.5">
             {Array.from(new Set(tags)).map((t, idx) => (
               <span
                 key={`${t}-${idx}`}

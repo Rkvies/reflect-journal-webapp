@@ -152,7 +152,7 @@ export default function App() {
       const list: ProactiveNudge[] = [];
       snapshot.forEach((docSnap) => {
         const data = docSnap.data();
-        if (!data.dismissed) {
+        if (!data.dismissed && !data.isDismissed) {
           list.push({ id: docSnap.id, ...data } as ProactiveNudge);
         }
       });
@@ -192,6 +192,8 @@ export default function App() {
 
   const handleDismissNudge = async (nudgeId: string) => {
     if (!currentUser?.uid) return;
+    // Optimistically update local state so banner disappears immediately
+    setNudges((prev) => prev.filter((n) => n.id !== nudgeId));
     try {
       await dismissNudge(currentUser.uid, nudgeId);
     } catch (err) {

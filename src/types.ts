@@ -76,6 +76,8 @@ export interface ProactiveNudge {
   topicTag: string;
   createdAt: string;
   isDismissed?: boolean;
+  dismissed?: boolean;
+  dismissedAt?: string;
   source?: string;
 }
 

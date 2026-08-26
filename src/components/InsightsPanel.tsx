@@ -13,6 +13,7 @@ import {
 import { JournalEntry, ProfileSummary, InsightReport } from '../types';
 import { requestInsights } from '../lib/api';
 import { saveInsightReport } from '../lib/firebase';
+import { ConfidenceTooltip } from './ConfidenceTooltip';
 
 interface InsightsPanelProps {
   userId: string;
@@ -142,7 +143,11 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
                   <TrendingUp className="w-4 h-4" />
                   <span>Emotional Trajectory</span>
                 </span>
-                <span>Analyzed {latestInsight.entriesAnalyzedCount} reflections</span>
+                <span>
+                  {entries.length > latestInsight.entriesAnalyzedCount
+                    ? `Analyzed ${latestInsight.entriesAnalyzedCount} of ${entries.length} reflections`
+                    : `Analyzed ${latestInsight.entriesAnalyzedCount} reflections`}
+                </span>
               </div>
 
               <h3 className="text-base sm:text-lg font-serif font-semibold text-slate-900 dark:text-white leading-snug">
@@ -168,7 +173,9 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
                 <div>
                   <div className="flex justify-between text-slate-600 dark:text-slate-400 mb-1">
                     <span>Uplifting</span>
-                    <span className="font-mono">{latestInsight.sentimentDistribution?.positive || 35}%</span>
+                    <ConfidenceTooltip explanation="Gemini's estimated confidence based on language and sentiment in this entry.">
+                      <span className="font-mono">{latestInsight.sentimentDistribution?.positive || 35}%</span>
+                    </ConfidenceTooltip>
                   </div>
                   <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                     <div
@@ -181,7 +188,9 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
                 <div>
                   <div className="flex justify-between text-slate-600 dark:text-slate-400 mb-1">
                     <span>Reflective</span>
-                    <span className="font-mono">{latestInsight.sentimentDistribution?.reflective || 40}%</span>
+                    <ConfidenceTooltip explanation="Gemini's estimated confidence based on language and sentiment in this entry.">
+                      <span className="font-mono">{latestInsight.sentimentDistribution?.reflective || 40}%</span>
+                    </ConfidenceTooltip>
                   </div>
                   <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                     <div
@@ -194,7 +203,9 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
                 <div>
                   <div className="flex justify-between text-slate-600 dark:text-slate-400 mb-1">
                     <span>Tension / Challenge</span>
-                    <span className="font-mono">{latestInsight.sentimentDistribution?.challenging || 25}%</span>
+                    <ConfidenceTooltip explanation="Gemini's estimated confidence based on language and sentiment in this entry.">
+                      <span className="font-mono">{latestInsight.sentimentDistribution?.challenging || 25}%</span>
+                    </ConfidenceTooltip>
                   </div>
                   <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                     <div
@@ -227,7 +238,9 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-sm font-semibold font-serif text-slate-900 dark:text-white">{th.name}</span>
                         <span className="text-xs font-medium text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800">
-                          {th.score}% resonance
+                          <ConfidenceTooltip explanation="Gemini's estimated confidence based on language and sentiment in this entry.">
+                            <span>{th.score}% resonance</span>
+                          </ConfidenceTooltip>
                         </span>
                       </div>
 

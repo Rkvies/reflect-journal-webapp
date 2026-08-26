@@ -19,7 +19,8 @@ import {
   ChatTurn, 
   MoodType, 
   ProfileSummary,
-  ProactiveNudge
+  ProactiveNudge,
+  EntrySentiment
 } from '../types';
 import { streamGeminiReflection, triggerMemoryUpdate, analyzeEntrySentiment } from '../lib/api';
 import { saveJournalEntry } from '../lib/firebase';
@@ -99,6 +100,22 @@ export const JournalChat: React.FC<JournalChatProps> = ({
   const [currentEntryId, setCurrentEntryId] = useState<string>(() => 'entry_' + Date.now());
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const [activeStarters, setActiveStarters] = useState<WritingStarter[]>(() => getRandomStarters(3));
+  const [loadingStage, setLoadingStage] = useState<number>(0);
+
+  // Progressive loading status updates during reflection synthesis
+  useEffect(() => {
+    if (isLoading && (!streamingReply || streamingReply === '')) {
+      setLoadingStage(0);
+      const t1 = setTimeout(() => setLoadingStage(1), 1100);
+      const t2 = setTimeout(() => setLoadingStage(2), 2400);
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
+    } else {
+      setLoadingStage(0);
+    }
+  }, [isLoading, streamingReply]);
 
   // Calculate daily reflection streak from recentEntries
   const streakCount = useMemo(() => {
@@ -312,7 +329,10 @@ export const JournalChat: React.FC<JournalChatProps> = ({
   const handleStopStreaming = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
+      abortControllerRef.current = null;
     }
+    setIsLoading(false);
+    setStreamingReply(null);
   };
 
   const handleSendThought = async () => {
@@ -349,9 +369,15 @@ export const JournalChat: React.FC<JournalChatProps> = ({
         conversationHistory: newHistory,
         signal: controller.signal,
         onChunk: (_chunk, accumulated) => {
-          setStreamingReply(accumulated);
+          if (!controller.signal.aborted) {
+            setStreamingReply(accumulated);
+          }
         },
       });
+
+      if (controller.signal.aborted) {
+        return;
+      }
 
       const assistantTurn: ChatTurn = {
         id: 'turn_' + (Date.now() + 1),
@@ -364,13 +390,16 @@ export const JournalChat: React.FC<JournalChatProps> = ({
       setConversation(finalHistory);
       setStreamingReply(null);
       abortControllerRef.current = null;
+      setIsLoading(false);
 
       await persistEntry(finalHistory);
     } catch (err: any) {
-      if (err?.name === 'AbortError') {
-        console.log('Stream generation aborted by user');
+      if (err?.name === 'AbortError' || controller.signal.aborted) {
+        console.log('Stream generation halted by user');
         setStreamingReply(null);
         abortControllerRef.current = null;
+        setIsLoading(false);
+        // Persist only the user's reflection turns without saving broken/partial text
         await persistEntry(newHistory);
         return;
       }
@@ -378,6 +407,7 @@ export const JournalChat: React.FC<JournalChatProps> = ({
       console.error('Error generating streamed reflection:', err);
       setStreamingReply(null);
       abortControllerRef.current = null;
+      setIsLoading(false);
 
       const isHighDemand = err?.message?.includes('503') || err?.message?.includes('high demand');
       const errorMsg = isHighDemand
@@ -412,22 +442,25 @@ export const JournalChat: React.FC<JournalChatProps> = ({
         .map(t => t.text)
         .join('\n\n');
 
-      let derivedSentiment = undefined;
-      try {
-        if (fullContent.trim().length > 10) {
-          const sentRes = await analyzeEntrySentiment({
-            title: title.trim() || 'Untitled Reflection',
-            content: fullContent,
-            conversation: chatTurns,
-            mood: selectedMood,
-          });
-          if (sentRes && sentRes.sentiment) {
-            derivedSentiment = sentRes.sentiment;
-          }
-        }
-      } catch (sentimentErr) {
-        console.warn('Silent fallback for sentiment derivation:', sentimentErr);
-      }
+      // Immediate heuristic sentiment based on self-reported mood
+      const moodSentimentMap: Record<MoodType, EntrySentiment> = {
+        peaceful: { label: 'Quiet Peace', emoji: '🌿', color: 'emerald', score: 85, summary: 'A calm, serene state of inner equilibrium and clarity.' },
+        reflective: { label: 'Deeply Introspective', emoji: '🌌', color: 'indigo', score: 75, summary: 'Thoughtful exploration of personal perspectives and themes.' },
+        optimistic: { label: 'Heartfelt Optimism', emoji: '☀️', color: 'amber', score: 90, summary: 'Hopeful anticipation and positive forward momentum.' },
+        grounded: { label: 'Solid & Centered', emoji: '⛰️', color: 'teal', score: 85, summary: 'Anchored presence and steady internal grounding.' },
+        seeking_clarity: { label: 'Seeking Perspective', emoji: '🧭', color: 'sky', score: 70, summary: 'Navigating uncertainty with mindful curiosity.' },
+        anxious: { label: 'Tender & Processing', emoji: '🌧️', color: 'rose', score: 45, summary: 'Working gently through underlying tension and vulnerability.' },
+        fatigued: { label: 'Resting & Restoring', emoji: '🌙', color: 'purple', score: 40, summary: 'Honoring tiredness and creating space to recharge.' },
+        energized: { label: 'Energized & Focused', emoji: '⚡', color: 'teal', score: 88, summary: 'High vitality, creative momentum, and proactive intent.' },
+      };
+
+      const defaultSentiment: EntrySentiment = moodSentimentMap[selectedMood] || {
+        label: 'Reflective Thought',
+        emoji: '🧘',
+        color: 'indigo',
+        score: 75,
+        summary: 'A mindful moment of conscious personal reflection.',
+      };
 
       const entry: JournalEntry = {
         id: currentEntryId,
@@ -438,17 +471,35 @@ export const JournalChat: React.FC<JournalChatProps> = ({
         tags,
         conversation: chatTurns,
         reflectionSummary: fullReflection.slice(0, 500),
-        sentiment: derivedSentiment,
+        sentiment: defaultSentiment,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         wordCount: fullContent.split(/\s+/).filter(Boolean).length,
       };
 
+      // Save to Firestore immediately without blocking on secondary AI calls
       await saveJournalEntry(userId, entry);
       onEntrySaved(entry);
       setSaveStatus('Saved');
       setTimeout(() => setSaveStatus(null), 2500);
 
+      // Run background sentiment refinement asynchronously
+      if (fullContent.trim().length > 10) {
+        analyzeEntrySentiment({
+          title: entry.title,
+          content: fullContent,
+          conversation: chatTurns,
+          mood: selectedMood,
+        }).then(async (sentRes) => {
+          if (sentRes && sentRes.sentiment) {
+            const updatedEntry = { ...entry, sentiment: sentRes.sentiment, updatedAt: new Date().toISOString() };
+            await saveJournalEntry(userId, updatedEntry);
+            onEntrySaved(updatedEntry);
+          }
+        }).catch(err => console.warn('Background sentiment analysis non-blocking error:', err));
+      }
+
+      // Run background memory summary update asynchronously
       triggerMemoryUpdate({
         existingSummary: profileSummary?.summary || '',
         newEntryTitle: entry.title,
@@ -617,16 +668,24 @@ export const JournalChat: React.FC<JournalChatProps> = ({
             );
           })}
 
-          {/* Loading state before streaming chunks */}
+          {/* Progressive Loading state before streaming chunks */}
           {isLoading && (!streamingReply || streamingReply === '') && (
             <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 text-slate-800 dark:text-slate-100 mr-4 sm:mr-8 shadow-sm animate-fade-in space-y-2">
               <div className="flex items-center justify-between text-xs text-slate-400 dark:text-slate-500">
                 <span className="font-semibold text-slate-700 dark:text-slate-300 font-serif">Reflect</span>
-                <span className="text-[11px] font-mono">Reflecting...</span>
+                <span className="text-[11px] font-mono text-indigo-600 dark:text-indigo-400">
+                  {loadingStage === 0 ? 'Loading context...' : loadingStage === 1 ? 'Holding space...' : 'Synthesizing...'}
+                </span>
               </div>
               <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 py-1">
-                <span className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-400 animate-pulse" />
-                <span className="italic">Synthesizing context and holding space...</span>
+                <span className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-400 animate-pulse flex-shrink-0" />
+                <span className="italic">
+                  {loadingStage === 0
+                    ? 'Loading your journal context and recency memory...'
+                    : loadingStage === 1
+                    ? 'Synthesizing mindful reflection with Gemini...'
+                    : 'Holding space and streaming reflection...'}
+                </span>
               </div>
             </div>
           )}

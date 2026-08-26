@@ -43,50 +43,79 @@ interface GeminiCallParams {
   config?: any;
   fallbackModels?: string[];
   maxRetries?: number;
+  timeoutMs?: number;
 }
 
 /**
- * Resilient Gemini generator with exponential backoff for 503 (high demand) / 429 and model fallbacks.
+ * Promise timeout wrapper to prevent any backend request from hanging indefinitely.
+ */
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number = 15000, timeoutMsg = 'Operation timed out'): Promise<T> {
+  let timer: NodeJS.Timeout;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      const err = new Error(timeoutMsg);
+      err.name = 'TimeoutError';
+      reject(err);
+    }, timeoutMs);
+  });
+
+  return Promise.race([
+    promise.then((res) => {
+      clearTimeout(timer);
+      return res;
+    }),
+    timeoutPromise,
+  ]);
+}
+
+/**
+ * Resilient Gemini generator with immediate model fallbacks on 503 (high demand), 429, 404, or timeouts.
  */
 async function generateContentWithRetry(params: GeminiCallParams) {
   const ai = getGeminiClient();
-  const primaryModel = params.model || 'gemini-3.7-flash';
-  const fallbackModels = params.fallbackModels || ['gemini-3.6-flash', 'gemini-2.5-flash'];
-  const modelsToTry = [primaryModel, ...fallbackModels.filter(m => m !== primaryModel)];
-  const maxRetries = params.maxRetries ?? 3;
+  const primaryModel = params.model || 'gemini-3.6-flash';
+  const fallbackModels = params.fallbackModels || ['gemini-3.6-flash', 'gemini-3.7-flash'];
+  const modelsToTry = Array.from(new Set([primaryModel, ...fallbackModels]));
+  const perModelTimeout = params.timeoutMs || 12000;
 
   let lastError: any = null;
 
   for (const model of modelsToTry) {
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        const response = await ai.models.generateContent({
+    try {
+      const response = await withTimeout(
+        ai.models.generateContent({
           model,
           contents: params.contents,
           config: params.config,
-        });
-        return response;
-      } catch (err: any) {
-        lastError = err;
-        const errMessage = err?.message || String(err);
-        const isTransient =
-          err?.status === 503 ||
-          err?.code === 503 ||
-          errMessage.includes('503') ||
-          errMessage.includes('429') ||
-          errMessage.includes('high demand') ||
-          errMessage.includes('UNAVAILABLE') ||
-          errMessage.includes('RESOURCE_EXHAUSTED');
+        }),
+        perModelTimeout,
+        `Gemini call to ${model} timed out after ${perModelTimeout}ms`
+      );
+      return response;
+    } catch (err: any) {
+      lastError = err;
+      const errMessage = err?.message || String(err);
+      const isRetriable =
+        err?.name === 'TimeoutError' ||
+        err?.status === 503 ||
+        err?.code === 503 ||
+        err?.status === 404 ||
+        err?.code === 404 ||
+        errMessage.includes('timed out') ||
+        errMessage.includes('503') ||
+        errMessage.includes('404') ||
+        errMessage.includes('high demand') ||
+        errMessage.includes('UNAVAILABLE') ||
+        errMessage.includes('RESOURCE_EXHAUSTED') ||
+        errMessage.includes('NOT_FOUND');
 
-        console.warn(`[Gemini API] model=${model} attempt=${attempt}/${maxRetries} failed:`, errMessage);
+      console.warn(`[Gemini API] model=${model} attempt failed (${errMessage}). Trying fallback...`);
 
-        if (isTransient && attempt < maxRetries) {
-          const delayMs = attempt * 1000 + Math.floor(Math.random() * 500);
-          await new Promise((res) => setTimeout(res, delayMs));
-          continue;
-        }
-        break; // try next model
+      if (isRetriable) {
+        continue;
       }
+
+      await new Promise((res) => setTimeout(res, 200));
     }
   }
 
@@ -94,47 +123,53 @@ async function generateContentWithRetry(params: GeminiCallParams) {
 }
 
 /**
- * Resilient Gemini stream generator with exponential backoff and model fallbacks.
+ * Resilient Gemini stream generator with immediate model fallbacks on 503 (high demand), 429, 404, or timeouts.
  */
 async function generateContentStreamWithRetry(params: GeminiCallParams) {
   const ai = getGeminiClient();
-  const primaryModel = params.model || 'gemini-3.7-flash';
-  const fallbackModels = params.fallbackModels || ['gemini-3.6-flash', 'gemini-2.5-flash'];
-  const modelsToTry = [primaryModel, ...fallbackModels.filter(m => m !== primaryModel)];
-  const maxRetries = params.maxRetries ?? 2;
+  const primaryModel = params.model || 'gemini-3.6-flash';
+  const fallbackModels = params.fallbackModels || ['gemini-3.6-flash', 'gemini-3.7-flash'];
+  const modelsToTry = Array.from(new Set([primaryModel, ...fallbackModels]));
+  const perModelTimeout = params.timeoutMs || 10000;
 
   let lastError: any = null;
 
   for (const model of modelsToTry) {
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        const stream = await ai.models.generateContentStream({
+    try {
+      const stream = await withTimeout(
+        ai.models.generateContentStream({
           model,
           contents: params.contents,
           config: params.config,
-        });
-        return stream;
-      } catch (err: any) {
-        lastError = err;
-        const errMessage = err?.message || String(err);
-        const isTransient =
-          err?.status === 503 ||
-          err?.code === 503 ||
-          errMessage.includes('503') ||
-          errMessage.includes('429') ||
-          errMessage.includes('high demand') ||
-          errMessage.includes('UNAVAILABLE') ||
-          errMessage.includes('RESOURCE_EXHAUSTED');
+        }),
+        perModelTimeout,
+        `Gemini stream initialization on ${model} timed out after ${perModelTimeout}ms`
+      );
+      return stream;
+    } catch (err: any) {
+      lastError = err;
+      const errMessage = err?.message || String(err);
+      const isRetriable =
+        err?.name === 'TimeoutError' ||
+        err?.status === 503 ||
+        err?.code === 503 ||
+        err?.status === 404 ||
+        err?.code === 404 ||
+        errMessage.includes('timed out') ||
+        errMessage.includes('503') ||
+        errMessage.includes('404') ||
+        errMessage.includes('high demand') ||
+        errMessage.includes('UNAVAILABLE') ||
+        errMessage.includes('RESOURCE_EXHAUSTED') ||
+        errMessage.includes('NOT_FOUND');
 
-        console.warn(`[Gemini Stream API] model=${model} attempt=${attempt}/${maxRetries} failed:`, errMessage);
+      console.warn(`[Gemini Stream API] model=${model} failed (${errMessage}). Trying fallback...`);
 
-        if (isTransient && attempt < maxRetries) {
-          const delayMs = attempt * 800 + Math.floor(Math.random() * 400);
-          await new Promise((res) => setTimeout(res, delayMs));
-          continue;
-        }
-        break;
+      if (isRetriable) {
+        continue;
       }
+
+      await new Promise((res) => setTimeout(res, 200));
     }
   }
 
@@ -163,7 +198,11 @@ app.post('/api/journal/chat-stream', async (req: Request, res: Response) => {
   res.setHeader('Cache-Control', 'no-cache, no-transform');
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no');
-  res.flushHeaders?.();
+  if (typeof res.flushHeaders === 'function') {
+    res.flushHeaders();
+  }
+  // Send immediate SSE connection handshake so client receives 200 OK without pending delay
+  res.write(': connected\n\n');
 
   let clientDisconnected = false;
   req.on('close', () => {
@@ -235,13 +274,14 @@ ${recentContextText}
 
     try {
       const stream = await generateContentStreamWithRetry({
-        model: 'gemini-3.7-flash',
+        model: 'gemini-3.6-flash',
         contents,
         config: {
           systemInstruction,
           temperature: 0.7,
           maxOutputTokens: 1000,
         },
+        timeoutMs: 12000,
       });
 
       let fullText = '';
@@ -258,12 +298,17 @@ ${recentContextText}
       }
 
       if (!clientDisconnected) {
-        res.write(`data: ${JSON.stringify({ text: '', done: true, fullText })}\n\n`);
+        if (!fullText) {
+          fullText = `Thank you for sharing your reflection. I'm holding space for this thought. Take a mindful breath, notice what feels most present right now, and give yourself space as you reflect.`;
+          res.write(`data: ${JSON.stringify({ text: fullText, done: true, fullText })}\n\n`);
+        } else {
+          res.write(`data: ${JSON.stringify({ text: '', done: true, fullText })}\n\n`);
+        }
         res.write('data: [DONE]\n\n');
         res.end();
       }
     } catch (apiErr: any) {
-      console.warn('Gemini chat stream unavailable, delivering mindful fallback:', apiErr?.message);
+      console.warn('Gemini chat stream unavailable or timed out, delivering mindful fallback:', apiErr?.message);
       if (!clientDisconnected) {
         const fallbackText = `Thank you for sharing your thoughts ("${cleanMessage.slice(0, 100)}..."). I'm holding space for this reflection. Take a mindful breath, notice what feels most present for you right now, and give yourself grace as you process today's experiences.`;
         res.write(`data: ${JSON.stringify({ text: fallbackText, done: true, fullText: fallbackText, isFallback: true })}\n\n`);
@@ -274,7 +319,7 @@ ${recentContextText}
   } catch (error: any) {
     console.error('Error in /api/journal/chat-stream:', error);
     if (!clientDisconnected) {
-      res.write(`data: ${JSON.stringify({ error: error?.message || 'Failed to stream response' })}\n\n`);
+      res.write(`data: ${JSON.stringify({ error: error?.message || 'Something went wrong, please try again.' })}\n\n`);
       res.end();
     }
   }
@@ -293,8 +338,6 @@ app.post('/api/journal/chat', async (req: Request, res: Response) => {
     if (!cleanMessage) {
       return res.status(400).json({ error: 'Message cannot be empty.' });
     }
-
-    const ai = getGeminiClient();
 
     // Format context from recent entries
     let recentContextText = 'No recent entries available.';
@@ -353,13 +396,14 @@ ${recentContextText}
     let replyText = 'I hear you. Take a deep breath and let those thoughts settle.';
     try {
       const response = await generateContentWithRetry({
-        model: 'gemini-3.7-flash',
+        model: 'gemini-3.6-flash',
         contents,
         config: {
           systemInstruction,
           temperature: 0.7,
           maxOutputTokens: 1000,
         },
+        timeoutMs: 12000,
       });
       replyText = response.text || replyText;
     } catch (apiErr: any) {
@@ -374,7 +418,7 @@ ${recentContextText}
   } catch (error: any) {
     console.error('Error in /api/journal/chat:', error);
     res.status(500).json({
-      error: error?.message || 'Failed to generate reflective response',
+      error: error?.message || 'Something went wrong, please try again.',
     });
   }
 });
@@ -396,7 +440,7 @@ app.post('/api/journal/update-profile', async (req: Request, res: Response) => {
 Update and refine the running user summary based on their latest journal entry and reflection.
 
 Requirements:
-1. Keep the total output concise (strictly under 1500 tokens).
+1. Keep the total output concise (strictly under 1000 tokens).
 2. Synthesize long-term themes (e.g. career changes, relationships, values, recurring stressors, coping mechanisms, creative projects).
 3. Do NOT create a full transcript or chronological log; create a structured, living psychological & thematic profile.
 4. Structure into sections:
@@ -415,16 +459,21 @@ AI Reflection: ${reflection}
 
 Output the updated summary in clear Markdown:`;
 
-    const response = await generateContentWithRetry({
-      model: 'gemini-3.7-flash',
-      contents: prompt,
-      config: {
-        temperature: 0.3,
-        maxOutputTokens: 1200,
-      },
-    });
-
-    const updatedSummary = response.text || currentMemory;
+    let updatedSummary = currentMemory;
+    try {
+      const response = await generateContentWithRetry({
+        model: 'gemini-3.6-flash',
+        contents: prompt,
+        config: {
+          temperature: 0.3,
+          maxOutputTokens: 800,
+        },
+        timeoutMs: 10000,
+      });
+      updatedSummary = response.text || currentMemory;
+    } catch (profileErr: any) {
+      console.warn('Profile summary generation error/timeout:', profileErr?.message);
+    }
 
     res.json({
       updatedSummary,
@@ -432,7 +481,10 @@ Output the updated summary in clear Markdown:`;
     });
   } catch (error: any) {
     console.error('Error in /api/journal/update-profile:', error);
-    res.status(500).json({ error: error?.message || 'Failed to update memory summary' });
+    res.status(200).json({ 
+      updatedSummary: req.body?.existingSummary || '', 
+      updatedAt: new Date().toISOString() 
+    });
   }
 });
 
@@ -489,7 +541,7 @@ Provide an insightful, nuanced assessment in JSON format with:
 - sentimentDistribution: Object containing integer percentages for positive (Uplifting), reflective, challenging (Tension), and neutral (Neutral / Unclassified). The sum of all four percentages MUST equal exactly 100%.`;
 
     const response = await generateContentWithRetry({
-      model: 'gemini-3.7-flash',
+      model: 'gemini-3.6-flash',
       contents: prompt,
       config: {
         responseMimeType: 'application/json',
@@ -542,6 +594,7 @@ Provide an insightful, nuanced assessment in JSON format with:
         },
         temperature: 0.4,
       },
+      timeoutMs: 15000,
     });
 
     let insightData: any;
@@ -714,7 +767,7 @@ Generate a structured JSON weekly recap with:
 6. "highlights": Array of 2-3 brief bullet strings of specific wins, meaningful reflections, or moments of presence from their entries.`;
 
     const response = await generateContentWithRetry({
-      model: 'gemini-3.7-flash',
+      model: 'gemini-3.6-flash',
       contents: prompt,
       config: {
         responseMimeType: 'application/json',
@@ -739,6 +792,7 @@ Generate a structured JSON weekly recap with:
         temperature: 0.4,
         maxOutputTokens: 1200,
       },
+      timeoutMs: 15000,
     });
 
     let recapData: any;
@@ -808,7 +862,7 @@ Rules:
    - topicTag: 1-2 words category`;
 
     const response = await generateContentWithRetry({
-      model: 'gemini-3.7-flash',
+      model: 'gemini-3.6-flash',
       contents: prompt,
       config: {
         responseMimeType: 'application/json',
@@ -823,6 +877,7 @@ Rules:
         },
         temperature: 0.7,
       },
+      timeoutMs: 10000,
     });
 
     const nudge = JSON.parse(response.text || '{}');
@@ -907,7 +962,7 @@ Generate a JSON object with:
 5. "summary": A single mindful sentence (max 20 words) characterizing the emotional essence of this entry.`;
 
     const response = await generateContentWithRetry({
-      model: 'gemini-3.7-flash',
+      model: 'gemini-3.6-flash',
       contents: prompt,
       config: {
         responseMimeType: 'application/json',
@@ -925,6 +980,7 @@ Generate a JSON object with:
         temperature: 0.3,
         maxOutputTokens: 600,
       },
+      timeoutMs: 8000,
     });
 
     const parsed = JSON.parse(response.text || '{}');

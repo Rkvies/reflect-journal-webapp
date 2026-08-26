@@ -1,51 +1,66 @@
 import React, { useState, useEffect } from 'react';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { 
-  auth, 
-  logOut, 
-  subscribeToEntries, 
-  subscribeToProfileSummary, 
-  subscribeToInsights, 
-  subscribeToNudges, 
-  subscribeToWeeklySummary,
-  dismissNudge,
-  saveNudge
-} from './lib/firebase';
+  collection, 
+  query, 
+  orderBy, 
+  onSnapshot, 
+  doc 
+} from 'firebase/firestore';
+import { auth, db } from './lib/firebase';
 import { 
+  AppUser, 
   JournalEntry, 
   ProfileSummary, 
   InsightReport, 
-  ProactiveNudge, 
-  WeeklyReflectionReport,
-  AppUser 
+  ProactiveNudge,
+  WeeklyReflectionReport 
 } from './types';
-import { requestAgenticNudge } from './lib/api';
 import { Navbar } from './components/Navbar';
 import { NudgeBanner } from './components/NudgeBanner';
-import { WeeklyReflectionCard } from './components/WeeklyReflectionCard';
 import { JournalChat } from './components/JournalChat';
 import { EntryHistory } from './components/EntryHistory';
 import { InsightsPanel } from './components/InsightsPanel';
+import { WeeklyReflectionCard } from './components/WeeklyReflectionCard';
 import { ProfileSummaryModal } from './components/ProfileSummaryModal';
 import { SecurityReviewModal } from './components/SecurityReviewModal';
 import { AuthLanding } from './components/AuthLanding';
+import { requestAgenticNudge } from './lib/api';
+import { saveNudge, dismissNudge } from './lib/firebase';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'journal' | 'history' | 'insights'>('journal');
+  
+  // Data State
+  const [entries, setEntries] = useState<JournalEntry[]>([]);
+  const [profileSummary, setProfileSummary] = useState<ProfileSummary | null>(null);
+  const [insights, setInsights] = useState<InsightReport[]>([]);
+  const [nudges, setNudges] = useState<ProactiveNudge[]>([]);
+  const [weeklySummary, setWeeklySummary] = useState<WeeklyReflectionReport | null>(null);
+
+  // Inspector Modals
+  const [isMemoryOpen, setIsMemoryOpen] = useState(false);
+  const [isSecurityOpen, setIsSecurityOpen] = useState(false);
+
+  // Cross-component triggers
+  const [prefillPrompt, setPrefillPrompt] = useState<{ prompt: string; tag: string } | null>(null);
+  const [targetEntryId, setTargetEntryId] = useState<string | null>(null);
+
+  // Theme Management
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('reflect_theme');
     if (saved === 'dark' || saved === 'light') return saved;
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   });
 
-  // Apply theme to document root
   useEffect(() => {
+    const root = document.documentElement;
     if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
+      root.classList.add('dark');
     } else {
-      document.documentElement.classList.remove('dark');
+      root.classList.remove('dark');
     }
     localStorage.setItem('reflect_theme', theme);
   }, [theme]);
@@ -54,41 +69,18 @@ export default function App() {
     setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
   };
 
-  // Firestore real-time collections
-  const [entries, setEntries] = useState<JournalEntry[]>([]);
-  const [profileSummary, setProfileSummary] = useState<ProfileSummary | null>(null);
-  const [insights, setInsights] = useState<InsightReport[]>([]);
-  const [nudges, setNudges] = useState<ProactiveNudge[]>([]);
-  const [weeklySummary, setWeeklySummary] = useState<WeeklyReflectionReport | null>(null);
-
-  // Modals
-  const [isMemoryOpen, setIsMemoryOpen] = useState(false);
-  const [isSecurityOpen, setIsSecurityOpen] = useState(false);
-
-  // Prefill state from Nudge or Insight suggestion
-  const [prefillPrompt, setPrefillPrompt] = useState<{ prompt: string; tag: string } | null>(null);
-
-  // Target entry highlight from Insights transparent reasoning link
-  const [targetEntryId, setTargetEntryId] = useState<string | null>(null);
-
-  // Monitor Firebase Auth State
+  // Firebase Auth State Listener
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user: User | null) => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setCurrentUser({
           uid: user.uid,
           email: user.email,
-          displayName: user.displayName || (user.isAnonymous ? 'Demo Reflect User' : user.email?.split('@')[0] || 'User'),
+          displayName: user.displayName,
           photoURL: user.photoURL,
-          isAnonymous: user.isAnonymous,
         });
       } else {
         setCurrentUser(null);
-        setEntries([]);
-        setProfileSummary(null);
-        setInsights([]);
-        setNudges([]);
-        setWeeklySummary(null);
       }
       setIsAuthLoading(false);
     });
@@ -96,28 +88,89 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Subscribe to user Firestore subcollections
+  // Real-time Firestore Subscriptions for authenticated user
   useEffect(() => {
-    if (!currentUser?.uid) return;
+    if (!currentUser?.uid) {
+      setEntries([]);
+      setProfileSummary(null);
+      setInsights([]);
+      setNudges([]);
+      setWeeklySummary(null);
+      return;
+    }
 
-    const unsubEntries = subscribeToEntries(currentUser.uid, (data) => {
-      setEntries(data);
+    const uid = currentUser.uid;
+
+    // 1. users/{uid}/entries listener
+    const entriesQuery = query(
+      collection(db, 'users', uid, 'entries'),
+      orderBy('createdAt', 'desc')
+    );
+    const unsubEntries = onSnapshot(entriesQuery, (snapshot) => {
+      const list: JournalEntry[] = [];
+      snapshot.forEach((docSnap) => {
+        list.push({ id: docSnap.id, ...docSnap.data() } as JournalEntry);
+      });
+      setEntries(list);
+    }, (err) => {
+      console.warn('Entries subscription notice:', err.message);
     });
 
-    const unsubSummary = subscribeToProfileSummary(currentUser.uid, (data) => {
-      setProfileSummary(data);
+    // 2. users/{uid}/profile/summary listener
+    const summaryDocRef = doc(db, 'users', uid, 'profile', 'summary');
+    const unsubSummary = onSnapshot(summaryDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setProfileSummary({ id: docSnap.id, ...docSnap.data() } as unknown as ProfileSummary);
+      } else {
+        setProfileSummary(null);
+      }
+    }, (err) => {
+      console.warn('Profile summary subscription notice:', err.message);
     });
 
-    const unsubInsights = subscribeToInsights(currentUser.uid, (data) => {
-      setInsights(data);
+    // 3. users/{uid}/insights listener
+    const insightsQuery = query(
+      collection(db, 'users', uid, 'insights'),
+      orderBy('generatedAt', 'desc')
+    );
+    const unsubInsights = onSnapshot(insightsQuery, (snapshot) => {
+      const list: InsightReport[] = [];
+      snapshot.forEach((docSnap) => {
+        list.push({ id: docSnap.id, ...docSnap.data() } as InsightReport);
+      });
+      setInsights(list);
+    }, (err) => {
+      console.warn('Insights subscription notice:', err.message);
     });
 
-    const unsubNudges = subscribeToNudges(currentUser.uid, (data) => {
-      setNudges(data);
+    // 4. users/{uid}/nudges listener
+    const nudgesQuery = query(
+      collection(db, 'users', uid, 'nudges'),
+      orderBy('createdAt', 'desc')
+    );
+    const unsubNudges = onSnapshot(nudgesQuery, (snapshot) => {
+      const list: ProactiveNudge[] = [];
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        if (!data.dismissed) {
+          list.push({ id: docSnap.id, ...data } as ProactiveNudge);
+        }
+      });
+      setNudges(list);
+    }, (err) => {
+      console.warn('Nudges subscription notice:', err.message);
     });
 
-    const unsubWeekly = subscribeToWeeklySummary(currentUser.uid, (data) => {
-      setWeeklySummary(data);
+    // 5. users/{uid}/weeklySummary listener
+    const weeklyDocRef = doc(db, 'users', uid, 'profile', 'weeklySummary');
+    const unsubWeekly = onSnapshot(weeklyDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setWeeklySummary({ id: docSnap.id, ...docSnap.data() } as WeeklyReflectionReport);
+      } else {
+        setWeeklySummary(null);
+      }
+    }, (err) => {
+      console.warn('Weekly summary subscription notice:', err.message);
     });
 
     return () => {
@@ -131,9 +184,9 @@ export default function App() {
 
   const handleSignOut = async () => {
     try {
-      await logOut();
-    } catch (err) {
-      console.error('Sign out error:', err);
+      await signOut(auth);
+    } catch (error) {
+      console.error('Sign out error:', error);
     }
   };
 
@@ -142,7 +195,7 @@ export default function App() {
     try {
       await dismissNudge(currentUser.uid, nudgeId);
     } catch (err) {
-      console.error('Dismiss nudge error:', err);
+      console.error('Failed to dismiss nudge:', err);
     }
   };
 
@@ -173,14 +226,12 @@ export default function App() {
 
   if (isAuthLoading) {
     return (
-      <div className="min-h-screen bg-slate-100/80 flex items-center justify-center text-slate-500 font-mono text-xs relative overflow-hidden">
-        <div className="absolute top-1/4 left-1/3 w-96 h-96 bg-indigo-200/50 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-1/4 right-1/3 w-96 h-96 bg-amber-100/60 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 glass-panel p-8 rounded-3xl flex flex-col items-center gap-3 shadow-xl">
-          <div className="w-10 h-10 rounded-2xl bg-indigo-600/10 border border-indigo-500/20 animate-pulse flex items-center justify-center text-indigo-700 font-serif text-lg font-bold shadow-inner">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center text-slate-500 font-sans text-xs">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-9 h-9 rounded-2xl bg-indigo-600/10 border border-indigo-500/20 animate-pulse flex items-center justify-center text-indigo-600 font-serif text-base font-bold">
             R
           </div>
-          <span className="text-slate-600 font-medium font-sans">Authenticating Reflect session...</span>
+          <span className="text-slate-500 dark:text-slate-400 font-medium">Loading Reflect...</span>
         </div>
       </div>
     );
@@ -193,13 +244,8 @@ export default function App() {
   const activeNudge = nudges.length > 0 ? nudges[0] : null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/30 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-slate-800 dark:text-slate-100 flex flex-col relative selection:bg-indigo-500/20 selection:text-indigo-900 dark:selection:text-indigo-200 overflow-x-hidden transition-colors duration-200">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col selection:bg-indigo-500/20 selection:text-indigo-900 dark:selection:text-indigo-200 transition-colors duration-200">
       
-      {/* Ambient background glows for realistic frosted glass refraction */}
-      <div className="fixed top-[-10%] left-[-5%] w-[45vw] h-[45vw] bg-indigo-200/40 dark:bg-indigo-950/30 rounded-full blur-3xl pointer-events-none -z-10" />
-      <div className="fixed top-[30%] right-[-10%] w-[40vw] h-[40vw] bg-amber-100/50 dark:bg-amber-950/20 rounded-full blur-3xl pointer-events-none -z-10" />
-      <div className="fixed bottom-[-10%] left-[20%] w-[50vw] h-[40vw] bg-sky-100/40 dark:bg-sky-950/20 rounded-full blur-3xl pointer-events-none -z-10" />
-
       {/* Top Navigation */}
       <Navbar
         user={currentUser}
@@ -221,28 +267,14 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
+      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-10">
         
-        {/* Your Week in Reflection Summary Card (Prominently featured on Dashboard & Insights) */}
-        {(activeTab === 'journal' || activeTab === 'insights') && (
-          <WeeklyReflectionCard
-            userId={currentUser.uid}
-            entries={entries}
-            profileSummary={profileSummary}
-            cachedWeeklySummary={weeklySummary}
-            onStartEntry={() => setActiveTab('journal')}
-            onReflectOnPrompt={(prompt, tag) => {
-              handleReflectOnPrompt(prompt, tag);
-            }}
-          />
-        )}
-
         {activeTab === 'journal' && (
           <JournalChat
             userId={currentUser.uid}
             profileSummary={profileSummary}
             recentEntries={entries}
-            onEntrySaved={(savedEntry) => {
+            onEntrySaved={(_savedEntry) => {
               // Real-time listener automatically updates list
             }}
             prefillPrompt={prefillPrompt}
@@ -268,44 +300,59 @@ export default function App() {
         )}
 
         {activeTab === 'insights' && (
-          <InsightsPanel
-            userId={currentUser.uid}
-            entries={entries}
-            profileSummary={profileSummary}
-            insightsHistory={insights}
-            onReflectOnSuggestion={(prompt, tag) => {
-              handleReflectOnPrompt(prompt, tag);
-            }}
-            onNavigateToEntry={(entryId) => {
-              setTargetEntryId(entryId);
-              setActiveTab('history');
-            }}
-          />
+          <div className="space-y-10">
+            {/* Weekly Reflection Summary */}
+            <WeeklyReflectionCard
+              userId={currentUser.uid}
+              entries={entries}
+              profileSummary={profileSummary}
+              cachedWeeklySummary={weeklySummary}
+              onStartEntry={() => setActiveTab('journal')}
+              onReflectOnPrompt={(prompt, tag) => {
+                handleReflectOnPrompt(prompt, tag);
+              }}
+            />
+
+            {/* Pattern & Themes Analysis Panel */}
+            <InsightsPanel
+              userId={currentUser.uid}
+              entries={entries}
+              profileSummary={profileSummary}
+              insightsHistory={insights}
+              onReflectOnSuggestion={(prompt, tag) => {
+                handleReflectOnPrompt(prompt, tag);
+              }}
+              onNavigateToEntry={(entryId) => {
+                setTargetEntryId(entryId);
+                setActiveTab('history');
+              }}
+            />
+          </div>
         )}
       </main>
 
-      {/* Footer / Status Bar */}
-      <footer className="border-t border-white/60 dark:border-slate-800 bg-white/40 dark:bg-slate-900/60 backdrop-blur-xl px-4 sm:px-6 py-3 text-xs text-slate-500 dark:text-slate-400 shadow-sm mt-auto transition-colors">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-          <div className="flex items-center gap-2 font-mono text-[11px] text-slate-600 dark:text-slate-300">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Authenticated Tenant: {currentUser.uid.slice(0, 10)}...</span>
-            <span className="text-slate-300 dark:text-slate-700">|</span>
-            <span>Firestore DB: ai-studio-2f5d1cf6-b82e-4783-86fd-399dce4d2e3a</span>
+      {/* Footer */}
+      <footer className="border-t border-slate-200/60 dark:border-slate-800/80 bg-white/50 dark:bg-slate-900/50 px-4 sm:px-6 py-4 text-xs text-slate-500 dark:text-slate-400 mt-auto transition-colors">
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="font-serif font-bold text-slate-700 dark:text-slate-300">Reflect</span>
+            <span>—</span>
+            <span className="text-slate-500 dark:text-slate-400">Mindful journaling with persistent context memory</span>
           </div>
 
-          <div className="flex items-center gap-4 text-[11px] text-slate-600 dark:text-slate-300">
+          <div className="flex items-center gap-4 text-slate-500 dark:text-slate-400">
             <button
               onClick={() => setIsSecurityOpen(true)}
-              className="hover:text-indigo-600 dark:hover:text-indigo-400 font-medium transition-colors cursor-pointer"
+              className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
             >
-              Threat Model & ABAC Rules
+              Security & Transparency
             </button>
+            <span>•</span>
             <button
               onClick={() => setIsMemoryOpen(true)}
-              className="hover:text-indigo-600 dark:hover:text-indigo-400 font-medium transition-colors cursor-pointer"
+              className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
             >
-              Memory Summary ({profileSummary ? 'Active' : 'Empty'})
+              Memory Summary
             </button>
           </div>
         </div>

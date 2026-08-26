@@ -2,21 +2,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   Send, 
   Sparkles, 
-  BookmarkCheck, 
-  Brain, 
   Tag, 
-  Smile, 
-  History, 
   Plus, 
-  RefreshCw, 
-  ShieldCheck,
-  Compass,
-  Heart,
-  Feather,
-  Square,
-  Radio,
-  Lightbulb,
-  Shuffle
+  Square, 
+  Radio, 
+  Shuffle,
+  Check,
+  Feather
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { 
@@ -37,15 +29,15 @@ interface JournalChatProps {
   onClearPrefill?: () => void;
 }
 
-const MOODS: { type: MoodType; label: string; icon: string; color: string }[] = [
-  { type: 'reflective', label: 'Reflective', icon: '🌌', color: 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 shadow-xs' },
-  { type: 'peaceful', label: 'Peaceful', icon: '🍃', color: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 shadow-xs' },
-  { type: 'optimistic', label: 'Optimistic', icon: '☀️', color: 'bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800 shadow-xs' },
-  { type: 'grounded', label: 'Grounded', icon: '⛰️', color: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 shadow-xs' },
-  { type: 'seeking_clarity', label: 'Seeking Clarity', icon: '🧭', color: 'bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800 shadow-xs' },
-  { type: 'anxious', label: 'Anxious', icon: '🌧️', color: 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800 shadow-xs' },
-  { type: 'fatigued', label: 'Fatigued', icon: '🌙', color: 'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800 shadow-xs' },
-  { type: 'energized', label: 'Energized', icon: '⚡', color: 'bg-yellow-50 dark:bg-yellow-950/60 text-yellow-800 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 shadow-xs' },
+const MOODS: { type: MoodType; label: string; icon: string }[] = [
+  { type: 'reflective', label: 'Reflective', icon: '🌌' },
+  { type: 'peaceful', label: 'Peaceful', icon: '🍃' },
+  { type: 'optimistic', label: 'Optimistic', icon: '☀️' },
+  { type: 'grounded', label: 'Grounded', icon: '⛰️' },
+  { type: 'seeking_clarity', label: 'Seeking Clarity', icon: '🧭' },
+  { type: 'anxious', label: 'Anxious', icon: '🌧️' },
+  { type: 'fatigued', label: 'Fatigued', icon: '🌙' },
+  { type: 'energized', label: 'Energized', icon: '⚡' },
 ];
 
 export interface WritingStarter {
@@ -57,7 +49,6 @@ export interface WritingStarter {
 const WRITING_STARTERS_POOL: WritingStarter[] = [
   { prompt: "What's been on your mind today?", tag: "clarity", category: "Mindfulness" },
   { prompt: "Describe a small win from this week that brought you joy.", tag: "gratitude", category: "Small Wins" },
-  { prompt: "What's something you're looking forward to, and why?", tag: "optimism", category: "Looking Forward" },
   { prompt: "What gave me energy today, and what drained it?", tag: "energy", category: "Energy Audit" },
   { prompt: "Where am I feeling tension or uncertainty right now?", tag: "emotional-checkin", category: "Emotional Check-in" },
   { prompt: "A conversation or moment that lingered in my thoughts...", tag: "relationships", category: "Connection" },
@@ -118,7 +109,6 @@ export const JournalChat: React.FC<JournalChatProps> = ({
     if (!title.trim()) {
       setTitle(starter.prompt.length > 40 ? starter.prompt.slice(0, 37) + '...' : starter.prompt);
     }
-    // Smoothly focus textarea
     setTimeout(() => {
       if (textareaRef.current) {
         textareaRef.current.focus();
@@ -131,8 +121,8 @@ export const JournalChat: React.FC<JournalChatProps> = ({
   useEffect(() => {
     if (prefillPrompt) {
       setCurrentInput(prefillPrompt.prompt);
-      if (prefillPrompt.tag && !tags.includes(prefillPrompt.tag)) {
-        setTags(prev => [...prev, prefillPrompt.tag]);
+      if (prefillPrompt.tag) {
+        setTags(prev => prev.includes(prefillPrompt.tag) ? prev : [...prev, prefillPrompt.tag]);
       }
       if (!title) {
         setTitle(`Reflecting on ${prefillPrompt.tag}`);
@@ -174,7 +164,6 @@ export const JournalChat: React.FC<JournalChatProps> = ({
     const userText = currentInput.trim();
     setCurrentInput('');
 
-    // Generate title if empty
     if (!title.trim()) {
       const generatedTitle = userText.split('\n')[0].slice(0, 45) + (userText.length > 45 ? '...' : '');
       setTitle(generatedTitle);
@@ -196,7 +185,6 @@ export const JournalChat: React.FC<JournalChatProps> = ({
     abortControllerRef.current = controller;
 
     try {
-      // 1. Call secure server-side Gemini streaming endpoint with memory + recency context
       const res = await streamGeminiReflection({
         message: userText,
         profileSummary,
@@ -220,14 +208,12 @@ export const JournalChat: React.FC<JournalChatProps> = ({
       setStreamingReply(null);
       abortControllerRef.current = null;
 
-      // Auto-save complete entry to Firestore after full response is received
       await persistEntry(finalHistory);
     } catch (err: any) {
       if (err?.name === 'AbortError') {
-        console.log('Stream generation aborted by user/navigation');
+        console.log('Stream generation aborted by user');
         setStreamingReply(null);
         abortControllerRef.current = null;
-        // Interrupted stream: do not save corrupted partial reflection; preserve user's written thought
         await persistEntry(newHistory);
         return;
       }
@@ -238,8 +224,8 @@ export const JournalChat: React.FC<JournalChatProps> = ({
 
       const isHighDemand = err?.message?.includes('503') || err?.message?.includes('high demand');
       const errorMsg = isHighDemand
-        ? "I'm holding space for this reflection. Gemini is momentarily under high demand, but your journal thoughts are safely recorded."
-        : `*I had trouble processing that thought (${err.message || 'connection error'}). Your journal entry has been safely preserved.*`;
+        ? "I'm holding space for this reflection. Gemini is momentarily busy, but your reflection has been safely saved."
+        : `*Unable to complete reflection dialogue (${err.message || 'connection error'}). Your entry is safely saved.*`;
 
       const fallbackTurn: ChatTurn = {
         id: 'turn_err_' + Date.now(),
@@ -269,7 +255,6 @@ export const JournalChat: React.FC<JournalChatProps> = ({
         .map(t => t.text)
         .join('\n\n');
 
-      // Attempt to analyze visual sentiment with Gemini
       let derivedSentiment = undefined;
       try {
         if (fullContent.trim().length > 10) {
@@ -302,13 +287,11 @@ export const JournalChat: React.FC<JournalChatProps> = ({
         wordCount: fullContent.split(/\s+/).filter(Boolean).length,
       };
 
-      // 1. Save to users/{uid}/entries/{id}
       await saveJournalEntry(userId, entry);
       onEntrySaved(entry);
-      setSaveStatus('Entry saved & sentiment indexed');
-      setTimeout(() => setSaveStatus(null), 3000);
+      setSaveStatus('Saved');
+      setTimeout(() => setSaveStatus(null), 2500);
 
-      // 2. Trigger asynchronous memory update in the background
       triggerMemoryUpdate({
         existingSummary: profileSummary?.summary || '',
         newEntryTitle: entry.title,
@@ -318,7 +301,7 @@ export const JournalChat: React.FC<JournalChatProps> = ({
 
     } catch (error: any) {
       console.error('Failed to save entry to Firestore:', error);
-      setSaveStatus('Save error: ' + error.message);
+      setSaveStatus('Error saving');
     } finally {
       setIsSaving(false);
     }
@@ -338,297 +321,162 @@ export const JournalChat: React.FC<JournalChatProps> = ({
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto space-y-8">
       
-      {/* Top Header Card */}
-      <div className="bg-white/60 dark:bg-slate-900/70 backdrop-blur-xl border border-white/70 dark:border-white/10 rounded-3xl p-5 sm:p-6 shadow-sm transition-colors">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200/60 dark:border-slate-800/80 pb-4 mb-4">
+      {/* Entry Header & Intention Controls */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
           <div>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/80 dark:border-indigo-800/60 flex items-center justify-center text-indigo-700 dark:text-indigo-400">
-                <Feather className="w-4 h-4" />
-              </div>
-              <h2 className="text-xl font-serif font-bold text-slate-900 dark:text-white">Mindful Journaling Studio</h2>
-            </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Live streamed reflective dialogue powered by Gemini 3.7 Flash with persistent user memory
+            <h2 className="text-xl font-serif font-bold text-slate-900 dark:text-white">
+              Daily Reflection
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Reflect with your personal AI companion
             </p>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-3">
             {saveStatus && (
-              <span className="text-xs font-mono px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1 font-medium shadow-xs">
-                <BookmarkCheck className="w-3.5 h-3.5" />
+              <span className="text-xs text-indigo-600 dark:text-indigo-400 flex items-center gap-1 font-medium animate-fade-in">
+                <Check className="w-3.5 h-3.5" />
                 {saveStatus}
               </span>
             )}
 
-            <button
-              id="btn-new-entry"
-              onClick={handleStartNewEntry}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-xs transition-all cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-              <span>New Entry</span>
-            </button>
+            {(conversation.length > 0 || title.trim() || currentInput.trim()) && (
+              <button
+                id="btn-new-entry"
+                onClick={handleStartNewEntry}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>New Reflection</span>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Title & Mood Configuration */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-          <div className="md:col-span-7">
-            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
-              Entry Title
-            </label>
-            <input
-              id="input-entry-title"
-              type="text"
-              placeholder="e.g. Unpacking this afternoon's career pivot..."
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-3.5 py-2 rounded-xl bg-white/70 dark:bg-slate-800/80 backdrop-blur-md border border-slate-200/80 dark:border-slate-700 text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 text-sm focus:outline-none focus:bg-white dark:focus:bg-slate-800 focus:border-indigo-400 dark:focus:border-indigo-500 shadow-xs"
-            />
-          </div>
-
-          <div className="md:col-span-5">
-            <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
-              Current Emotion / State
-            </label>
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-              {MOODS.slice(0, 4).map((m) => (
-                <button
-                  key={m.type}
-                  onClick={() => setSelectedMood(m.type)}
-                  className={`px-2.5 py-1.5 rounded-xl text-xs font-medium border flex items-center gap-1 whitespace-nowrap transition-all cursor-pointer ${
-                    selectedMood === m.type
-                      ? `${m.color} ring-2 ring-indigo-500/30 font-semibold`
-                      : 'bg-white/50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 border-slate-200/60 dark:border-slate-700/60 hover:bg-white dark:hover:bg-slate-800'
-                  }`}
-                >
-                  <span>{m.icon}</span>
-                  <span>{m.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
+        {/* Title Input */}
+        <div>
+          <input
+            id="input-entry-title"
+            type="text"
+            placeholder="Reflection title (optional)..."
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="w-full px-0 py-1.5 bg-transparent border-b border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 text-sm font-serif font-medium focus:outline-none focus:border-indigo-500 transition-colors"
+          />
         </div>
 
-        {/* Tags & Context Pill */}
-        <div className="flex flex-wrap items-center justify-between gap-3 mt-4 pt-3 border-t border-slate-200/60 dark:border-slate-800/80 text-xs">
-          
+        {/* Mood & Tags Bar (Clean and Muted) */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-1 text-xs">
+          {/* Mood Selector Chips */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+            {MOODS.map((m) => (
+              <button
+                key={m.type}
+                type="button"
+                onClick={() => setSelectedMood(m.type)}
+                className={`px-2.5 py-1 rounded-xl text-xs font-medium flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
+                  selectedMood === m.type
+                    ? 'bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 font-semibold ring-1 ring-indigo-300 dark:ring-indigo-700'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/80'
+                }`}
+              >
+                <span>{m.icon}</span>
+                <span>{m.label}</span>
+              </button>
+            ))}
+          </div>
+
           {/* Tags */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <Tag className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-            {tags.map((t) => (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {Array.from(new Set(tags)).map((t, idx) => (
               <span
-                key={t}
-                className="px-2.5 py-0.5 rounded-full bg-slate-100/90 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 flex items-center gap-1 font-mono text-[11px]"
+                key={`${t}-${idx}`}
+                className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800/90 text-slate-600 dark:text-slate-300 text-[11px] font-sans flex items-center gap-1"
               >
                 #{t}
                 <button
                   onClick={() => handleRemoveTag(t)}
-                  className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 ml-0.5 cursor-pointer"
+                  className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer ml-0.5"
                 >
                   ×
                 </button>
               </span>
             ))}
-            <div className="flex items-center gap-1">
-              <input
-                id="input-tag-adder"
-                type="text"
-                placeholder="+ tag"
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddTag()}
-                className="w-16 px-1.5 py-0.5 bg-transparent border-b border-slate-300 dark:border-slate-700 text-[11px] text-slate-700 dark:text-slate-300 focus:outline-none focus:border-indigo-500"
-              />
-            </div>
+            <input
+              id="input-tag-adder"
+              type="text"
+              placeholder="+ tag"
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleAddTag()}
+              className="w-14 px-1 py-0.5 bg-transparent border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-300 focus:outline-none focus:border-indigo-500"
+            />
           </div>
-
-          {/* RAG / Memory Context Indicator */}
-          <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 font-mono text-[11px]">
-            <div className="flex items-center gap-1 text-indigo-700 dark:text-indigo-400 font-medium">
-              <Brain className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-              <span>Memory Layer:</span>
-            </div>
-            <span>
-              {profileSummary ? 'Profile Context Injected' : 'Initializing memory...'}
-            </span>
-            <span className="text-slate-300 dark:text-slate-700">|</span>
-            <span>{recentEntries.length} prior entries cached</span>
-          </div>
-
         </div>
       </div>
 
-      {/* Onboarding Welcome Banner (Shown when user has zero journal entries) */}
-      {recentEntries.length === 0 && conversation.length === 0 && (
-        <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-indigo-500/10 via-amber-500/5 to-white/70 dark:from-indigo-950/40 dark:via-slate-900/40 dark:to-slate-800/80 backdrop-blur-xl border border-indigo-200/80 dark:border-indigo-500/30 shadow-sm space-y-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-indigo-600 dark:bg-indigo-500 text-white flex items-center justify-center shadow-xs">
-              <Sparkles className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="text-sm font-serif font-bold text-slate-900 dark:text-white">Welcome to your Reflect sanctuary</h3>
-              <p className="text-xs text-slate-600 dark:text-slate-300">Your secure, private space for personal clarity and growth.</p>
-            </div>
-          </div>
-          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-sans">
-            Write your first reflection — try starting with{' '}
-            <button
-              onClick={() => setCurrentInput("Today I ")}
-              className="font-semibold text-indigo-700 dark:text-indigo-400 underline hover:text-indigo-900 dark:hover:text-indigo-300 cursor-pointer"
-            >
-              "Today I..."
-            </button>{' '}
-            or choose one of the gentle starters below.
-          </p>
-        </div>
-      )}
-
-      {/* Starter Suggestions (Shown if no turns yet) */}
-      {conversation.length === 0 && !streamingReply && (
-        <div className="space-y-2.5">
-          <div className="flex items-center justify-between px-1">
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 font-serif">
-              <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-              <span>Thought Starters for Today</span>
-            </div>
-            <button
-              id="btn-shuffle-starters-top"
-              type="button"
-              onClick={handleShuffleStarters}
-              className="text-[11px] font-mono text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 flex items-center gap-1 transition-colors cursor-pointer"
-              title="Shuffle prompt suggestions"
-            >
-              <Shuffle className="w-3 h-3" />
-              <span>Rotate Starters</span>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {activeStarters.map((starter, idx) => (
-              <button
-                key={idx}
-                id={`btn-starter-card-${idx}`}
-                type="button"
-                onClick={() => handleSelectStarter(starter)}
-                className="p-4 text-left rounded-2xl bg-white/70 dark:bg-slate-900/70 hover:bg-white/95 dark:hover:bg-slate-850 backdrop-blur-md border border-white/80 dark:border-white/10 hover:border-indigo-200 dark:hover:border-indigo-500/40 transition-all text-xs text-slate-600 dark:text-slate-400 flex flex-col justify-between gap-2 shadow-xs group cursor-pointer"
-              >
-                <div className="flex items-center justify-between w-full">
-                  <span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800 font-semibold">
-                    {starter.category}
-                  </span>
-                  <Compass className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" />
-                </div>
-                <p className="text-slate-700 dark:text-slate-200 group-hover:text-indigo-900 dark:group-hover:text-white font-sans text-xs leading-relaxed">
-                  "{starter.prompt}"
-                </p>
-                <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono font-medium flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
-                  Insert to draft →
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Conversation / Reflection Thread */}
+      {/* Active Conversation Thread */}
       {(conversation.length > 0 || streamingReply !== null || isLoading) && (
-        <div className="space-y-4">
+        <div className="space-y-5 pt-2">
           {conversation.map((turn) => {
             const isUser = turn.role === 'user';
             return (
               <div
                 key={turn.id}
-                className={`flex gap-3 p-4 sm:p-5 rounded-3xl border transition-all ${
+                className={`p-5 rounded-2xl transition-all ${
                   isUser
-                    ? 'bg-indigo-50/80 dark:bg-indigo-950/50 backdrop-blur-md border-indigo-100 dark:border-indigo-900/60 text-slate-800 dark:text-slate-100 ml-4 sm:ml-12 shadow-xs'
-                    : 'bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-white/90 dark:border-slate-800 text-slate-800 dark:text-slate-100 mr-4 sm:mr-12 shadow-sm'
+                    ? 'bg-slate-100/70 dark:bg-slate-900/60 text-slate-850 dark:text-slate-100 ml-4 sm:ml-8'
+                    : 'bg-white dark:bg-slate-900 shadow-sm border border-slate-200/60 dark:border-slate-800 text-slate-800 dark:text-slate-100 mr-4 sm:mr-8'
                 }`}
               >
-                <div className="flex-shrink-0">
-                  {isUser ? (
-                    <div className="w-8 h-8 rounded-xl bg-indigo-100 dark:bg-indigo-900/80 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-700 dark:text-indigo-300">
-                      <Feather className="w-4 h-4" />
-                    </div>
-                  ) : (
-                    <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 flex items-center justify-center text-amber-600 dark:text-amber-400">
-                      <Sparkles className="w-4 h-4" />
-                    </div>
-                  )}
+                <div className="flex items-center justify-between text-xs text-slate-400 dark:text-slate-500 mb-2">
+                  <span className="font-semibold text-slate-700 dark:text-slate-300 font-serif">
+                    {isUser ? 'You' : 'Reflect'}
+                  </span>
+                  <span className="text-[11px] font-mono">
+                    {new Date(turn.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
                 </div>
 
-                <div className="flex-1 space-y-1.5 overflow-hidden">
-                  <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                    <span className="font-semibold text-slate-800 dark:text-slate-200 font-serif">
-                      {isUser ? 'My Reflection' : 'Reflect AI Companion'}
-                    </span>
-                    <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500">
-                      {new Date(turn.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
-
-                  <div className="prose prose-slate dark:prose-invert max-w-none text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-sans">
-                    <Markdown>{turn.text}</Markdown>
-                  </div>
+                <div className="prose prose-slate dark:prose-invert max-w-none text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-sans">
+                  <Markdown>{turn.text}</Markdown>
                 </div>
               </div>
             );
           })}
 
-          {/* Loading / Typing Indicator before streamed tokens arrive */}
+          {/* Loading state before streaming chunks */}
           {isLoading && (!streamingReply || streamingReply === '') && (
-            <div className="flex gap-3 p-4 sm:p-5 rounded-3xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-indigo-200/80 dark:border-indigo-500/30 text-slate-800 dark:text-slate-100 mr-4 sm:mr-12 shadow-sm animate-fade-in">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-                  <Sparkles className="w-4 h-4 animate-pulse" />
-                </div>
+            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 text-slate-800 dark:text-slate-100 mr-4 sm:mr-8 shadow-sm animate-fade-in space-y-2">
+              <div className="flex items-center justify-between text-xs text-slate-400 dark:text-slate-500">
+                <span className="font-semibold text-slate-700 dark:text-slate-300 font-serif">Reflect</span>
+                <span className="text-[11px] font-mono">Reflecting...</span>
               </div>
-              <div className="flex-1 space-y-2">
-                <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                  <span className="font-semibold text-slate-800 dark:text-slate-200 font-serif">Reflect AI Companion</span>
-                  <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500">Synthesizing context...</span>
-                </div>
-                <div className="flex items-center gap-2.5 text-xs text-indigo-700 dark:text-indigo-300 font-serif py-1">
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200/80 dark:border-indigo-800/80 shadow-2xs">
-                    <span className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-400 typing-dot-1" />
-                    <span className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-400 typing-dot-2" />
-                    <span className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-400 typing-dot-3" />
-                  </div>
-                  <span className="text-xs text-slate-500 dark:text-slate-400 italic">Holding space and gathering thoughts...</span>
-                </div>
+              <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 py-1">
+                <span className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-400 animate-pulse" />
+                <span className="italic">Synthesizing context and holding space...</span>
               </div>
             </div>
           )}
 
-          {/* Active Streaming Token Render */}
+          {/* Live Streaming Token Box */}
           {streamingReply !== null && streamingReply !== '' && (
-            <div className="flex gap-3 p-4 sm:p-5 rounded-3xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-indigo-200/80 dark:border-indigo-500/40 text-slate-800 dark:text-slate-100 mr-4 sm:mr-12 shadow-md">
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 flex items-center justify-center text-amber-600 dark:text-amber-400">
-                  <Sparkles className="w-4 h-4 animate-pulse" />
+            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-900/60 text-slate-800 dark:text-slate-100 mr-4 sm:mr-8 shadow-sm">
+              <div className="flex items-center justify-between text-xs text-slate-400 dark:text-slate-500 mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-slate-700 dark:text-slate-300 font-serif">Reflect</span>
+                  <span className="inline-flex items-center gap-1 text-[10px] font-mono text-indigo-600 dark:text-indigo-400 font-medium">
+                    <Radio className="w-2.5 h-2.5 animate-pulse" /> Streaming
+                  </span>
                 </div>
               </div>
 
-              <div className="flex-1 space-y-1.5 overflow-hidden">
-                <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-slate-800 dark:text-slate-200 font-serif">Reflect AI Companion</span>
-                    <span className="inline-flex items-center gap-1 text-[10px] font-mono font-medium px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-                      <Radio className="w-2.5 h-2.5 text-indigo-600 dark:text-indigo-400 animate-pulse" /> Streaming
-                    </span>
-                  </div>
-                  <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500">Just now</span>
-                </div>
-
-                <div className="prose prose-slate dark:prose-invert max-w-none text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-sans">
-                  <div>
-                    <Markdown>{streamingReply}</Markdown>
-                    <span className="inline-block w-1.5 h-4 bg-indigo-600 dark:bg-indigo-400 animate-pulse ml-1 align-middle rounded-full" />
-                  </div>
-                </div>
+              <div className="prose prose-slate dark:prose-invert max-w-none text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-sans">
+                <Markdown>{streamingReply}</Markdown>
+                <span className="inline-block w-1.5 h-3.5 bg-indigo-600 dark:bg-indigo-400 animate-pulse ml-1 align-middle rounded-full" />
               </div>
             </div>
           )}
@@ -637,48 +485,46 @@ export const JournalChat: React.FC<JournalChatProps> = ({
         </div>
       )}
 
-      {/* Input Box */}
-      <div className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-white/80 dark:border-white/10 rounded-3xl p-3.5 sm:p-4 shadow-md transition-colors space-y-2.5">
+      {/* Primary Journal Input Box (Hero Focal Point) */}
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 shadow-md border border-slate-200/70 dark:border-slate-800/80 transition-all space-y-3">
         
-        {/* Quick Rotating Prompts Bar Above Textarea */}
-        <div className="flex items-center justify-between gap-2 overflow-x-auto pb-0.5 scrollbar-none">
-          <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-serif flex-shrink-0">
-            <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
-            <span className="font-semibold text-[11px] text-slate-700 dark:text-slate-300">Prompt Starters:</span>
-          </div>
-
+        {/* Integrated Quick Writing Starters */}
+        <div className="flex items-center justify-between gap-2 overflow-x-auto pb-1 scrollbar-none text-xs">
           <div className="flex items-center gap-1.5 flex-1 min-w-0 overflow-x-auto scrollbar-none py-0.5">
+            <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 flex-shrink-0">
+              Prompt starters:
+            </span>
             {activeStarters.map((starter, idx) => (
               <button
                 key={idx}
-                id={`btn-quick-starter-${idx}`}
+                id={`btn-starter-${idx}`}
                 type="button"
                 onClick={() => handleSelectStarter(starter)}
-                className="px-2.5 py-1 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/80 text-indigo-800 dark:text-indigo-200 border border-indigo-200/70 dark:border-indigo-800 text-[11px] font-medium whitespace-nowrap transition-all flex items-center gap-1 cursor-pointer flex-shrink-0 shadow-2xs hover:scale-[1.01]"
-                title={`Click to insert: "${starter.prompt}"`}
+                className="px-3 py-1 rounded-xl bg-slate-100/90 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 text-slate-700 dark:text-slate-300 hover:text-indigo-700 dark:hover:text-indigo-300 text-[11px] font-medium whitespace-nowrap transition-colors flex-shrink-0 cursor-pointer"
+                title={starter.prompt}
               >
-                <span>✨</span>
-                <span className="truncate max-w-[200px] sm:max-w-[260px]">{starter.prompt}</span>
+                <span className="truncate max-w-[220px] sm:max-w-[280px]">{starter.prompt}</span>
               </button>
             ))}
           </div>
 
           <button
-            id="btn-shuffle-starters-input"
+            id="btn-shuffle-starters"
             type="button"
             onClick={handleShuffleStarters}
-            className="p-1.5 rounded-lg text-slate-400 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex-shrink-0 cursor-pointer"
-            title="Rotate / Shuffle prompts"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex-shrink-0 cursor-pointer"
+            title="Rotate starters"
           >
             <Shuffle className="w-3.5 h-3.5" />
           </button>
         </div>
 
-        <div className="relative">
+        {/* Textarea */}
+        <div className="space-y-3">
           <textarea
             id="textarea-journal-input"
             ref={textareaRef}
-            rows={3}
+            rows={5}
             value={currentInput}
             onChange={(e) => setCurrentInput(e.target.value)}
             onKeyDown={(e) => {
@@ -687,25 +533,28 @@ export const JournalChat: React.FC<JournalChatProps> = ({
                 handleSendThought();
               }
             }}
-            placeholder={isLoading ? "Reflecting in progress..." : "Write your journal thoughts freely... (Ctrl+Enter to reflect)"}
+            placeholder={
+              conversation.length === 0
+                ? "Write freely about your day, thoughts, or emotions... (Press Ctrl+Enter to reflect)"
+                : "Continue your reflection..."
+            }
             disabled={isLoading}
-            className="w-full p-3.5 rounded-2xl bg-white/80 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 text-sm focus:outline-none focus:bg-white dark:focus:bg-slate-800 focus:border-indigo-400 dark:focus:border-indigo-500 resize-none font-sans leading-relaxed shadow-inner disabled:bg-slate-50 dark:disabled:bg-slate-900/50 disabled:text-slate-500"
+            className="w-full p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-950/60 text-slate-850 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 text-sm font-sans leading-relaxed focus:outline-none focus:bg-white dark:focus:bg-slate-950 focus:ring-2 focus:ring-indigo-500/20 resize-none transition-all disabled:opacity-50"
           />
 
-          <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800 text-xs">
-            <div className="text-slate-400 dark:text-slate-500 text-[11px] hidden sm:block">
-              Press <kbd className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono text-[10px] border border-slate-200 dark:border-slate-700">Ctrl</kbd> + <kbd className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono text-[10px] border border-slate-200 dark:border-slate-700">Enter</kbd> to reflect
-            </div>
+          <div className="flex items-center justify-between pt-1">
+            <span className="text-[11px] text-slate-400 dark:text-slate-500 hidden sm:inline font-sans">
+              Press <kbd className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-mono text-[10px]">Ctrl</kbd> + <kbd className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-mono text-[10px]">Enter</kbd> to reflect
+            </span>
 
             <div className="flex items-center gap-2 ml-auto">
               {isLoading ? (
                 <button
                   id="btn-stop-streaming"
                   onClick={handleStopStreaming}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 dark:hover:bg-rose-900/80 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 transition-all cursor-pointer shadow-2xs"
-                  title="Stop generating reflection"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 text-rose-700 dark:text-rose-300 transition-colors cursor-pointer"
                 >
-                  <Square className="w-3 h-3 fill-rose-600 dark:fill-rose-400 text-rose-600 dark:text-rose-400" />
+                  <Square className="w-3 h-3 fill-current" />
                   <span>Stop</span>
                 </button>
               ) : (
@@ -713,15 +562,16 @@ export const JournalChat: React.FC<JournalChatProps> = ({
                   id="btn-send-journal"
                   onClick={handleSendThought}
                   disabled={!currentInput.trim() || isLoading}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md shadow-indigo-600/20 cursor-pointer"
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm cursor-pointer"
                 >
-                  <span>Reflect with AI</span>
+                  <span>Reflect</span>
                   <Send className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
           </div>
         </div>
+
       </div>
 
     </div>

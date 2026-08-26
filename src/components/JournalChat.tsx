@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { 
   Send, 
   Sparkles, 
@@ -8,7 +8,10 @@ import {
   Radio, 
   Shuffle,
   Check,
-  Feather
+  Feather,
+  Flame,
+  Mic,
+  MicOff
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { 
@@ -86,9 +89,137 @@ export const JournalChat: React.FC<JournalChatProps> = ({
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const [activeStarters, setActiveStarters] = useState<WritingStarter[]>(() => getRandomStarters(3));
 
+  // Calculate daily reflection streak from recentEntries
+  const streakCount = useMemo(() => {
+    if (!recentEntries || recentEntries.length === 0) return 0;
+
+    const localDates = recentEntries
+      .filter(entry => entry.createdAt)
+      .map(entry => {
+        const date = new Date(entry.createdAt);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      });
+
+    const uniqueDates = Array.from(new Set(localDates)).sort((a, b) => b.localeCompare(a));
+    if (uniqueDates.length === 0) return 0;
+
+    const today = new Date();
+    const formatDate = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
+    const todayStr = formatDate(today);
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    const yesterdayStr = formatDate(yesterday);
+
+    const mostRecentDate = uniqueDates[0];
+    if (mostRecentDate !== todayStr && mostRecentDate !== yesterdayStr) {
+      return 0;
+    }
+
+    let streak = 0;
+    const currentDateToCheck = new Date(mostRecentDate === todayStr ? today : yesterday);
+
+    while (true) {
+      const targetStr = formatDate(currentDateToCheck);
+      if (uniqueDates.includes(targetStr)) {
+        streak++;
+        currentDateToCheck.setDate(currentDateToCheck.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+
+    return streak;
+  }, [recentEntries]);
+
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Web Speech API Voice Dictation State & Ref
+  const [isListening, setIsListening] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(true);
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setSpeechSupported(false);
+    }
+  }, []);
+
+  const toggleListening = () => {
+    if (isListening) {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      setIsListening(false);
+    } else {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        alert("Voice dictation is not supported by your browser. Please try Chrome, Safari, or Edge.");
+        return;
+      }
+
+      try {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        recognition.onstart = () => {
+          setIsListening(true);
+        };
+
+        recognition.onerror = (event: any) => {
+          console.error('Speech recognition error:', event.error);
+          setIsListening(false);
+        };
+
+        recognition.onend = () => {
+          setIsListening(false);
+        };
+
+        recognition.onresult = (event: any) => {
+          let finalTranscript = '';
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              finalTranscript += event.results[i][0].transcript;
+            }
+          }
+          if (finalTranscript) {
+            setCurrentInput(prev => {
+              const trimmed = prev.trim();
+              return trimmed ? trimmed + ' ' + finalTranscript.trim() : finalTranscript.trim();
+            });
+          }
+        };
+
+        recognitionRef.current = recognition;
+        recognition.start();
+      } catch (err) {
+        console.error('Failed to start speech recognition:', err);
+        setIsListening(false);
+      }
+    }
+  };
+
+  // Clean up speech recognition on unmount
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, []);
 
   // Auto-scroll when chat updates or tokens stream in
   useEffect(() => {
@@ -327,9 +458,21 @@ export const JournalChat: React.FC<JournalChatProps> = ({
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-serif font-bold text-slate-900 dark:text-white">
-              Daily Reflection
-            </h2>
+            <div className="flex items-center gap-2.5">
+              <h2 className="text-xl font-serif font-bold text-slate-900 dark:text-white">
+                Daily Reflection
+              </h2>
+              {streakCount > 0 && (
+                <div 
+                  id="streak-counter-badge"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/20 dark:border-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-sans font-medium select-none animate-fade-in"
+                  title="Consecutive daily reflections streak"
+                >
+                  <Flame className="w-3 h-3 fill-current text-indigo-500 dark:text-indigo-400" />
+                  <span>{streakCount} {streakCount === 1 ? 'day' : 'days'} streak</span>
+                </div>
+              )}
+            </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               Reflect with your personal AI companion
             </p>
@@ -548,6 +691,33 @@ export const JournalChat: React.FC<JournalChatProps> = ({
             </span>
 
             <div className="flex items-center gap-2 ml-auto">
+              {speechSupported && (
+                <button
+                  id="btn-voice-dictation"
+                  type="button"
+                  onClick={toggleListening}
+                  disabled={isLoading}
+                  className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                    isListening
+                      ? 'bg-rose-500 hover:bg-rose-600 text-white border-rose-500 animate-pulse'
+                      : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                  }`}
+                  title={isListening ? "Stop listening" : "Start speaking to dictate"}
+                >
+                  {isListening ? (
+                    <>
+                      <MicOff className="w-3.5 h-3.5" />
+                      <span>Listening...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Mic className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                      <span>Dictate</span>
+                    </>
+                  )}
+                </button>
+              )}
+
               {isLoading ? (
                 <button
                   id="btn-stop-streaming"

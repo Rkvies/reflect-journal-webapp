@@ -18,7 +18,8 @@ import {
   JournalEntry, 
   ChatTurn, 
   MoodType, 
-  ProfileSummary 
+  ProfileSummary,
+  ProactiveNudge
 } from '../types';
 import { streamGeminiReflection, triggerMemoryUpdate, analyzeEntrySentiment } from '../lib/api';
 import { saveJournalEntry } from '../lib/firebase';
@@ -30,6 +31,7 @@ interface JournalChatProps {
   onEntrySaved: (entry: JournalEntry) => void;
   prefillPrompt?: { prompt: string; tag: string } | null;
   onClearPrefill?: () => void;
+  activeNudge?: ProactiveNudge | null;
 }
 
 const MOODS: { type: MoodType; label: string; icon: string }[] = [
@@ -68,6 +70,14 @@ const getRandomStarters = (count = 3): WritingStarter[] => {
   return shuffled.slice(0, count);
 };
 
+const isPromptMatchingNudge = (starterPrompt: string, nudgePrompt?: string) => {
+  if (!nudgePrompt) return false;
+  const p1 = starterPrompt.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+  const p2 = nudgePrompt.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (!p1 || !p2) return false;
+  return p1 === p2 || p1.includes(p2) || p2.includes(p1);
+};
+
 export const JournalChat: React.FC<JournalChatProps> = ({
   userId,
   profileSummary,
@@ -75,6 +85,7 @@ export const JournalChat: React.FC<JournalChatProps> = ({
   onEntrySaved,
   prefillPrompt,
   onClearPrefill,
+  activeNudge,
 }) => {
   const [title, setTitle] = useState('');
   const [currentInput, setCurrentInput] = useState('');
@@ -230,6 +241,21 @@ export const JournalChat: React.FC<JournalChatProps> = ({
   const handleShuffleStarters = () => {
     setActiveStarters(getRandomStarters(3));
   };
+
+  // Sync active nudge with starter chips when active nudge is present
+  useEffect(() => {
+    if (activeNudge?.promptText) {
+      const match = WRITING_STARTERS_POOL.find(s => 
+        isPromptMatchingNudge(s.prompt, activeNudge.promptText)
+      );
+      if (match) {
+        setActiveStarters(prev => {
+          if (prev.some(s => isPromptMatchingNudge(s.prompt, activeNudge.promptText))) return prev;
+          return [match, ...prev.filter(s => s.prompt !== match.prompt).slice(0, 2)];
+        });
+      }
+    }
+  }, [activeNudge?.promptText]);
 
   // Insert starter into input box for editing before submit
   const handleSelectStarter = (starter: WritingStarter) => {
@@ -637,18 +663,32 @@ export const JournalChat: React.FC<JournalChatProps> = ({
             <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 flex-shrink-0">
               Prompt starters:
             </span>
-            {activeStarters.map((starter, idx) => (
-              <button
-                key={idx}
-                id={`btn-starter-${idx}`}
-                type="button"
-                onClick={() => handleSelectStarter(starter)}
-                className="px-3 py-1 rounded-xl bg-slate-100/90 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 text-slate-700 dark:text-slate-300 hover:text-indigo-700 dark:hover:text-indigo-300 text-[11px] font-medium whitespace-nowrap transition-colors flex-shrink-0 cursor-pointer"
-                title={starter.prompt}
-              >
-                <span className="truncate max-w-[220px] sm:max-w-[280px]">{starter.prompt}</span>
-              </button>
-            ))}
+            {activeStarters.map((starter, idx) => {
+              const isMatching = isPromptMatchingNudge(starter.prompt, activeNudge?.promptText);
+
+              return (
+                <button
+                  key={idx}
+                  id={`btn-starter-${idx}`}
+                  type="button"
+                  onClick={() => handleSelectStarter(starter)}
+                  className={`px-3 py-1 rounded-xl text-[11px] font-medium whitespace-nowrap transition-all flex-shrink-0 cursor-pointer flex items-center gap-1.5 ${
+                    isMatching
+                      ? 'bg-indigo-100/90 dark:bg-indigo-950 text-indigo-900 dark:text-indigo-200 ring-1.5 ring-indigo-400/80 dark:ring-indigo-500 shadow-xs'
+                      : 'bg-slate-100/90 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 text-slate-700 dark:text-slate-300 hover:text-indigo-700 dark:hover:text-indigo-300'
+                  }`}
+                  title={isMatching ? `Matches active check-in above: "${starter.prompt}"` : starter.prompt}
+                >
+                  {isMatching && (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-md bg-indigo-200/80 dark:bg-indigo-900/90 text-indigo-950 dark:text-indigo-100 text-[10px] font-semibold">
+                      <Sparkles className="w-2.5 h-2.5 text-indigo-600 dark:text-indigo-300" />
+                      Check-in flow
+                    </span>
+                  )}
+                  <span className="truncate max-w-[200px] sm:max-w-[260px]">{starter.prompt}</span>
+                </button>
+              );
+            })}
           </div>
 
           <button

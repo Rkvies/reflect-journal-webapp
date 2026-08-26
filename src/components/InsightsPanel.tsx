@@ -54,6 +54,71 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
     return map;
   }, [entries]);
 
+  const sentimentDistributionList = useMemo(() => {
+    const dist = latestInsight?.sentimentDistribution;
+    
+    if (!dist) {
+      return [
+        { label: 'Uplifting', value: 35, barColor: 'bg-indigo-600 dark:bg-indigo-400' },
+        { label: 'Reflective', value: 35, barColor: 'bg-slate-400 dark:bg-slate-500' },
+        { label: 'Tension / Challenge', value: 15, barColor: 'bg-slate-300 dark:bg-slate-600' },
+        { label: 'Neutral / Unclassified', value: 15, barColor: 'bg-slate-200 dark:bg-slate-700' },
+      ];
+    }
+
+    const pos = Math.max(0, Math.round(Number(dist.positive) || 0));
+    const ref = Math.max(0, Math.round(Number(dist.reflective) || 0));
+    const cha = Math.max(0, Math.round(Number(dist.challenging) || 0));
+    let neu = Math.max(0, Math.round(Number(dist.neutral) || 0));
+
+    let sum = pos + ref + cha + neu;
+
+    if (sum < 100 && neu === 0) {
+      neu = 100 - (pos + ref + cha);
+      sum = 100;
+    }
+
+    if (sum <= 0) {
+      return [
+        { label: 'Uplifting', value: 35, barColor: 'bg-indigo-600 dark:bg-indigo-400' },
+        { label: 'Reflective', value: 35, barColor: 'bg-slate-400 dark:bg-slate-500' },
+        { label: 'Tension / Challenge', value: 15, barColor: 'bg-slate-300 dark:bg-slate-600' },
+        { label: 'Neutral / Unclassified', value: 15, barColor: 'bg-slate-200 dark:bg-slate-700' },
+      ];
+    }
+
+    let posScaled = Math.round((pos / sum) * 100);
+    let refScaled = Math.round((ref / sum) * 100);
+    let chaScaled = Math.round((cha / sum) * 100);
+    let neuScaled = 100 - (posScaled + refScaled + chaScaled);
+
+    if (neuScaled < 0) {
+      neuScaled = 0;
+      const subTotal = posScaled + refScaled + chaScaled;
+      if (subTotal > 0) {
+        posScaled = Math.round((posScaled / subTotal) * 100);
+        refScaled = Math.round((refScaled / subTotal) * 100);
+        chaScaled = 100 - (posScaled + refScaled);
+      }
+    }
+
+    const items = [
+      { label: 'Uplifting', value: posScaled, barColor: 'bg-indigo-600 dark:bg-indigo-400' },
+      { label: 'Reflective', value: refScaled, barColor: 'bg-slate-400 dark:bg-slate-500' },
+      { label: 'Tension / Challenge', value: chaScaled, barColor: 'bg-slate-300 dark:bg-slate-600' },
+    ];
+
+    if (neuScaled > 0) {
+      items.push({
+        label: 'Neutral / Unclassified',
+        value: neuScaled,
+        barColor: 'bg-slate-200 dark:bg-slate-700',
+      });
+    }
+
+    return items;
+  }, [latestInsight?.sentimentDistribution]);
+
   const handleGenerate = async () => {
     if (entries.length === 0) {
       setErrorMessage('You need at least one journal entry to generate insights.');
@@ -170,50 +235,22 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
               </div>
 
               <div className="space-y-2.5 pt-1 text-xs">
-                <div>
-                  <div className="flex justify-between text-slate-600 dark:text-slate-400 mb-1">
-                    <span>Uplifting</span>
-                    <ConfidenceTooltip explanation="Gemini's estimated confidence based on language and sentiment in this entry.">
-                      <span className="font-mono">{latestInsight.sentimentDistribution?.positive || 35}%</span>
-                    </ConfidenceTooltip>
+                {sentimentDistributionList.map((item) => (
+                  <div key={item.label}>
+                    <div className="flex justify-between text-slate-600 dark:text-slate-400 mb-1">
+                      <span>{item.label}</span>
+                      <ConfidenceTooltip explanation="Gemini's estimated confidence based on language and sentiment across analyzed reflections.">
+                        <span className="font-mono">{item.value}%</span>
+                      </ConfidenceTooltip>
+                    </div>
+                    <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full ${item.barColor} rounded-full`}
+                        style={{ width: `${item.value}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-indigo-600 dark:bg-indigo-400 rounded-full"
-                      style={{ width: `${latestInsight.sentimentDistribution?.positive || 35}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between text-slate-600 dark:text-slate-400 mb-1">
-                    <span>Reflective</span>
-                    <ConfidenceTooltip explanation="Gemini's estimated confidence based on language and sentiment in this entry.">
-                      <span className="font-mono">{latestInsight.sentimentDistribution?.reflective || 40}%</span>
-                    </ConfidenceTooltip>
-                  </div>
-                  <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-slate-400 dark:bg-slate-500 rounded-full"
-                      style={{ width: `${latestInsight.sentimentDistribution?.reflective || 40}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between text-slate-600 dark:text-slate-400 mb-1">
-                    <span>Tension / Challenge</span>
-                    <ConfidenceTooltip explanation="Gemini's estimated confidence based on language and sentiment in this entry.">
-                      <span className="font-mono">{latestInsight.sentimentDistribution?.challenging || 25}%</span>
-                    </ConfidenceTooltip>
-                  </div>
-                  <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-slate-300 dark:bg-slate-600 rounded-full"
-                      style={{ width: `${latestInsight.sentimentDistribution?.challenging || 25}%` }}
-                    />
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
 

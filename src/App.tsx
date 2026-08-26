@@ -281,6 +281,7 @@ export default function App() {
             }}
             prefillPrompt={prefillPrompt}
             onClearPrefill={() => setPrefillPrompt(null)}
+            activeNudge={activeNudge}
           />
         )}
 

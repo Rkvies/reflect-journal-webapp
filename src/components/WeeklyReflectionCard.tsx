@@ -134,7 +134,7 @@ export const WeeklyReflectionCard: React.FC<WeeklyReflectionCardProps> = ({
                 Your Week in Reflection
               </h3>
               <span className="text-[11px] font-sans px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-medium">
-                {recent7DayEntries.length} {recent7DayEntries.length === 1 ? 'entry' : 'entries'} • {activeDaysCount} {activeDaysCount === 1 ? 'day' : 'days'}
+                {recent7DayEntries.length} {recent7DayEntries.length === 1 ? 'entry' : 'entries'} • {activeDaysCount} {activeDaysCount === 1 ? 'active day' : 'active days'}
               </span>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xl leading-relaxed">

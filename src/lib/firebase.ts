@@ -5,7 +5,6 @@ import {
   signInWithPopup, 
   signOut as fbSignOut, 
   onAuthStateChanged, 
-  signInAnonymously,
   User 
 } from 'firebase/auth';
 import { 
@@ -41,20 +40,10 @@ export async function signInWithGoogle() {
     return result.user;
   } catch (error: any) {
     console.error('Google Sign In Error:', error);
-    // If popup is blocked by iframe security sandbox, offer anonymous or retry
+    // If popup is blocked by iframe security sandbox, inform user
     if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
-      throw new Error('Sign-in popup was blocked by browser or iframe. Please enable popups or try Demo Access.');
+      throw new Error('Sign-in popup was blocked by the browser. Please allow popups for this site and try again.');
     }
-    throw error;
-  }
-}
-
-export async function signInDemo() {
-  try {
-    const result = await signInAnonymously(auth);
-    return result.user;
-  } catch (error: any) {
-    console.error('Demo Sign In Error:', error);
     throw error;
   }
 }

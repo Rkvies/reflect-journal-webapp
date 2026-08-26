@@ -486,7 +486,7 @@ Provide an insightful, nuanced assessment in JSON format with:
 - notableShiftInfluencedBy: Array of string Entry IDs demonstrating this shift.
 - suggestion: A mindful, actionable recommendation for their next reflection.
 - suggestionInfluencedBy: Array of string Entry IDs related to this suggestion.
-- sentimentDistribution: Object containing percentages for positive, neutral, reflective, and challenging.`;
+- sentimentDistribution: Object containing integer percentages for positive (Uplifting), reflective, challenging (Tension), and neutral (Neutral / Unclassified). The sum of all four percentages MUST equal exactly 100%.`;
 
     const response = await generateContentWithRetry({
       model: 'gemini-3.7-flash',
@@ -587,6 +587,40 @@ Provide an insightful, nuanced assessment in JSON format with:
       );
     } else {
       insightData.suggestionInfluencedBy = [];
+    }
+
+    // Enforce 100% total sum for sentimentDistribution percentages
+    if (insightData?.sentimentDistribution) {
+      let pos = Math.max(0, Math.round(Number(insightData.sentimentDistribution.positive) || 0));
+      let ref = Math.max(0, Math.round(Number(insightData.sentimentDistribution.reflective) || 0));
+      let cha = Math.max(0, Math.round(Number(insightData.sentimentDistribution.challenging) || 0));
+      let neu = Math.max(0, Math.round(Number(insightData.sentimentDistribution.neutral) || 0));
+      let sum = pos + ref + cha + neu;
+
+      if (sum < 100 && neu === 0) {
+        neu = 100 - (pos + ref + cha);
+        sum = 100;
+      }
+
+      if (sum > 0) {
+        pos = Math.round((pos / sum) * 100);
+        ref = Math.round((ref / sum) * 100);
+        cha = Math.round((cha / sum) * 100);
+        neu = 100 - (pos + ref + cha);
+        if (neu < 0) {
+          neu = 0;
+          const sub = pos + ref + cha;
+          if (sub > 0) {
+            pos = Math.round((pos / sub) * 100);
+            ref = Math.round((ref / sub) * 100);
+            cha = 100 - (pos + ref);
+          }
+        }
+      } else {
+        pos = 35; ref = 35; cha = 15; neu = 15;
+      }
+
+      insightData.sentimentDistribution = { positive: pos, reflective: ref, challenging: cha, neutral: neu };
     }
 
     res.json({

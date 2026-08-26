@@ -344,12 +344,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
       <div className="bg-white/60 dark:bg-slate-900/70 backdrop-blur-xl border border-white/70 dark:border-white/10 rounded-3xl p-5 sm:p-6 shadow-sm transition-colors">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/60 dark:border-slate-800/80 pb-4 mb-4">
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-serif font-bold text-slate-900 dark:text-white">Journal Archive</h2>
-              <span className="text-xs font-mono font-semibold px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-                User Sovereignty & Security
-              </span>
-            </div>
+            <h2 className="text-xl font-serif font-bold text-slate-900 dark:text-white">Journal Archive</h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               {entries.length} personal reflection{entries.length === 1 ? '' : 's'} with full edit and deletion sovereignty
             </p>
@@ -384,7 +379,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
           >
             All Moods ({entries.length})
           </button>
-          {['reflective', 'peaceful', 'optimistic', 'grounded', 'seeking_clarity', 'anxious'].map((mood) => {
+          {(['reflective', 'peaceful', 'optimistic', 'grounded', 'seeking_clarity', 'anxious', 'fatigued', 'energized'] as MoodType[]).map((mood) => {
             const count = entries.filter((e) => e.mood === mood).length;
             if (count === 0) return null;
             return (

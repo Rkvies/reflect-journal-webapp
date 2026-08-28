@@ -7,7 +7,9 @@ import {
   User, 
   Sun, 
   Moon, 
-  ChevronDown 
+  ChevronDown,
+  UserX,
+  Trash2
 } from 'lucide-react';
 import { AppUser } from '../types';
 
@@ -17,6 +19,8 @@ interface NavbarProps {
   setActiveTab: (tab: 'journal' | 'history' | 'insights') => void;
   onOpenMemory: () => void;
   onOpenSecurity: () => void;
+  onOpenDeactivateModal: () => void;
+  onOpenDeleteModal: () => void;
   onSignOut: () => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
@@ -28,6 +32,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   setActiveTab,
   onOpenMemory,
   onOpenSecurity,
+  onOpenDeactivateModal,
+  onOpenDeleteModal,
   onSignOut,
   theme,
   onToggleTheme,
@@ -195,6 +201,36 @@ export const Navbar: React.FC<NavbarProps> = ({
                   >
                     <ShieldCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                     <span>Security & Transparency</span>
+                  </button>
+
+                  <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
+
+                  {/* Deactivate Account */}
+                  <button
+                    id="btn-dropdown-deactivate"
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      onOpenDeactivateModal();
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors cursor-pointer"
+                  >
+                    <UserX className="w-4 h-4" />
+                    <span>Deactivate Account</span>
+                  </button>
+
+                  {/* Delete Account Permanently */}
+                  <button
+                    id="btn-dropdown-delete-account"
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      onOpenDeleteModal();
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Delete Account Permanently</span>
                   </button>
 
                   <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />

@@ -367,3 +367,37 @@ export async function analyzeEntrySentiment(params: {
   return response.json();
 }
 
+export async function deactivateAccount(idToken: string): Promise<{ success: boolean }> {
+  const response = await fetchWithTimeout('/api/account/deactivate', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${idToken}`,
+    },
+  }, 10000);
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: 'Deactivation failed' }));
+    throw new Error(err.error || `Server error ${response.status}`);
+  }
+
+  return response.json();
+}
+
+export async function deleteAccount(idToken: string): Promise<{ success: boolean }> {
+  const response = await fetchWithTimeout('/api/account/delete', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${idToken}`,
+    },
+  }, 20000);
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: 'Account deletion failed' }));
+    throw new Error(err.error || `Server error ${response.status}`);
+  }
+
+  return response.json();
+}
+

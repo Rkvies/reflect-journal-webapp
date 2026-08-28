@@ -208,7 +208,11 @@ export function subscribeToInsights(uid: string, callback: (insights: InsightRep
   const q = query(insightsCol, orderBy('generatedAt', 'desc'), limit(10));
   return onSnapshot(q, (snap) => {
     const list: InsightReport[] = [];
-    snap.forEach((d) => list.push(d.data() as InsightReport));
+    snap.forEach((d) => {
+      if (d.id !== 'weeklySummary') {
+        list.push({ id: d.id, ...d.data() } as InsightReport);
+      }
+    });
     callback(list);
   }, (err) => {
     console.error('Insights subscription error:', err);
@@ -235,7 +239,7 @@ export function subscribeToNudges(uid: string, callback: (nudges: ProactiveNudge
   return onSnapshot(q, (snap) => {
     const list: ProactiveNudge[] = [];
     snap.forEach((d) => {
-      const data = d.data() as ProactiveNudge;
+      const data = { id: d.id, ...d.data() } as ProactiveNudge;
       if (!data.isDismissed && !data.dismissed) {
         list.push(data);
       }
@@ -277,7 +281,7 @@ export async function getWeeklySummary(uid: string): Promise<WeeklyReflectionRep
   const summaryRef = doc(db, 'users', uid, 'insights', 'weeklySummary');
   const snap = await getDoc(summaryRef);
   if (snap.exists()) {
-    return snap.data() as WeeklyReflectionReport;
+    return { id: snap.id, ...snap.data() } as WeeklyReflectionReport;
   }
   return null;
 }
@@ -290,7 +294,7 @@ export function subscribeToWeeklySummary(uid: string, callback: (report: WeeklyR
   const summaryRef = doc(db, 'users', uid, 'insights', 'weeklySummary');
   return onSnapshot(summaryRef, (snap) => {
     if (snap.exists()) {
-      callback(snap.data() as WeeklyReflectionReport);
+      callback({ id: snap.id, ...snap.data() } as WeeklyReflectionReport);
     } else {
       callback(null);
     }

@@ -5,7 +5,9 @@ import {
   query, 
   orderBy, 
   onSnapshot, 
-  doc 
+  doc,
+  updateDoc,
+  setDoc 
 } from 'firebase/firestore';
 import { auth, db } from './lib/firebase';
 import { 
@@ -24,9 +26,11 @@ import { InsightsPanel } from './components/InsightsPanel';
 import { WeeklyReflectionCard } from './components/WeeklyReflectionCard';
 import { ProfileSummaryModal } from './components/ProfileSummaryModal';
 import { SecurityReviewModal } from './components/SecurityReviewModal';
+import { DailyQuoteModal } from './components/DailyQuoteModal';
 import { AuthLanding } from './components/AuthLanding';
-import { requestAgenticNudge } from './lib/api';
+import { requestAgenticNudge, deactivateAccount, deleteAccount } from './lib/api';
 import { saveNudge, dismissNudge } from './lib/firebase';
+import { UserX, Trash2 } from 'lucide-react';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
@@ -43,6 +47,46 @@ export default function App() {
   // Inspector Modals
   const [isMemoryOpen, setIsMemoryOpen] = useState(false);
   const [isSecurityOpen, setIsSecurityOpen] = useState(false);
+  const [isDailyQuoteOpen, setIsDailyQuoteOpen] = useState(false);
+
+  // Account Management Modals
+  const [isDeactivateModalOpen, setIsDeactivateModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [accountActionLoading, setAccountActionLoading] = useState(false);
+  const [accountActionError, setAccountActionError] = useState<string | null>(null);
+
+  const handleDeactivateAccount = async () => {
+    if (!auth.currentUser) return;
+    setAccountActionLoading(true);
+    setAccountActionError(null);
+    try {
+      const token = await auth.currentUser.getIdToken(true);
+      await deactivateAccount(token);
+      await signOut(auth);
+      setIsDeactivateModalOpen(false);
+    } catch (err: any) {
+      setAccountActionError(err.message || 'Deactivation failed.');
+    } finally {
+      setAccountActionLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!auth.currentUser) return;
+    setAccountActionLoading(true);
+    setAccountActionError(null);
+    try {
+      const token = await auth.currentUser.getIdToken(true);
+      await deleteAccount(token);
+      await signOut(auth);
+      setIsDeleteModalOpen(false);
+    } catch (err: any) {
+      setAccountActionError(err.message || 'Account deletion failed.');
+    } finally {
+      setAccountActionLoading(false);
+    }
+  };
 
   // Cross-component triggers
   const [prefillPrompt, setPrefillPrompt] = useState<{ prompt: string; tag: string } | null>(null);
@@ -118,11 +162,44 @@ export default function App() {
 
     // 2. users/{uid}/profile/summary listener
     const summaryDocRef = doc(db, 'users', uid, 'profile', 'summary');
-    const unsubSummary = onSnapshot(summaryDocRef, (docSnap) => {
+    const unsubSummary = onSnapshot(summaryDocRef, async (docSnap) => {
+      const todayStr = new Date().toISOString().split('T')[0];
       if (docSnap.exists()) {
-        setProfileSummary({ id: docSnap.id, ...docSnap.data() } as unknown as ProfileSummary);
+        const data = docSnap.data();
+        if (data.deactivated) {
+          try {
+            await updateDoc(summaryDocRef, {
+              deactivated: false,
+              reactivatedAt: new Date().toISOString(),
+            });
+            console.log('[Account Auto-Reactivated] UID:', uid);
+          } catch (rErr) {
+            console.warn('Auto-reactivation write notice:', rErr);
+          }
+        }
+        if (!data.lastQuoteShownDate || data.lastQuoteShownDate !== todayStr) {
+          setIsDailyQuoteOpen(true);
+          try {
+            await setDoc(summaryDocRef, { lastQuoteShownDate: todayStr }, { merge: true });
+          } catch (qErr) {
+            console.warn('Failed to update lastQuoteShownDate:', qErr);
+          }
+        }
+        setProfileSummary({ id: docSnap.id, ...data } as unknown as ProfileSummary);
       } else {
-        setProfileSummary(null);
+        setIsDailyQuoteOpen(true);
+        try {
+          await setDoc(summaryDocRef, {
+            userId: uid,
+            summary: 'New journaling journey started.',
+            lastUpdated: new Date().toISOString(),
+            keyThemes: [],
+            totalEntriesAnalyzed: 0,
+            lastQuoteShownDate: todayStr,
+          });
+        } catch (cErr) {
+          console.warn('Failed to initialize profile summary with quote date:', cErr);
+        }
       }
     }, (err) => {
       console.warn('Profile summary subscription notice:', err.message);
@@ -136,7 +213,7 @@ export default function App() {
     const unsubInsights = onSnapshot(insightsQuery, (snapshot) => {
       const list: InsightReport[] = [];
       snapshot.forEach((docSnap) => {
-        list.push({ id: docSnap.id, ...docSnap.data() } as InsightReport);
+        if (docSnap.id !== 'weeklySummary') list.push({ id: docSnap.id, ...docSnap.data() } as InsightReport);
       });
       setInsights(list);
     }, (err) => {
@@ -162,7 +239,7 @@ export default function App() {
     });
 
     // 5. users/{uid}/weeklySummary listener
-    const weeklyDocRef = doc(db, 'users', uid, 'profile', 'weeklySummary');
+    const weeklyDocRef = doc(db, 'users', uid, 'insights', 'weeklySummary');
     const unsubWeekly = onSnapshot(weeklyDocRef, (docSnap) => {
       if (docSnap.exists()) {
         setWeeklySummary({ id: docSnap.id, ...docSnap.data() } as WeeklyReflectionReport);
@@ -257,6 +334,8 @@ export default function App() {
         onToggleTheme={toggleTheme}
         onOpenMemory={() => setIsMemoryOpen(true)}
         onOpenSecurity={() => setIsSecurityOpen(true)}
+        onOpenDeactivateModal={() => setIsDeactivateModalOpen(true)}
+        onOpenDeleteModal={() => setIsDeleteModalOpen(true)}
         onSignOut={handleSignOut}
       />
 
@@ -373,6 +452,124 @@ export default function App() {
       <SecurityReviewModal
         isOpen={isSecurityOpen}
         onClose={() => setIsSecurityOpen(false)}
+      />
+
+      {/* Deactivate Account Confirmation Modal */}
+      {isDeactivateModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full p-6 space-y-5 text-slate-800 dark:text-slate-100">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950/60 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                <UserX className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-serif text-lg font-bold">Deactivate Account</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Preserve all data with temporary sign-out</p>
+              </div>
+            </div>
+
+            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+              Your account will be temporarily deactivated, and you will be signed out. All your journal entries, AI memory summaries, insights, and nudges will be securely preserved. You can return and reactivate your account anytime simply by signing back in.
+            </p>
+
+            {accountActionError && (
+              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 text-xs">
+                {accountActionError}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsDeactivateModalOpen(false);
+                  setAccountActionError(null);
+                }}
+                disabled={accountActionLoading}
+                className="px-4 py-2 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeactivateAccount}
+                disabled={accountActionLoading}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {accountActionLoading ? 'Deactivating...' : 'Deactivate Account'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Account Permanently Modal */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-rose-200 dark:border-rose-900/50 shadow-2xl max-w-md w-full p-6 space-y-5 text-slate-800 dark:text-slate-100">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-950/60 flex items-center justify-center text-rose-600 dark:text-rose-400">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-serif text-lg font-bold text-rose-600 dark:text-rose-400">Delete Account Permanently</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">This action is irreversible</p>
+              </div>
+            </div>
+
+            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+              Warning: All your journal entries, AI memory summaries, insights, nudges, and account authentication records will be <strong>permanently purged</strong> from the database immediately. You will not be able to recover this data.
+            </p>
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">
+                To confirm, please type <span className="font-mono font-bold text-rose-600 dark:text-rose-400">DELETE</span> below:
+              </label>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="Type DELETE"
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
+              />
+            </div>
+
+            {accountActionError && (
+              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 text-xs">
+                {accountActionError}
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsDeleteModalOpen(false);
+                  setDeleteConfirmText('');
+                  setAccountActionError(null);
+                }}
+                disabled={accountActionLoading}
+                className="px-4 py-2 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteAccount}
+                disabled={accountActionLoading || deleteConfirmText.trim() !== 'DELETE'}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {accountActionLoading ? 'Deleting...' : 'Delete Permanently'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Daily Quote Modal */}
+      <DailyQuoteModal
+        isOpen={isDailyQuoteOpen}
+        onClose={() => setIsDailyQuoteOpen(false)}
       />
 
     </div>

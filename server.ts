@@ -3,8 +3,61 @@ import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI, Type } from '@google/genai';
 import dotenv from 'dotenv';
+import { initializeApp, getApps } from 'firebase-admin/app';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore, Firestore, Query } from 'firebase-admin/firestore';
+import firebaseConfig from './firebase-applet-config.json';
 
 dotenv.config();
+
+if (!getApps().length) {
+  try {
+    initializeApp({
+      projectId: firebaseConfig.projectId,
+    });
+  } catch (err) {
+    console.warn('Firebase Admin initialization warning:', err);
+  }
+}
+
+async function verifyAuthToken(req: Request) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    throw new Error('Unauthorized: Missing or invalid authorization header');
+  }
+  const token = authHeader.split('Bearer ')[1];
+  try {
+    const decodedToken = await getAuth().verifyIdToken(token);
+    return decodedToken;
+  } catch (err: any) {
+    throw new Error(`Unauthorized: Invalid ID token (${err.message})`);
+  }
+}
+
+async function deleteQueryBatch(db: Firestore, query: Query, resolve: Function) {
+  const snapshot = await query.get();
+  const batchSize = snapshot.size;
+  if (batchSize === 0) {
+    resolve();
+    return;
+  }
+  const batch = db.batch();
+  snapshot.docs.forEach((doc) => {
+    batch.delete(doc.ref);
+  });
+  await batch.commit();
+  process.nextTick(() => {
+    deleteQueryBatch(db, query, resolve);
+  });
+}
+
+async function deleteCollection(db: Firestore, collectionPath: string, batchSize: number = 100) {
+  const collectionRef = db.collection(collectionPath);
+  const query = collectionRef.orderBy('__name__').limit(batchSize);
+  return new Promise((resolve, reject) => {
+    deleteQueryBatch(db, query, resolve).catch(reject);
+  });
+}
 
 const app = express();
 const PORT = 3000;
@@ -137,40 +190,85 @@ async function generateContentWithRetry(params: GeminiCallParams) {
 }
 
 /**
- * Resilient Gemini stream generator that yields chunks from models with seamless fallback.
- * If model A fails during initialization or before yielding chunks, it falls back to model B.
+ * Resilient Gemini stream generator that yields genuine token chunks in real-time.
+ * If model A fails during initialization or before yielding chunks, it immediately falls back to model B.
  */
 async function* streamContentWithResilientFallback(params: GeminiCallParams) {
+  const ai = getGeminiClient();
   const primaryModel = params.model || 'gemini-3.1-flash-lite';
-  const fallbackModels = params.fallbackModels || ['gemini-3.7-flash', 'gemini-flash-latest'];
+  const fallbackModels = params.fallbackModels || ['gemini-flash-latest', 'gemini-3.7-flash'];
+  const modelsToTry = Array.from(new Set([primaryModel, ...fallbackModels]));
+  const initTimeoutMs = params.timeoutMs ? Math.min(params.timeoutMs, 10000) : 8000;
 
-  console.log(`[Gemini Resilient Stream] Fetching content using models [${primaryModel}, ${fallbackModels.join(', ')}]...`);
-  const response = await generateContentWithRetry({
-    model: primaryModel,
-    fallbackModels,
-    contents: params.contents,
-    config: params.config,
-    timeoutMs: params.timeoutMs || 15000,
-  });
+  let lastError: any = null;
+  let hasYieldedAnyChunk = false;
 
-  const fullText = response.text || '';
-  if (!fullText) {
-    throw new Error('Gemini returned an empty response text.');
-  }
+  for (const model of modelsToTry) {
+    const requestStartTime = Date.now();
+    let firstTokenTime: number | null = null;
+    let chunkCount = 0;
+    let charsCount = 0;
 
-  // Stream words/chunks with a brief 15ms pace for a smooth, fluid typing effect on client
-  const words = fullText.split(/(\s+)/);
-  let buffer = '';
+    try {
+      console.log(`[Gemini Stream START] Attempting model "${model}" at ${new Date().toISOString()} (init timeout: ${initTimeoutMs}ms)...`);
+      
+      const responseStream = await withTimeout(
+        ai.models.generateContentStream({
+          model,
+          contents: params.contents,
+          config: params.config,
+        }),
+        initTimeoutMs,
+        `Gemini stream initialization on ${model} timed out after ${initTimeoutMs}ms`
+      );
 
-  for (let i = 0; i < words.length; i++) {
-    buffer += words[i];
-    // Yield every 2-3 words or whitespace
-    if (i % 3 === 0 || i === words.length - 1) {
-      yield { text: buffer, model: 'gemini-3.1-flash-lite' };
-      buffer = '';
-      await new Promise((res) => setTimeout(res, 12));
+      for await (const chunk of responseStream) {
+        const text = chunk.text || '';
+        if (text) {
+          if (firstTokenTime === null) {
+            firstTokenTime = Date.now() - requestStartTime;
+            console.log(`[Gemini Stream TTFT] Model "${model}" delivered first token in ${firstTokenTime}ms.`);
+          }
+          hasYieldedAnyChunk = true;
+          chunkCount++;
+          charsCount += text.length;
+          yield { text, model };
+        }
+      }
+
+      const totalElapsed = Date.now() - requestStartTime;
+      console.log(`[Gemini Stream COMPLETE] Model "${model}" finished in ${totalElapsed}ms (TTFT: ${firstTokenTime}ms, ${chunkCount} chunks, ${charsCount} chars).`);
+      return;
+    } catch (err: any) {
+      const elapsed = Date.now() - requestStartTime;
+      lastError = err;
+      const errMsg = err?.message || String(err);
+      console.warn(`[Gemini Stream ATTEMPT FAILED] Model "${model}" failed after ${elapsed}ms: ${errMsg.slice(0, 200)}.`);
+
+      // If chunks were already yielded to the client, cannot switch models mid-flight without garbling output
+      if (hasYieldedAnyChunk) {
+        console.error(`[Gemini Stream ABORT] Model "${model}" failed mid-stream after emitting ${chunkCount} chunks.`);
+        throw err;
+      }
     }
   }
+
+  // If all streaming models failed before emitting any chunks, try a direct non-streaming backup
+  console.warn(`[Gemini Stream BACKUP] All streaming attempts failed. Attempting non-streaming backup...`);
+  try {
+    const backupStart = Date.now();
+    const backupResponse = await generateContentWithRetry(params);
+    const text = backupResponse.text || '';
+    if (text) {
+      console.log(`[Gemini Stream BACKUP SUCCESS] Non-streaming backup retrieved ${text.length} chars in ${Date.now() - backupStart}ms.`);
+      yield { text, model: 'gemini-3.1-flash-lite' };
+      return;
+    }
+  } catch (backupErr: any) {
+    console.error(`[Gemini Stream BACKUP FAILED]`, backupErr?.message || backupErr);
+  }
+
+  throw lastError || new Error('All streaming models exhausted.');
 }
 
 // In-Memory Server Cache with TTL
@@ -297,8 +395,10 @@ app.post('/api/journal/chat-stream', async (req: Request, res: Response) => {
   res.write(': connected\n\n');
 
   let clientDisconnected = false;
-  req.on('close', () => {
-    clientDisconnected = true;
+  res.on('close', () => {
+    if (!res.writableEnded) {
+      clientDisconnected = true;
+    }
   });
 
   try {
@@ -373,15 +473,18 @@ At the very end of your response, on a new line, you MUST append the emotional/s
     });
 
     try {
-      console.log(`[Chat Stream] Initiating reflection stream for message: "${cleanMessage.slice(0, 80)}..."`);
+      const streamStart = Date.now();
+      console.log(`[Chat Stream START] Message: "${cleanMessage.slice(0, 80)}..." | Mood: ${userMood} | Title: "${entryTitle}"`);
+      console.log(`[Context Metrics] Memory Summary: ${cleanSummary.length} chars | Recent Entries: ${recentContextText.length} chars | History: ${contents.length} turns`);
       
       let accumulatedRaw = '';
-      let isStreamingMeta = false;
+      let emittedLength = 0;
       let usedModel = 'gemini-3.1-flash-lite';
+      let firstChunkTime: number | null = null;
 
       for await (const chunk of streamContentWithResilientFallback({
         model: 'gemini-3.1-flash-lite',
-        fallbackModels: ['gemini-3.7-flash', 'gemini-flash-latest'],
+        fallbackModels: ['gemini-flash-latest', 'gemini-3.7-flash'],
         contents,
         config: {
           systemInstruction,
@@ -396,27 +499,35 @@ At the very end of your response, on a new line, you MUST append the emotional/s
         usedModel = chunk.model;
         const textChunk = chunk.text || '';
         if (textChunk) {
+          if (firstChunkTime === null) {
+            firstChunkTime = Date.now() - streamStart;
+            console.log(`[Chat Stream CLIENT TTFT] First chunk forwarded to client in ${firstChunkTime}ms.`);
+          }
           accumulatedRaw += textChunk;
 
-          if (!isStreamingMeta) {
-            const metaIndex = accumulatedRaw.indexOf('---SENTIMENT_META---');
-            if (metaIndex !== -1) {
-              isStreamingMeta = true;
-            } else {
-              res.write(`data: ${JSON.stringify({ text: textChunk, done: false })}\n\n`);
+          const metaIndex = accumulatedRaw.indexOf('---SENTIMENT_META---');
+          const conversationalPart = metaIndex !== -1 ? accumulatedRaw.slice(0, metaIndex) : accumulatedRaw;
+
+          if (conversationalPart.length > emittedLength) {
+            const newTokens = conversationalPart.slice(emittedLength);
+            emittedLength = conversationalPart.length;
+            res.write(`data: ${JSON.stringify({ text: newTokens, done: false })}\n\n`);
+            if (typeof (res as any).flush === 'function') {
+              (res as any).flush();
             }
           }
         }
       }
 
       if (!clientDisconnected) {
+        const totalDuration = Date.now() - streamStart;
         const { cleanText, sentiment } = parseSentimentMetadata(accumulatedRaw, userMood, entryTitle);
         
         if (!cleanText || cleanText.trim().length === 0) {
           throw new Error('Gemini returned an empty text response.');
         }
 
-        console.log(`[Chat Stream SUCCESS - Genuine Gemini Response] Streamed ${cleanText.length} chars (Model: ${usedModel}, Sentiment: "${sentiment.label}", Score: ${sentiment.score})`);
+        console.log(`[Chat Stream SUCCESS] Streamed ${cleanText.length} chars in ${totalDuration}ms (TTFT: ${firstChunkTime}ms, Model: ${usedModel}, Sentiment: "${sentiment.label}")`);
 
         res.write(`data: ${JSON.stringify({ 
           text: '', 
@@ -424,6 +535,7 @@ At the very end of your response, on a new line, you MUST append the emotional/s
           fullText: cleanText, 
           sentiment,
           model: usedModel,
+          durationMs: totalDuration,
           timestamp: new Date().toISOString() 
         })}\n\n`);
         res.write('data: [DONE]\n\n');
@@ -1222,6 +1334,82 @@ Generate a JSON object with:
     console.warn('Gemini sentiment analysis unavailable, using fallback sentiment:', error?.message);
     const fallback = getFallbackSentiment(userMood, cleanTitle);
     res.json({ sentiment: fallback });
+  }
+});
+
+// Deactivate Account Endpoint
+app.post('/api/account/deactivate', async (req: Request, res: Response) => {
+  try {
+    const decodedToken = await verifyAuthToken(req);
+    const uid = decodedToken.uid;
+    const dbAdmin = getFirestore();
+
+    const summaryRef = dbAdmin.doc(`users/${uid}/profile/summary`);
+    const summaryDoc = await summaryRef.get();
+    
+    const now = new Date().toISOString();
+    if (summaryDoc.exists) {
+      await summaryRef.update({
+        deactivated: true,
+        deactivatedAt: now,
+      });
+    } else {
+      await summaryRef.set({
+        userId: uid,
+        summary: 'Account deactivated.',
+        lastUpdated: now,
+        keyThemes: [],
+        totalEntriesAnalyzed: 0,
+        deactivated: true,
+        deactivatedAt: now,
+      }, { merge: true });
+    }
+
+    console.log(`[Account Deactivated] UID: ${uid} at ${now}`);
+    res.json({ success: true, message: 'Account deactivated successfully.' });
+  } catch (err: any) {
+    console.error('Deactivation error:', err);
+    res.status(401).json({ error: err.message || 'Deactivation failed.' });
+  }
+});
+
+// Delete Account Permanently Endpoint
+app.post('/api/account/delete', async (req: Request, res: Response) => {
+  try {
+    const decodedToken = await verifyAuthToken(req);
+    const uid = decodedToken.uid;
+    const dbAdmin = getFirestore();
+
+    console.log(`[Account Delete START] Permanently deleting all data and auth for UID: ${uid}`);
+
+    // 1. Delete all subcollections under users/{uid}
+    const subcollections = ['entries', 'insights', 'nudges', 'profile'];
+    for (const subcol of subcollections) {
+      try {
+        await deleteCollection(dbAdmin, `users/${uid}/${subcol}`);
+      } catch (colErr) {
+        console.warn(`Notice while deleting subcollection users/${uid}/${subcol}:`, colErr);
+      }
+    }
+
+    // 2. Delete user root document at users/{uid}
+    try {
+      await dbAdmin.doc(`users/${uid}`).delete();
+    } catch {}
+
+    // 3. Delete Firebase Auth user
+    try {
+      await getAuth().deleteUser(uid);
+      console.log(`[Firebase Auth DELETED] UID: ${uid}`);
+    } catch (authDelErr: any) {
+      console.warn(`Notice: Firebase Auth user deletion warning for ${uid}:`, authDelErr.message);
+    }
+
+    console.log(`[Account Delete SUCCESS] UID: ${uid} completely purged.`);
+    res.json({ success: true, message: 'Account and all data permanently deleted.' });
+  } catch (err: any) {
+    console.error('Account permanent deletion error:', err);
+    res.status(401).json({ error: err.message || 'Account deletion failed.' });
   }
 });
 

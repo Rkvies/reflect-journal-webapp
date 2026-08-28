@@ -39,6 +39,7 @@ export interface ProfileSummary {
   keyThemes: string[];
   totalEntriesAnalyzed: number;
   coreValues?: string[];
+  lastQuoteShownDate?: string;
 }
 
 export interface ThemeMetric {

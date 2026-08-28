@@ -209,9 +209,9 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
                   <span>Emotional Trajectory</span>
                 </span>
                 <span>
-                  {entries.length > latestInsight.entriesAnalyzedCount
-                    ? `Analyzed ${latestInsight.entriesAnalyzedCount} of ${entries.length} reflections`
-                    : `Analyzed ${latestInsight.entriesAnalyzedCount} reflections`}
+                  {entries.length > (latestInsight.entriesAnalyzedCount ?? (latestInsight as any).entryCount ?? entries.length)
+                    ? `Analyzed ${latestInsight.entriesAnalyzedCount ?? (latestInsight as any).entryCount ?? entries.length} of ${entries.length} reflections`
+                    : `Analyzed ${latestInsight.entriesAnalyzedCount ?? (latestInsight as any).entryCount ?? entries.length} reflections`}
                 </span>
               </div>
 

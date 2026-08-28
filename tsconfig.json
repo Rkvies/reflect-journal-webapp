@@ -21,6 +21,9 @@
       ]
     },
     "allowImportingTsExtensions": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "types": ["node", "vite/client"],
     "noEmit": true
   }
 }

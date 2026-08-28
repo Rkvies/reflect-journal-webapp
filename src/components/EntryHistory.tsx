@@ -5,7 +5,6 @@ import {
   ChevronDown, 
   ChevronUp, 
   Calendar, 
-  Tag, 
   Sparkles, 
   Feather, 
   FileText, 
@@ -16,11 +15,10 @@ import {
   Check, 
   X, 
   AlertTriangle, 
-  Lock,
-  Clock
+  Lock
 } from 'lucide-react';
 import Markdown from 'react-markdown';
-import { JournalEntry, MoodType, EntrySentiment } from '../types';
+import { JournalEntry, MoodType } from '../types';
 import { deleteJournalEntry, updateJournalEntryContent, saveJournalEntry } from '../lib/firebase';
 import { analyzeEntrySentiment } from '../lib/api';
 import { ConfidenceTooltip } from './ConfidenceTooltip';
@@ -691,7 +689,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                               <div className="font-semibold text-xs mb-1 font-serif text-slate-600 dark:text-slate-400">
                                 {turn.role === 'user' ? 'You' : 'Reflect AI Companion'}
                               </div>
-                              <Markdown>{turn.text}</Markdown>
+                              <Markdown>{typeof turn.text === 'string' ? turn.text : String(turn.text || '')}</Markdown>
                             </div>
                           ))}
                         </div>
@@ -755,17 +753,14 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
               </div>
 
               <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-xs">
-                Are you sure you want to permanently delete this reflection? This action will remove the document from{' '}
-                <code className="text-[10px] font-mono px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                  users/{userId.slice(0, 8)}.../entries/{entryToDelete.id.slice(0, 8)}...
-                </code>
+                Are you sure you want to permanently delete this reflection? This entry and its reflective dialogue will be removed from your personal journal archive.
               </p>
 
               {/* Requirement 2 Isolation Notice */}
               <div className="p-3 rounded-2xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-amber-900 dark:text-amber-300 text-[11px] flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
                 <span>
-                  <strong>Note:</strong> Deleting an entry removes its document directly. Your long-term memory summary profile is preserved and only updates through its normal periodic reflection cycle.
+                  <strong>Note:</strong> Deleting an entry removes this reflection directly. Your continuous memory profile is preserved and only updates through its normal periodic reflection cycle.
                 </span>
               </div>
             </div>
@@ -812,8 +807,8 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                 <div>
                   <h3 className="text-base font-serif font-bold text-slate-900 dark:text-white flex items-center gap-2">
                     <span>Edit Reflection Narrative</span>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 font-medium">
-                      Owner Data Sovereignty
+                    <span className="text-[10px] font-sans px-2.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 font-medium">
+                      Author Sovereignty
                     </span>
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -871,7 +866,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                       className={`px-3 py-2 rounded-xl text-xs font-medium border flex items-center gap-1.5 transition-all cursor-pointer ${
                         editMood === m
                           ? 'bg-indigo-50 dark:bg-indigo-950/70 border-indigo-400 dark:border-indigo-600 text-indigo-800 dark:text-indigo-200 font-semibold ring-2 ring-indigo-400/20'
-                          : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-750'
+                          : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
                       }`}
                     >
                       <span>{MOOD_EMOJIS[m]}</span>
@@ -916,9 +911,9 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
 
             {/* Modal Actions */}
             <div className="p-4 sm:p-5 border-t border-slate-200/60 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-mono hidden sm:flex">
-                <Lock className="w-3 h-3 text-emerald-500" />
-                <span>users/{userId.slice(0, 6)}.../entries</span>
+              <div className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500 font-sans hidden sm:flex">
+                <Lock className="w-3.5 h-3.5 text-emerald-500" />
+                <span>Private & isolated partition</span>
               </div>
 
               <div className="flex items-center gap-2">

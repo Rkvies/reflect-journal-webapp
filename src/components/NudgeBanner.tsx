@@ -68,6 +68,16 @@ export const NudgeBanner: React.FC<NudgeBannerProps> = ({
           </button>
 
           <button
+            id={`btn-refresh-nudge-${nudge.id}`}
+            onClick={handleSimulateScheduler}
+            disabled={isSimulating || isLoadingNudge}
+            title="Refresh check-in prompt"
+            className="p-1.5 rounded-xl text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-200/50 dark:hover:bg-slate-800 transition-colors cursor-pointer disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isSimulating || isLoadingNudge ? 'animate-spin' : ''}`} />
+          </button>
+
+          <button
             id={`btn-dismiss-nudge-${nudge.id}`}
             onClick={() => onDismiss(nudge.id)}
             title="Dismiss check-in"

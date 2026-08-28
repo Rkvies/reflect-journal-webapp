@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Brain, X, Shield, RefreshCw, Check, Sparkles, FileText } from 'lucide-react';
+import { Brain, X, Shield, Check, Sparkles } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { ProfileSummary } from '../types';
 import { saveProfileSummary } from '../lib/firebase';
@@ -57,8 +57,8 @@ export const ProfileSummaryModal: React.FC<ProfileSummaryModalProps> = ({
             <div>
               <h3 className="text-base font-serif font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <span>Agentic Memory Layer</span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-medium">
-                  users/{'{uid}'}/profile/summary
+                <span className="text-[10px] font-sans px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 font-medium">
+                  Continuous Context Memory
                 </span>
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -139,16 +139,27 @@ export const ProfileSummaryModal: React.FC<ProfileSummaryModalProps> = ({
             </div>
           )}
 
-          {/* Architectural Notes */}
-          <div className="p-4 rounded-2xl bg-white/50 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-700 space-y-1.5 text-[11px] text-slate-600 dark:text-slate-400">
-            <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 font-mono font-semibold">
-              <Shield className="w-3.5 h-3.5" />
-              <span>Architectural Privacy & Token Optimization</span>
+          {/* Technical & Storage Architecture Details (Collapsible) */}
+          <details className="group p-4 rounded-2xl bg-white/50 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-400 transition-all">
+            <summary className="font-semibold text-slate-700 dark:text-slate-300 cursor-pointer flex items-center justify-between select-none">
+              <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                <Shield className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>Security & Storage Architecture</span>
+              </span>
+              <span className="text-[10px] font-mono text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+            </summary>
+            <div className="mt-3 pt-3 border-t border-slate-200/60 dark:border-slate-700/60 space-y-2 text-[11px] font-sans leading-relaxed">
+              <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                <span className="font-semibold text-slate-700 dark:text-slate-200">Storage Partition:</span>
+                <code className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-indigo-600 dark:text-indigo-400">
+                  users/{'{uid}'}/profile/summary
+                </code>
+              </div>
+              <p>
+                This memory profile distills reflections into persistent psychological themes (~2,000 tokens) to prevent unbounded context growth while providing deep multi-session continuity. Strictly isolated under your authenticated UID.
+              </p>
             </div>
-            <p>
-              This memory document prevents token runaway by distilling months of journaling into structured psychological pillars rather than dumping raw transcripts into context windows.
-            </p>
-          </div>
+          </details>
         </div>
 
         {/* Footer */}

@@ -7,8 +7,7 @@ import {
   User, 
   Sun, 
   Moon, 
-  ChevronDown, 
-  Settings 
+  ChevronDown 
 } from 'lucide-react';
 import { AppUser } from '../types';
 

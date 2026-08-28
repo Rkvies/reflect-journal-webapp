@@ -2,7 +2,7 @@ import { JournalEntry, ProfileSummary, InsightReport, ProactiveNudge, ChatTurn, 
 
 async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 18000): Promise<Response> {
   const controller = new AbortController();
-  const timer = setTimeout(() => {
+  let timer: NodeJS.Timeout | null = setTimeout(() => {
     controller.abort();
   }, timeoutMs);
 
@@ -22,17 +22,24 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutM
     });
     return res;
   } catch (err: any) {
-    if (existingSignal?.aborted) {
+    const isAborted =
+      existingSignal?.aborted ||
+      err?.name === 'AbortError' ||
+      String(err?.message || '').toLowerCase().includes('abort') ||
+      String(err?.message || '').includes('BodyStreamBuffer') ||
+      String(err?.message || '').toLowerCase().includes('cancel');
+
+    if (isAborted) {
       const abortErr = new Error('The user aborted a request.');
       abortErr.name = 'AbortError';
       throw abortErr;
     }
-    if (err?.name === 'AbortError') {
-      throw new Error('Request timed out. Something went wrong, please try again.');
-    }
     throw err;
   } finally {
-    clearTimeout(timer);
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
   }
 }
 
@@ -41,11 +48,18 @@ export async function askGeminiReflection(params: {
   profileSummary: ProfileSummary | null;
   recentEntries: JournalEntry[];
   conversationHistory: ChatTurn[];
-}): Promise<{ reply: string; timestamp: string }> {
+  signal?: AbortSignal;
+}): Promise<{ reply: string; sentiment?: EntrySentiment; timestamp: string }> {
   const response = await fetchWithTimeout('/api/journal/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
+    body: JSON.stringify({
+      message: params.message,
+      profileSummary: params.profileSummary,
+      recentEntries: params.recentEntries,
+      conversationHistory: params.conversationHistory,
+    }),
+    signal: params.signal,
   }, 16000);
 
   if (!response.ok) {
@@ -63,27 +77,61 @@ export async function streamGeminiReflection(params: {
   conversationHistory: ChatTurn[];
   signal?: AbortSignal;
   onChunk: (chunkText: string, accumulatedText: string) => void;
-}): Promise<{ fullText: string; timestamp: string }> {
+}): Promise<{ fullText: string; sentiment?: EntrySentiment; timestamp: string }> {
   if (params.signal?.aborted) {
     const abortErr = new Error('The user aborted a request.');
     abortErr.name = 'AbortError';
     throw abortErr;
   }
 
-  const response = await fetchWithTimeout('/api/journal/chat-stream', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'text/event-stream',
-    },
-    body: JSON.stringify({
-      message: params.message,
-      profileSummary: params.profileSummary,
-      recentEntries: params.recentEntries,
-      conversationHistory: params.conversationHistory,
-    }),
-    signal: params.signal,
-  }, 20000);
+  // Connection timeout controller for initial response header reception
+  const connectController = new AbortController();
+  const connectTimer = setTimeout(() => connectController.abort(), 18000);
+
+  const onUserAbort = () => {
+    connectController.abort();
+  };
+
+  if (params.signal) {
+    params.signal.addEventListener('abort', onUserAbort, { once: true });
+  }
+
+  let response: Response;
+  try {
+    response = await fetch('/api/journal/chat-stream', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
+      },
+      body: JSON.stringify({
+        message: params.message,
+        profileSummary: params.profileSummary,
+        recentEntries: params.recentEntries,
+        conversationHistory: params.conversationHistory,
+      }),
+      signal: connectController.signal,
+    });
+  } catch (fetchErr: any) {
+    const isAborted =
+      params.signal?.aborted ||
+      fetchErr?.name === 'AbortError' ||
+      String(fetchErr?.message || '').toLowerCase().includes('abort') ||
+      String(fetchErr?.message || '').includes('BodyStreamBuffer') ||
+      String(fetchErr?.message || '').toLowerCase().includes('cancel');
+
+    if (isAborted) {
+      const abortErr = new Error('The user aborted a request.');
+      abortErr.name = 'AbortError';
+      throw abortErr;
+    }
+    throw fetchErr;
+  } finally {
+    clearTimeout(connectTimer);
+    if (params.signal) {
+      params.signal.removeEventListener('abort', onUserAbort);
+    }
+  }
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({ error: 'Something went wrong, please try again.' }));
@@ -95,19 +143,20 @@ export async function streamGeminiReflection(params: {
     throw new Error('ReadableStream not supported in this browser.');
   }
 
-  const onAbort = () => {
+  const onStreamAbort = () => {
     try {
-      reader.cancel();
+      reader.cancel().catch(() => {});
     } catch {}
   };
 
   if (params.signal) {
-    params.signal.addEventListener('abort', onAbort, { once: true });
+    params.signal.addEventListener('abort', onStreamAbort, { once: true });
   }
 
   const decoder = new TextDecoder('utf-8');
   let accumulated = '';
   let buffer = '';
+  let finalSentiment: EntrySentiment | undefined;
 
   try {
     while (true) {
@@ -117,7 +166,26 @@ export async function streamGeminiReflection(params: {
         throw abortErr;
       }
 
-      const { done, value } = await reader.read();
+      let readResult;
+      try {
+        readResult = await reader.read();
+      } catch (rErr: any) {
+        const isAborted =
+          params.signal?.aborted ||
+          rErr?.name === 'AbortError' ||
+          String(rErr?.message || '').toLowerCase().includes('abort') ||
+          String(rErr?.message || '').includes('BodyStreamBuffer') ||
+          String(rErr?.message || '').toLowerCase().includes('cancel');
+
+        if (isAborted) {
+          const abortErr = new Error('The user aborted a request.');
+          abortErr.name = 'AbortError';
+          throw abortErr;
+        }
+        throw rErr;
+      }
+
+      const { done, value } = readResult;
       if (done) break;
 
       buffer += decoder.decode(value, { stream: true });
@@ -129,12 +197,15 @@ export async function streamGeminiReflection(params: {
         if (!trimmed || !trimmed.startsWith('data:')) continue;
         const dataStr = trimmed.slice(5).trim();
         if (dataStr === '[DONE]') {
-          return { fullText: accumulated, timestamp: new Date().toISOString() };
+          return { fullText: accumulated, sentiment: finalSentiment, timestamp: new Date().toISOString() };
         }
         try {
           const parsed = JSON.parse(dataStr);
           if (parsed.error) {
             throw new Error(parsed.error);
+          }
+          if (parsed.sentiment) {
+            finalSentiment = parsed.sentiment;
           }
           if (parsed.text) {
             accumulated += parsed.text;
@@ -142,6 +213,7 @@ export async function streamGeminiReflection(params: {
           }
           if (parsed.done && parsed.fullText) {
             accumulated = parsed.fullText;
+            params.onChunk('', accumulated);
           }
         } catch (jsonErr) {
           if (jsonErr instanceof Error && jsonErr.name === 'AbortError') {
@@ -154,19 +226,51 @@ export async function streamGeminiReflection(params: {
       }
     }
   } catch (readErr: any) {
-    if (params.signal?.aborted || readErr?.name === 'AbortError') {
+    const isAborted =
+      params.signal?.aborted ||
+      readErr?.name === 'AbortError' ||
+      String(readErr?.message || '').toLowerCase().includes('abort') ||
+      String(readErr?.message || '').includes('BodyStreamBuffer') ||
+      String(readErr?.message || '').toLowerCase().includes('cancel');
+
+    if (isAborted) {
       const abortErr = new Error('The user aborted a request.');
       abortErr.name = 'AbortError';
       throw abortErr;
     }
-    throw readErr;
+    
+    // If stream read was interrupted, attempt fallback via standard endpoint
+    if (!accumulated || accumulated.trim().length === 0) {
+      try {
+        const fallback = await askGeminiReflection({
+          message: params.message,
+          profileSummary: params.profileSummary,
+          recentEntries: params.recentEntries,
+          conversationHistory: params.conversationHistory,
+          signal: params.signal,
+        });
+        params.onChunk('', fallback.reply);
+        return { fullText: fallback.reply, sentiment: fallback.sentiment, timestamp: fallback.timestamp };
+      } catch (fallbackErr) {
+        console.error('[streamGeminiReflection] Both streaming and non-streaming fallback failed:', fallbackErr);
+        throw readErr;
+      }
+    }
   } finally {
     if (params.signal) {
-      params.signal.removeEventListener('abort', onAbort);
+      params.signal.removeEventListener('abort', onStreamAbort);
     }
+    try {
+      reader.releaseLock?.();
+    } catch {}
   }
 
-  return { fullText: accumulated, timestamp: new Date().toISOString() };
+  const finalAccumulated = accumulated.trim();
+  if (!finalAccumulated) {
+    throw new Error('Empty reflection received from server.');
+  }
+
+  return { fullText: finalAccumulated, sentiment: finalSentiment, timestamp: new Date().toISOString() };
 }
 
 export async function triggerMemoryUpdate(params: {

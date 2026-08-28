@@ -237,7 +237,7 @@ export const WeeklyReflectionCard: React.FC<WeeklyReflectionCardProps> = ({
 
       {/* Highlights bar */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-        <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-850">
+        <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60">
           <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
             Dominant Mood & Trend
           </span>
@@ -246,7 +246,7 @@ export const WeeklyReflectionCard: React.FC<WeeklyReflectionCardProps> = ({
           </p>
         </div>
 
-        <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-850">
+        <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60">
           <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
             Weekly Themes
           </span>
@@ -272,7 +272,7 @@ export const WeeklyReflectionCard: React.FC<WeeklyReflectionCardProps> = ({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {summary.highlights && summary.highlights.length > 0 && (
-              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-850 space-y-1.5">
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 space-y-1.5">
                 <span className="font-semibold text-slate-800 dark:text-slate-200 font-serif">
                   Key Moments & Wins
                 </span>
@@ -287,7 +287,7 @@ export const WeeklyReflectionCard: React.FC<WeeklyReflectionCardProps> = ({
               </div>
             )}
 
-            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-850 flex flex-col justify-between gap-2">
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 flex flex-col justify-between gap-2">
               <div>
                 <span className="font-semibold text-slate-800 dark:text-slate-200 font-serif">
                   Horizon Takeaway

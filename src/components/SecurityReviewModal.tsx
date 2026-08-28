@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, Lock, Key, Server, Database, AlertTriangle, X, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, Server, Database, AlertTriangle, X, CheckCircle2 } from 'lucide-react';
 
 interface SecurityReviewModalProps {
   isOpen: boolean;
@@ -130,13 +130,23 @@ export const SecurityReviewModal: React.FC<SecurityReviewModalProps> = ({ isOpen
             </div>
           </div>
 
-          {/* Firestore Security Rules Preview */}
-          <div className="space-y-2">
-            <h4 className="text-xs font-mono uppercase tracking-wider text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1.5">
-              <Database className="w-3.5 h-3.5" />
-              <span>Deployed Firestore Security Rules</span>
-            </h4>
-            <pre className="p-4 rounded-2xl bg-slate-900 dark:bg-slate-950 text-slate-100 text-[11px] font-mono overflow-x-auto shadow-inner border border-slate-800">
+          {/* Collapsible Technical Implementation & Rules Audit for Technical Reviewers */}
+          <details className="group p-4 rounded-2xl bg-white/70 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700 text-xs transition-all">
+            <summary className="font-semibold text-slate-800 dark:text-slate-200 cursor-pointer flex items-center justify-between select-none">
+              <span className="flex items-center gap-2 font-mono text-xs uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                <Database className="w-4 h-4" />
+                <span>Technical Implementation & Rules Audit (Expand to Inspect)</span>
+              </span>
+              <span className="text-xs font-mono text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+            </summary>
+            
+            <div className="mt-4 space-y-4 pt-3 border-t border-slate-200/60 dark:border-slate-700/60">
+              {/* Firestore Security Rules Preview */}
+              <div className="space-y-2">
+                <h5 className="text-[11px] font-mono uppercase tracking-wider text-slate-600 dark:text-slate-300 font-semibold">
+                  Deployed Firestore Security Rules
+                </h5>
+                <pre className="p-4 rounded-2xl bg-slate-900 dark:bg-slate-950 text-slate-100 text-[11px] font-mono overflow-x-auto shadow-inner border border-slate-800">
 {`rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -148,19 +158,21 @@ service cloud.firestore {
     }
   }
 }`}
-            </pre>
-          </div>
+                </pre>
+              </div>
 
-          {/* Scheduled Job IAM Specs */}
-          <div className="p-5 rounded-2xl bg-white/60 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-2 text-xs">
-            <div className="flex items-center gap-2 font-mono text-indigo-700 dark:text-indigo-400 font-bold">
-              <Server className="w-4 h-4" />
-              <span>Agentic Nudge Cloud Scheduler Job (Least-Privilege IAM)</span>
+              {/* Scheduled Job IAM Specs */}
+              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 space-y-1.5 text-xs">
+                <div className="flex items-center gap-2 font-mono text-indigo-700 dark:text-indigo-400 font-bold text-xs">
+                  <Server className="w-3.5 h-3.5" />
+                  <span>Agentic Nudge Scheduler IAM Specs</span>
+                </div>
+                <p className="text-slate-600 dark:text-slate-300 leading-relaxed font-sans text-[11px]">
+                  Configured as a dedicated Cloud Run background job. Service account permissions are restricted strictly to Firestore document reading and nudge document creation within the user partition, authenticated via Google Secret Manager.
+                </p>
+              </div>
             </div>
-            <p className="text-slate-600 dark:text-slate-300 leading-relaxed font-sans">
-              Designed as a separate Cloud Scheduler-triggered Cloud Run job. Service account permissions are restricted strictly to Firestore read on <code>users/*/entries</code> and write on <code>users/*/nudges</code>, plus Secret Manager access for <code>GEMINI_API_KEY</code>. No outbound external communication (no unsolicited email/SMS).
-            </p>
-          </div>
+          </details>
 
         </div>
 

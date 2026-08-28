@@ -64,16 +64,18 @@ All user records are strictly partitioned under private, UID-scoped document pat
 | `users/{uid}/insights/weeklySummary` | Cached 7-day "Your Week in Reflection" recap document | `weekRange`, `weekSummary`, `topThemes[]`, `moodTrend`, `dominantMood`, `keyTakeaway`, `highlights[]`, `entryCount`, `daysActive`, `generatedAt` |
 | `users/{uid}/nudges/{nudgeId}` | Proactive check-in prompts generated for the user | `prompt`, `reason`, `suggestedTag`, `isDismissed`, `createdAt` |
 
-### Memory & Retrieval Pattern (RAG)
+### Memory & Retrieval Pattern (RAG) & API Efficiency
 
-Reflect avoids dumping unconstrained raw transcripts into the model prompt by executing a two-stage memory retrieval and synthesis loop:
+Reflect avoids dumping unconstrained raw transcripts into the model prompt while minimizing API consumption to **1 call per user interaction**:
 
-1. **Pre-Response Context Injection**:
-   - Before Gemini generates a response to a new reflection turn, the backend retrieves the user's running `profile/summary` document and the 3–5 most recent journal entries.
-   - These elements are injected into a protected system context block, providing background awareness while maintaining low token latency.
-2. **Post-Conversation Memory Distillation**:
-   - Following a journal session, an asynchronous background task sends the newly logged entry and existing memory summary to a specialized Gemini summarization prompt.
-   - Gemini merges new themes and milestones into the running summary, keeping the memory document bounded under ~1500 tokens.
+1. **Unified Reflection & Sentiment Call**:
+   - The primary conversational streaming endpoint (`/api/journal/chat-stream` and `/api/journal/chat`) combines the conversational reflection dialogue with structured visual sentiment metadata (`label`, `emoji`, `color`, `score`, `summary`) in a single prompt execution, eliminating secondary sentiment analysis calls.
+2. **Pre-Response Context Injection**:
+   - Before Gemini generates a response to a new reflection turn, the backend injects the user's running `profile/summary` document and the 3–5 most recent journal entries into a protected system context block.
+3. **Batched Memory Distillation**:
+   - Profile summary updates (`/api/journal/update-profile`) are batched asynchronously, executing only after initial entry onboarding or across 3–4 entry intervals rather than triggering on every individual chat turn.
+4. **Server-Side In-Memory Caching (TTL-Backed)**:
+   - Analytical insights, weekly recaps, profile summaries, and nudges utilize structured server-side caching with TTL expiry to eliminate duplicate model calls during rapid navigation or re-renders.
 
 ---
 

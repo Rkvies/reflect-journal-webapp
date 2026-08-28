@@ -42,9 +42,9 @@ export const AuthLanding: React.FC<AuthLandingProps> = ({ onSignedIn }) => {
             <span className="font-serif text-xl font-bold tracking-tight text-slate-900 dark:text-white">Reflect</span>
           </div>
 
-          <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 font-mono bg-white/60 dark:bg-slate-800/60 px-3 py-1 rounded-full border border-white/80 dark:border-slate-700/80 backdrop-blur-md">
+          <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-300 font-sans bg-white/60 dark:bg-slate-800/60 px-3.5 py-1 rounded-full border border-white/80 dark:border-slate-700/80 backdrop-blur-md">
             <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            <span>Encrypted Firestore ABAC Isolation</span>
+            <span>Private & Secure by Design</span>
           </div>
         </div>
       </header>
@@ -121,12 +121,12 @@ export const AuthLanding: React.FC<AuthLandingProps> = ({ onSignedIn }) => {
           </div>
 
           <div className="p-5 rounded-2xl bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-white/70 dark:border-slate-800/70 shadow-xs space-y-2">
-            <div className="flex items-center gap-2 text-xs font-bold text-emerald-700 dark:text-emerald-400 font-mono">
+            <div className="flex items-center gap-2 text-xs font-bold text-emerald-700 dark:text-emerald-400 font-serif">
               <Lock className="w-4 h-4" />
-              <span>Strict Firestore ABAC</span>
+              <span>Strict Private Isolation</span>
             </div>
             <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              Rules guarantee documents under <code>users/{'{uid}'}/**</code> are solely accessible to the authenticated owner.
+              Every reflection and memory summary is strictly partitioned to your account with zero unauthorized access.
             </p>
           </div>
 
@@ -146,7 +146,7 @@ export const AuthLanding: React.FC<AuthLandingProps> = ({ onSignedIn }) => {
 
       {/* Footer */}
       <footer className="border-t border-white/60 dark:border-slate-800/80 bg-white/30 dark:bg-slate-900/30 backdrop-blur-xl px-6 py-4 text-center text-xs text-slate-500 dark:text-slate-400 font-mono">
-        Reflect • Powered by Gemini 2.5 Flash & Google Cloud Firestore
+        Reflect • Powered by Google Gemini & Google Cloud Firestore
       </footer>
 
     </div>

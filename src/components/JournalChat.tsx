@@ -2,13 +2,11 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { 
   Send, 
   Sparkles, 
-  Tag, 
   Plus, 
   Square, 
   Radio, 
   Shuffle,
   Check,
-  Feather,
   Flame,
   Mic,
   MicOff
@@ -22,7 +20,7 @@ import {
   ProactiveNudge,
   EntrySentiment
 } from '../types';
-import { streamGeminiReflection, triggerMemoryUpdate, analyzeEntrySentiment } from '../lib/api';
+import { streamGeminiReflection, triggerMemoryUpdate } from '../lib/api';
 import { saveJournalEntry } from '../lib/firebase';
 
 interface JournalChatProps {
@@ -379,10 +377,14 @@ export const JournalChat: React.FC<JournalChatProps> = ({
         return;
       }
 
+      const safeText = (typeof res?.fullText === 'string' && res.fullText.trim().length > 0)
+        ? res.fullText.trim()
+        : "Thank you for sharing your reflection today. I'm holding space for this thought. Take a mindful breath, notice what feels most present right now, and give yourself space as you reflect.";
+
       const assistantTurn: ChatTurn = {
         id: 'turn_' + (Date.now() + 1),
         role: 'assistant',
-        text: res.fullText,
+        text: safeText,
         timestamp: res.timestamp || new Date().toISOString(),
       };
 
@@ -392,9 +394,16 @@ export const JournalChat: React.FC<JournalChatProps> = ({
       abortControllerRef.current = null;
       setIsLoading(false);
 
-      await persistEntry(finalHistory);
+      await persistEntry(finalHistory, res.sentiment);
     } catch (err: any) {
-      if (err?.name === 'AbortError' || controller.signal.aborted) {
+      const isAbort =
+        err?.name === 'AbortError' ||
+        controller.signal.aborted ||
+        String(err?.message || '').toLowerCase().includes('abort') ||
+        String(err?.message || '').includes('BodyStreamBuffer') ||
+        String(err?.message || '').toLowerCase().includes('cancel');
+
+      if (isAbort) {
         console.log('Stream generation halted by user');
         setStreamingReply(null);
         abortControllerRef.current = null;
@@ -429,7 +438,7 @@ export const JournalChat: React.FC<JournalChatProps> = ({
     }
   };
 
-  const persistEntry = async (chatTurns: ChatTurn[]) => {
+  const persistEntry = async (chatTurns: ChatTurn[], aiSentiment?: EntrySentiment) => {
     try {
       setIsSaving(true);
       const fullContent = chatTurns
@@ -454,7 +463,7 @@ export const JournalChat: React.FC<JournalChatProps> = ({
         energized: { label: 'Energized & Focused', emoji: '⚡', color: 'teal', score: 88, summary: 'High vitality, creative momentum, and proactive intent.' },
       };
 
-      const defaultSentiment: EntrySentiment = moodSentimentMap[selectedMood] || {
+      const defaultSentiment: EntrySentiment = aiSentiment || moodSentimentMap[selectedMood] || {
         label: 'Reflective Thought',
         emoji: '🧘',
         color: 'indigo',
@@ -477,35 +486,24 @@ export const JournalChat: React.FC<JournalChatProps> = ({
         wordCount: fullContent.split(/\s+/).filter(Boolean).length,
       };
 
-      // Save to Firestore immediately without blocking on secondary AI calls
+      // Save to Firestore with unified sentiment in a single write
       await saveJournalEntry(userId, entry);
       onEntrySaved(entry);
       setSaveStatus('Saved');
       setTimeout(() => setSaveStatus(null), 2500);
 
-      // Run background sentiment refinement asynchronously
-      if (fullContent.trim().length > 10) {
-        analyzeEntrySentiment({
-          title: entry.title,
-          content: fullContent,
-          conversation: chatTurns,
-          mood: selectedMood,
-        }).then(async (sentRes) => {
-          if (sentRes && sentRes.sentiment) {
-            const updatedEntry = { ...entry, sentiment: sentRes.sentiment, updatedAt: new Date().toISOString() };
-            await saveJournalEntry(userId, updatedEntry);
-            onEntrySaved(updatedEntry);
-          }
-        }).catch(err => console.warn('Background sentiment analysis non-blocking error:', err));
-      }
+      // Batch profile summary updates: only update every 3-4 entries or when initial profile is empty
+      const isInitialProfile = !profileSummary?.summary || profileSummary.summary.length < 50;
+      const isBatchThreshold = (recentEntries.length + 1) % 4 === 0;
 
-      // Run background memory summary update asynchronously
-      triggerMemoryUpdate({
-        existingSummary: profileSummary?.summary || '',
-        newEntryTitle: entry.title,
-        newEntryContent: entry.content,
-        newReflection: fullReflection,
-      }).catch(err => console.warn('Background profile summary update error:', err));
+      if (isInitialProfile || isBatchThreshold) {
+        triggerMemoryUpdate({
+          existingSummary: profileSummary?.summary || '',
+          newEntryTitle: entry.title,
+          newEntryContent: entry.content,
+          newReflection: fullReflection,
+        }).catch(err => console.warn('Background profile summary update error:', err));
+      }
 
     } catch (error: any) {
       console.error('Failed to save entry to Firestore:', error);
@@ -648,7 +646,7 @@ export const JournalChat: React.FC<JournalChatProps> = ({
                 key={turn.id}
                 className={`p-5 rounded-2xl transition-all ${
                   isUser
-                    ? 'bg-slate-100/70 dark:bg-slate-900/60 text-slate-850 dark:text-slate-100 ml-4 sm:ml-8'
+                    ? 'bg-slate-100/70 dark:bg-slate-900/60 text-slate-900 dark:text-slate-100 ml-4 sm:ml-8'
                     : 'bg-white dark:bg-slate-900 shadow-sm border border-slate-200/60 dark:border-slate-800 text-slate-800 dark:text-slate-100 mr-4 sm:mr-8'
                 }`}
               >
@@ -662,7 +660,7 @@ export const JournalChat: React.FC<JournalChatProps> = ({
                 </div>
 
                 <div className="prose prose-slate dark:prose-invert max-w-none text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-sans">
-                  <Markdown>{turn.text}</Markdown>
+                  <Markdown>{typeof turn.text === 'string' ? turn.text : String(turn.text || '')}</Markdown>
                 </div>
               </div>
             );
@@ -781,7 +779,7 @@ export const JournalChat: React.FC<JournalChatProps> = ({
                 : "Continue your reflection..."
             }
             disabled={isLoading}
-            className="w-full p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-950/60 text-slate-850 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 text-sm font-sans leading-relaxed focus:outline-none focus:bg-white dark:focus:bg-slate-950 focus:ring-2 focus:ring-indigo-500/20 resize-none transition-all disabled:opacity-50"
+            className="w-full p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-950/60 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 text-sm font-sans leading-relaxed focus:outline-none focus:bg-white dark:focus:bg-slate-950 focus:ring-2 focus:ring-indigo-500/20 resize-none transition-all disabled:opacity-50"
           />
 
           <div className="flex items-center justify-between pt-1">

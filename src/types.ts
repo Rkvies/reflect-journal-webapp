@@ -97,6 +97,28 @@ export interface WeeklyReflectionReport {
   generatedAt: string;
 }
 
+export interface AppNotification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: 'insight' | 'reminder' | 'milestone' | 'system' | 'reflection';
+  createdAt: string;
+  isRead: boolean;
+  readAt?: string;
+}
+
+export interface GratitudeEntry {
+  id: string;
+  userId: string;
+  date: string; // YYYY-MM-DD
+  item1: string;
+  item2: string;
+  item3: string;
+  reflection?: string;
+  createdAt: string;
+}
+
 export interface AppUser {
   uid: string;
   email: string | null;

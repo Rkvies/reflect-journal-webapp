@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { JournalEntry, MoodType } from '../types';
-import { deleteJournalEntry, updateJournalEntryContent, saveJournalEntry } from '../lib/firebase';
+import { deleteJournalEntry, saveJournalEntry } from '../lib/firebase';
 import { analyzeEntrySentiment } from '../lib/api';
 import { ConfidenceTooltip } from './ConfidenceTooltip';
 
@@ -134,14 +134,6 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
   const [entryToDelete, setEntryToDelete] = useState<JournalEntry | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Edit modal state
-  const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
-  const [editTitle, setEditTitle] = useState('');
-  const [editContent, setEditContent] = useState('');
-  const [editMood, setEditMood] = useState<MoodType>('reflective');
-  const [isSavingEdit, setIsSavingEdit] = useState(false);
-  const [editError, setEditError] = useState<string | null>(null);
-
   // When targetEntryId is provided (e.g. from Insights transparent reasoning link),
   // ensure the entry is un-filtered, expanded, and scrolled into view smoothly.
   useEffect(() => {
@@ -213,53 +205,6 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
       console.error('Delete error:', err);
     } finally {
       setIsDeleting(false);
-    }
-  };
-
-  // Open Edit Modal (only allowed if current user owns the entry)
-  const handleOpenEdit = (entry: JournalEntry, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (entry.userId !== userId) {
-      console.warn('Unauthorized edit attempt blocked in UI');
-      return;
-    }
-    setEditingEntry(entry);
-    setEditTitle(entry.title || '');
-    setEditContent(entry.content || '');
-    setEditMood(entry.mood || 'reflective');
-    setEditError(null);
-  };
-
-  // Save edited entry narrative
-  const handleSaveEdit = async () => {
-    if (!editingEntry || editingEntry.userId !== userId) return;
-
-    if (!editTitle.trim()) {
-      setEditError('Please provide a title for your reflection.');
-      return;
-    }
-
-    if (!editContent.trim()) {
-      setEditError('Reflection narrative cannot be empty.');
-      return;
-    }
-
-    try {
-      setIsSavingEdit(true);
-      setEditError(null);
-
-      await updateJournalEntryContent(userId, editingEntry.id, {
-        title: editTitle,
-        content: editContent,
-        mood: editMood,
-      });
-
-      setEditingEntry(null);
-    } catch (err: any) {
-      console.error('Error saving edited entry:', err);
-      setEditError(err.message || 'Failed to save changes. Please check permissions.');
-    } finally {
-      setIsSavingEdit(false);
     }
   };
 
@@ -363,39 +308,42 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
         </div>
 
         {/* Mood filter chips */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
-          <span className="text-slate-400 dark:text-slate-500 flex items-center gap-1 mr-2 text-[11px] font-semibold">
-            <Filter className="w-3 h-3" /> Filter:
-          </span>
-          <button
-            onClick={() => setSelectedMoodFilter('all')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
-              selectedMoodFilter === 'all'
-                ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-600/20'
-                : 'bg-white/60 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 border-slate-200/70 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800'
-            }`}
-          >
-            All Moods ({entries.length})
-          </button>
-          {(['reflective', 'peaceful', 'optimistic', 'grounded', 'seeking_clarity', 'anxious', 'fatigued', 'energized'] as MoodType[]).map((mood) => {
-            const count = entries.filter((e) => e.mood === mood).length;
-            if (count === 0) return null;
-            return (
-              <button
-                key={mood}
-                onClick={() => setSelectedMoodFilter(mood)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-medium border flex items-center gap-1.5 transition-all cursor-pointer ${
-                  selectedMoodFilter === mood
-                    ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-600/20 font-semibold'
-                    : 'bg-white/60 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 border-slate-200/70 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800'
-                }`}
-              >
-                <span>{MOOD_EMOJIS[mood] || '📝'}</span>
-                <span className="capitalize">{mood.replace('_', ' ')}</span>
-                <span className="text-[10px] opacity-70">({count})</span>
-              </button>
-            );
-          })}
+        <div className="space-y-2.5">
+          <div className="text-slate-400 dark:text-slate-500 flex items-center gap-1.5 text-[11px] font-semibold">
+            <Filter className="w-3.5 h-3.5" /> Filter by Mood:
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2 text-xs">
+            <button
+              onClick={() => setSelectedMoodFilter('all')}
+              className={`w-full px-3 py-2 rounded-xl text-xs font-medium border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                selectedMoodFilter === 'all'
+                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-600/20 font-semibold'
+                  : 'bg-white/60 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 border-slate-200/70 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800'
+              }`}
+            >
+              <span>All Moods</span>
+              <span className="text-[10px] opacity-70">({entries.length})</span>
+            </button>
+            {(['reflective', 'peaceful', 'optimistic', 'grounded', 'seeking_clarity', 'anxious', 'fatigued', 'energized'] as MoodType[]).map((mood) => {
+              const count = entries.filter((e) => e.mood === mood).length;
+              if (count === 0) return null;
+              return (
+                <button
+                  key={mood}
+                  onClick={() => setSelectedMoodFilter(mood)}
+                  className={`w-full px-3 py-2 rounded-xl text-xs font-medium border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    selectedMoodFilter === mood
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-600/20 font-semibold'
+                      : 'bg-white/60 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 border-slate-200/70 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <span>{MOOD_EMOJIS[mood] || '📝'}</span>
+                  <span className="capitalize truncate">{mood.replace('_', ' ')}</span>
+                  <span className="text-[10px] opacity-70">({count})</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -546,18 +494,6 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
 
                   {/* Actions Header Row */}
                   <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-                    
-                    {/* Owner-Only Edit Button */}
-                    {isOwner && (
-                      <button
-                        id={`btn-edit-entry-${entry.id}`}
-                        onClick={(e) => handleOpenEdit(entry, e)}
-                        title="Edit reflection narrative"
-                        className="p-2 rounded-xl text-slate-400 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 transition-colors cursor-pointer"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                    )}
 
                     {/* Owner-Only Delete Button */}
                     {isOwner && (
@@ -653,16 +589,6 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                           <Feather className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                           <span>Journal Entry Narrative</span>
                         </div>
-                        {isOwner && (
-                          <button
-                            id={`btn-narrative-edit-${entry.id}`}
-                            onClick={(e) => handleOpenEdit(entry, e)}
-                            className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-semibold flex items-center gap-1 transition-colors cursor-pointer"
-                          >
-                            <Pencil className="w-3 h-3" />
-                            <span>Edit Narrative</span>
-                          </button>
-                        )}
                       </div>
                       <div className="p-4 rounded-2xl bg-white/80 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 text-sm text-slate-800 dark:text-slate-100 leading-relaxed font-sans whitespace-pre-wrap shadow-inner">
                         {entry.content || '(No narrative text)'}
@@ -785,157 +711,6 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                 <Trash2 className={`w-3.5 h-3.5 ${isDeleting ? 'animate-spin' : ''}`} />
                 <span>{isDeleting ? 'Deleting Entry...' : 'Confirm Delete'}</span>
               </button>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* EDIT JOURNAL ENTRY MODAL (Requirement 3 & Owner Data Sovereignty) */}
-      {/* ========================================================================= */}
-      {editingEntry && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-white/80 dark:border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] transition-colors">
-            
-            {/* Modal Header */}
-            <div className="p-5 sm:p-6 border-b border-slate-200/60 dark:border-slate-800 flex items-center justify-between bg-indigo-50/40 dark:bg-indigo-950/30">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-indigo-100 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-700 dark:text-indigo-300 shadow-xs">
-                  <Pencil className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-serif font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <span>Edit Reflection Narrative</span>
-                    <span className="text-[10px] font-sans px-2.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 font-medium">
-                      Author Sovereignty
-                    </span>
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Update your thoughts; original AI dialogues and sentiment remain preserved
-                  </p>
-                </div>
-              </div>
-
-              <button
-                id="btn-close-edit-modal"
-                onClick={() => setEditingEntry(null)}
-                disabled={isSavingEdit}
-                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Modal Scrollable Body */}
-            <div className="p-5 sm:p-6 overflow-y-auto space-y-4 text-xs sm:text-sm text-slate-700 dark:text-slate-200">
-              
-              {editError && (
-                <div className="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                  <span>{editError}</span>
-                </div>
-              )}
-
-              {/* Title input */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-mono uppercase tracking-wider">
-                  Reflection Title
-                </label>
-                <input
-                  id="input-edit-entry-title"
-                  type="text"
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  placeholder="Title of this reflection..."
-                  className="w-full px-4 py-2.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-serif text-sm focus:outline-none focus:border-indigo-500 shadow-xs"
-                />
-              </div>
-
-              {/* Mood category selector */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-mono uppercase tracking-wider">
-                  Associated Mood Theme
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {(['reflective', 'peaceful', 'optimistic', 'grounded', 'seeking_clarity', 'anxious', 'fatigued', 'energized'] as MoodType[]).map((m) => (
-                    <button
-                      key={m}
-                      type="button"
-                      onClick={() => setEditMood(m)}
-                      className={`px-3 py-2 rounded-xl text-xs font-medium border flex items-center gap-1.5 transition-all cursor-pointer ${
-                        editMood === m
-                          ? 'bg-indigo-50 dark:bg-indigo-950/70 border-indigo-400 dark:border-indigo-600 text-indigo-800 dark:text-indigo-200 font-semibold ring-2 ring-indigo-400/20'
-                          : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
-                      }`}
-                    >
-                      <span>{MOOD_EMOJIS[m]}</span>
-                      <span className="capitalize">{m.replace('_', ' ')}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Content narrative textarea */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-mono uppercase tracking-wider">
-                    Written Reflection Narrative
-                  </label>
-                  <span className="text-[11px] font-mono text-slate-400 dark:text-slate-500">
-                    {editContent.trim().split(/\s+/).filter(Boolean).length} words • {editContent.length} chars
-                  </span>
-                </div>
-                <textarea
-                  id="textarea-edit-entry-content"
-                  rows={8}
-                  value={editContent}
-                  onChange={(e) => setEditContent(e.target.value)}
-                  placeholder="Your personal journal narrative..."
-                  className="w-full p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-sans text-xs sm:text-sm focus:outline-none focus:border-indigo-500 resize-none leading-relaxed shadow-inner"
-                />
-              </div>
-
-              {/* Requirement 3 AI dialogue preservation notice */}
-              <div className="p-3.5 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/60 text-indigo-900 dark:text-indigo-300 text-xs flex items-start gap-2.5">
-                <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0 mt-0.5" />
-                <div className="space-y-0.5">
-                  <p className="font-semibold font-serif">Preserved AI Companion State</p>
-                  <p className="text-[11px] text-slate-600 dark:text-slate-400 font-sans leading-relaxed">
-                    Saving updates only your written journal content and timestamps. The Gemini reflection replies, dialogue history ({editingEntry.conversation?.length || 0} turns), and sentiment resonance score ({editingEntry.sentiment?.score || 0}%) remain intact.
-                  </p>
-                </div>
-              </div>
-
-            </div>
-
-            {/* Modal Actions */}
-            <div className="p-4 sm:p-5 border-t border-slate-200/60 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500 font-sans hidden sm:flex">
-                <Lock className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Private & isolated partition</span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  id="btn-cancel-edit"
-                  onClick={() => setEditingEntry(null)}
-                  disabled={isSavingEdit}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-
-                <button
-                  id="btn-save-edit"
-                  onClick={handleSaveEdit}
-                  disabled={isSavingEdit}
-                  className="px-5 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                >
-                  <Check className={`w-3.5 h-3.5 ${isSavingEdit ? 'animate-spin' : ''}`} />
-                  <span>{isSavingEdit ? 'Saving Changes...' : 'Save Changes'}</span>
-                </button>
-              </div>
             </div>
 
           </div>

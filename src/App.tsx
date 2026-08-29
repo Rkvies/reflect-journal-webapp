@@ -16,7 +16,9 @@ import {
   ProfileSummary, 
   InsightReport, 
   ProactiveNudge,
-  WeeklyReflectionReport 
+  WeeklyReflectionReport,
+  AppNotification,
+  GratitudeEntry
 } from './types';
 import { Navbar } from './components/Navbar';
 import { NudgeBanner } from './components/NudgeBanner';
@@ -24,18 +26,29 @@ import { JournalChat } from './components/JournalChat';
 import { EntryHistory } from './components/EntryHistory';
 import { InsightsPanel } from './components/InsightsPanel';
 import { WeeklyReflectionCard } from './components/WeeklyReflectionCard';
+import { GratitudeModule } from './components/GratitudeModule';
 import { ProfileSummaryModal } from './components/ProfileSummaryModal';
 import { SecurityReviewModal } from './components/SecurityReviewModal';
 import { DailyQuoteModal } from './components/DailyQuoteModal';
 import { AuthLanding } from './components/AuthLanding';
 import { requestAgenticNudge, deactivateAccount, deleteAccount } from './lib/api';
-import { saveNudge, dismissNudge } from './lib/firebase';
+import { 
+  saveNudge, 
+  dismissNudge, 
+  subscribeToNotifications, 
+  markNotificationAsRead, 
+  markAllNotificationsAsRead, 
+  deleteNotification,
+  saveGratitudeEntry,
+  subscribeToGratitudeEntries,
+  deleteGratitudeEntry
+} from './lib/firebase';
 import { UserX, Trash2 } from 'lucide-react';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'journal' | 'history' | 'insights'>('journal');
+  const [activeTab, setActiveTab] = useState<'journal' | 'history' | 'insights' | 'gratitude'>('journal');
   
   // Data State
   const [entries, setEntries] = useState<JournalEntry[]>([]);
@@ -43,6 +56,8 @@ export default function App() {
   const [insights, setInsights] = useState<InsightReport[]>([]);
   const [nudges, setNudges] = useState<ProactiveNudge[]>([]);
   const [weeklySummary, setWeeklySummary] = useState<WeeklyReflectionReport | null>(null);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [gratitudeEntries, setGratitudeEntries] = useState<GratitudeEntry[]>([]);
 
   // Inspector Modals
   const [isMemoryOpen, setIsMemoryOpen] = useState(false);
@@ -250,14 +265,70 @@ export default function App() {
       console.warn('Weekly summary subscription notice:', err.message);
     });
 
+    // 6. users/{uid}/notifications listener
+    const unsubNotifications = subscribeToNotifications(uid, (notifs) => {
+      setNotifications(notifs);
+    });
+
+    // 7. users/{uid}/gratitudeEntries listener
+    const unsubGratitude = subscribeToGratitudeEntries(uid, (entries) => {
+      setGratitudeEntries(entries);
+    });
+
     return () => {
       unsubEntries();
       unsubSummary();
       unsubInsights();
       unsubNudges();
       unsubWeekly();
+      unsubNotifications();
+      unsubGratitude();
     };
   }, [currentUser?.uid]);
+
+  const handleSaveGratitude = async (entry: GratitudeEntry) => {
+    if (!currentUser?.uid) return;
+    await saveGratitudeEntry(currentUser.uid, entry);
+  };
+
+  const handleDeleteGratitude = async (entryId: string) => {
+    if (!currentUser?.uid) return;
+    try {
+      await deleteGratitudeEntry(currentUser.uid, entryId);
+    } catch (err) {
+      console.error('Failed to delete gratitude entry:', err);
+    }
+  };
+
+  const handleMarkAsRead = async (notificationId: string) => {
+    if (!currentUser?.uid) return;
+    setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, isRead: true } : n));
+    try {
+      await markNotificationAsRead(currentUser.uid, notificationId);
+    } catch (err) {
+      console.error('Failed to mark notification as read:', err);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    if (!currentUser?.uid) return;
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    try {
+      await markAllNotificationsAsRead(currentUser.uid, notifications);
+    } catch (err) {
+      console.error('Failed to mark all notifications as read:', err);
+    }
+  };
+
+  const handleDeleteNotification = async (notificationId: string) => {
+    if (!currentUser?.uid) return;
+    setNotifications(prev => prev.filter(n => n.id !== notificationId));
+    try {
+      await deleteNotification(currentUser.uid, notificationId);
+    } catch (err) {
+      console.error('Failed to delete notification:', err);
+    }
+  };
 
   const handleSignOut = async () => {
     try {
@@ -337,6 +408,10 @@ export default function App() {
         onOpenDeactivateModal={() => setIsDeactivateModalOpen(true)}
         onOpenDeleteModal={() => setIsDeleteModalOpen(true)}
         onSignOut={handleSignOut}
+        notifications={notifications}
+        onMarkAsRead={handleMarkAsRead}
+        onMarkAllAsRead={handleMarkAllAsRead}
+        onDeleteNotification={handleDeleteNotification}
       />
 
       {/* Proactive Check-in Nudge Banner */}
@@ -410,6 +485,15 @@ export default function App() {
               }}
             />
           </div>
+        )}
+
+        {activeTab === 'gratitude' && (
+          <GratitudeModule
+            userId={currentUser.uid}
+            gratitudeEntries={gratitudeEntries}
+            onSaveGratitude={handleSaveGratitude}
+            onDeleteGratitude={handleDeleteGratitude}
+          />
         )}
       </main>
 

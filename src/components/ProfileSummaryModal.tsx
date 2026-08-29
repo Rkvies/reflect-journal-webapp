@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Brain, X, Shield, Check, Sparkles } from 'lucide-react';
+import { Brain, X, Shield, Check, Sparkles, RefreshCw } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { ProfileSummary } from '../types';
 import { saveProfileSummary } from '../lib/firebase';
+import { triggerMemoryUpdate } from '../lib/api';
 
 interface ProfileSummaryModalProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ export const ProfileSummaryModal: React.FC<ProfileSummaryModalProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [editedText, setEditedText] = useState(profileSummary?.summary || '');
   const [isSaving, setIsSaving] = useState(false);
+  const [isSynthesizing, setIsSynthesizing] = useState(false);
 
   if (!isOpen) return null;
 
@@ -41,6 +43,31 @@ export const ProfileSummaryModal: React.FC<ProfileSummaryModalProps> = ({
       console.error('Error saving summary:', err);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSynthesizeMemory = async () => {
+    try {
+      setIsSynthesizing(true);
+      const res = await triggerMemoryUpdate({
+        existingSummary: profileSummary?.summary || '',
+        newEntryTitle: 'Manual Memory Synthesis',
+        newEntryContent: profileSummary?.summary || 'Synthesizing recurring journal reflections.',
+        newReflection: 'User requested memory context synthesis and profile updating.',
+      });
+      if (res?.updatedSummary) {
+        await saveProfileSummary(userId, {
+          userId,
+          summary: res.updatedSummary,
+          lastUpdated: res.updatedAt || new Date().toISOString(),
+          keyThemes: profileSummary?.keyThemes || ['personal-growth'],
+          totalEntriesAnalyzed: (profileSummary?.totalEntriesAnalyzed || 0) + 1,
+        });
+      }
+    } catch (err) {
+      console.error('Error synthesizing memory:', err);
+    } finally {
+      setIsSynthesizing(false);
     }
   };
 
@@ -84,15 +111,25 @@ export const ProfileSummaryModal: React.FC<ProfileSummaryModalProps> = ({
               Last updated: {profileSummary?.lastUpdated ? new Date(profileSummary.lastUpdated).toLocaleDateString() : 'New'}
             </span>
           </div>
-          <button
-            onClick={() => {
-              setEditedText(profileSummary?.summary || '');
-              setIsEditing(!isEditing);
-            }}
-            className="text-indigo-700 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 font-sans text-xs font-semibold underline cursor-pointer"
-          >
-            {isEditing ? 'Cancel Edit' : 'Edit Memory Sovereignty'}
-          </button>
+          <div className="flex items-center gap-3 font-sans">
+            <button
+              onClick={handleSynthesizeMemory}
+              disabled={isSynthesizing}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 transition-colors shadow-xs cursor-pointer"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isSynthesizing ? 'animate-spin' : ''}`} />
+              <span>{isSynthesizing ? 'Synthesizing...' : '✨ Synthesize Memory Now'}</span>
+            </button>
+            <button
+              onClick={() => {
+                setEditedText(profileSummary?.summary || '');
+                setIsEditing(!isEditing);
+              }}
+              className="text-indigo-700 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 text-xs font-semibold underline cursor-pointer"
+            >
+              {isEditing ? 'Cancel Edit' : 'Edit Memory'}
+            </button>
+          </div>
         </div>
 
         {/* Body Content */}

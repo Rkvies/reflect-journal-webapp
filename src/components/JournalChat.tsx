@@ -23,7 +23,7 @@ import {
   EntrySentiment
 } from '../types';
 import { streamGeminiReflection, triggerMemoryUpdate } from '../lib/api';
-import { saveJournalEntry } from '../lib/firebase';
+import { saveJournalEntry, saveProfileSummary } from '../lib/firebase';
 
 interface JournalChatProps {
   userId: string;
@@ -562,6 +562,17 @@ export const JournalChat: React.FC<JournalChatProps> = ({
           newEntryTitle: entry.title,
           newEntryContent: entry.content,
           newReflection: fullReflection,
+        }).then(async (res) => {
+          if (res?.updatedSummary) {
+            await saveProfileSummary(userId, {
+              userId,
+              summary: res.updatedSummary,
+              lastUpdated: res.updatedAt || new Date().toISOString(),
+              keyThemes: profileSummary?.keyThemes || ['personal-growth'],
+              totalEntriesAnalyzed: (profileSummary?.totalEntriesAnalyzed || 0) + 1,
+            });
+            console.log('[Memory Layer] Profile summary successfully updated & persisted to Firestore.');
+          }
         }).catch(err => console.warn('Background profile summary update error:', err));
       }
 

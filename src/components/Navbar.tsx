@@ -11,12 +11,13 @@ import {
   UserX,
   Trash2
 } from 'lucide-react';
-import { AppUser } from '../types';
+import { AppUser, AppNotification } from '../types';
+import { NotificationDropdown } from './NotificationDropdown';
 
 interface NavbarProps {
   user: AppUser | null;
-  activeTab: 'journal' | 'history' | 'insights';
-  setActiveTab: (tab: 'journal' | 'history' | 'insights') => void;
+  activeTab: 'journal' | 'history' | 'insights' | 'gratitude';
+  setActiveTab: (tab: 'journal' | 'history' | 'insights' | 'gratitude') => void;
   onOpenMemory: () => void;
   onOpenSecurity: () => void;
   onOpenDeactivateModal: () => void;
@@ -24,6 +25,10 @@ interface NavbarProps {
   onSignOut: () => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
+  notifications: AppNotification[];
+  onMarkAsRead: (id: string) => void;
+  onMarkAllAsRead: () => void;
+  onDeleteNotification: (id: string) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -37,6 +42,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSignOut,
   theme,
   onToggleTheme,
+  notifications,
+  onMarkAsRead,
+  onMarkAllAsRead,
+  onDeleteNotification,
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -107,13 +116,31 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               Insights
             </button>
+            <button
+              id="nav-tab-gratitude"
+              onClick={() => setActiveTab('gratitude')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                activeTab === 'gratitude'
+                  ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs font-semibold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              Daily Gratitude
+            </button>
           </nav>
         )}
 
         {/* Settings & Profile Menu Dropdown */}
         <div className="flex items-center gap-2">
           {user ? (
-            <div className="relative" ref={menuRef}>
+            <>
+              <NotificationDropdown
+                notifications={notifications}
+                onMarkAsRead={onMarkAsRead}
+                onMarkAllAsRead={onMarkAllAsRead}
+                onDeleteNotification={onDeleteNotification}
+              />
+              <div className="relative" ref={menuRef}>
               <button
                 id="btn-user-settings-menu"
                 type="button"
@@ -251,6 +278,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </div>
               )}
             </div>
+            </>
           ) : (
             <div className="text-xs text-slate-500 font-medium">
               Private Journal

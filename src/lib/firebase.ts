@@ -21,7 +21,7 @@ import {
   updateDoc 
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { JournalEntry, ProfileSummary, InsightReport, ProactiveNudge, WeeklyReflectionReport } from '../types';
+import { JournalEntry, ProfileSummary, InsightReport, ProactiveNudge, WeeklyReflectionReport, AppNotification, GratitudeEntry } from '../types';
 
 // Initialize Firebase App
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
@@ -302,3 +302,124 @@ export function subscribeToWeeklySummary(uid: string, callback: (report: WeeklyR
     console.error('Weekly summary subscription error:', err);
   });
 }
+
+/**
+ * Save a notification (users/{uid}/notifications/{notificationId})
+ */
+export async function saveNotification(uid: string, notification: AppNotification): Promise<void> {
+  if (!uid) throw new Error('Unauthenticated notification save rejected');
+  const notifRef = doc(db, 'users', uid, 'notifications', notification.id);
+  const cleanData = cleanForFirestore(notification);
+  await setDoc(notifRef, cleanData, { merge: true });
+}
+
+/**
+ * Subscribe to notifications (users/{uid}/notifications collection)
+ */
+export function subscribeToNotifications(uid: string, callback: (notifications: AppNotification[]) => void) {
+  if (!uid) return () => {};
+  const notifsCol = collection(db, 'users', uid, 'notifications');
+  const q = query(notifsCol, orderBy('createdAt', 'desc'), limit(50));
+  
+  return onSnapshot(q, async (snapshot) => {
+    const list: AppNotification[] = [];
+    snapshot.forEach((docSnap) => {
+      list.push({ id: docSnap.id, ...docSnap.data() } as AppNotification);
+    });
+
+    // If no notifications exist yet, seed a welcome notification
+    if (list.length === 0) {
+      const welcomeId = 'welcome-' + Date.now();
+      const welcomeNotif: AppNotification = {
+        id: welcomeId,
+        userId: uid,
+        title: 'Welcome to Reflect',
+        message: 'Your mindful journal is ready. Start your first reflection or explore your insights anytime.',
+        type: 'system',
+        createdAt: new Date().toISOString(),
+        isRead: false,
+      };
+      try {
+        await saveNotification(uid, welcomeNotif);
+      } catch (e) {
+        console.error('Failed to seed welcome notification:', e);
+      }
+    } else {
+      callback(list);
+    }
+  }, (err) => {
+    console.error('Notifications subscription error:', err);
+  });
+}
+
+/**
+ * Mark a notification as read
+ */
+export async function markNotificationAsRead(uid: string, notificationId: string): Promise<void> {
+  if (!uid) return;
+  const notifRef = doc(db, 'users', uid, 'notifications', notificationId);
+  await updateDoc(notifRef, {
+    isRead: true,
+    readAt: new Date().toISOString()
+  });
+}
+
+/**
+ * Mark all notifications as read
+ */
+export async function markAllNotificationsAsRead(uid: string, notifications: AppNotification[]): Promise<void> {
+  if (!uid) return;
+  for (const notif of notifications) {
+    if (!notif.isRead) {
+      await markNotificationAsRead(uid, notif.id);
+    }
+  }
+}
+
+/**
+ * Delete a notification
+ */
+export async function deleteNotification(uid: string, notificationId: string): Promise<void> {
+  if (!uid) return;
+  const notifRef = doc(db, 'users', uid, 'notifications', notificationId);
+  await deleteDoc(notifRef);
+}
+
+/**
+ * Save a gratitude entry (users/{uid}/gratitudeEntries/{entryId})
+ */
+export async function saveGratitudeEntry(uid: string, entry: GratitudeEntry): Promise<void> {
+  if (!uid) throw new Error('Unauthenticated gratitude save rejected');
+  const entryRef = doc(db, 'users', uid, 'gratitudeEntries', entry.id);
+  const cleanData = cleanForFirestore(entry);
+  await setDoc(entryRef, cleanData, { merge: true });
+}
+
+/**
+ * Subscribe to gratitude entries (users/{uid}/gratitudeEntries collection)
+ */
+export function subscribeToGratitudeEntries(uid: string, callback: (entries: GratitudeEntry[]) => void) {
+  if (!uid) return () => {};
+  const colRef = collection(db, 'users', uid, 'gratitudeEntries');
+  const q = query(colRef, orderBy('date', 'desc'), limit(100));
+
+  return onSnapshot(q, (snapshot) => {
+    const list: GratitudeEntry[] = [];
+    snapshot.forEach((docSnap) => {
+      list.push({ id: docSnap.id, ...docSnap.data() } as GratitudeEntry);
+    });
+    callback(list);
+  }, (err) => {
+    console.error('Gratitude entries subscription error:', err);
+  });
+}
+
+/**
+ * Delete a gratitude entry
+ */
+export async function deleteGratitudeEntry(uid: string, entryId: string): Promise<void> {
+  if (!uid) return;
+  const entryRef = doc(db, 'users', uid, 'gratitudeEntries', entryId);
+  await deleteDoc(entryRef);
+}
+

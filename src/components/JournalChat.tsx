@@ -9,7 +9,9 @@ import {
   Check,
   Flame,
   Mic,
-  MicOff
+  MicOff,
+  Pencil,
+  X
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { 
@@ -99,6 +101,11 @@ export const JournalChat: React.FC<JournalChatProps> = ({
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const [activeStarters, setActiveStarters] = useState<WritingStarter[]>(() => getRandomStarters(3));
   const [loadingStage, setLoadingStage] = useState<number>(0);
+  const [editingTurnId, setEditingTurnId] = useState<string | null>(null);
+  const [editingTurnText, setEditingTurnText] = useState<string>('');
+  const [isEditingSaving, setIsEditingSaving] = useState(false);
+  const [entryCreatedAt, setEntryCreatedAt] = useState<string>(() => new Date().toISOString());
+  const [entrySentiment, setEntrySentiment] = useState<EntrySentiment | null>(null);
 
   // Progressive loading status updates during reflection synthesis
   useEffect(() => {
@@ -312,6 +319,57 @@ export const JournalChat: React.FC<JournalChatProps> = ({
     };
   }, []);
 
+  // Automatically suggest relevant tags as user types based on past entries & profile themes
+  const suggestedTags = useMemo(() => {
+    const pastTagsSet = new Set<string>();
+    recentEntries.forEach(entry => {
+      if (entry.tags) {
+        entry.tags.forEach(t => pastTagsSet.add(t.toLowerCase()));
+      }
+    });
+
+    const profileThemes = profileSummary?.keyThemes || [];
+    const candidates = new Set<string>([
+      ...Array.from(pastTagsSet),
+      ...profileThemes.map(t => t.toLowerCase().replace(/\s+/g, '-')),
+      'gratitude', 'reflection', 'clarity', 'growth', 'mindfulness', 'energy', 'work', 'relationships', 'rest', 'intent', 'peace', 'balance'
+    ]);
+
+    const activeTagsLower = new Set(tags.map(t => t.toLowerCase()));
+    const unselected = Array.from(candidates).filter(t => !activeTagsLower.has(t));
+
+    const typedText = currentInput.toLowerCase();
+    if (!typedText.trim()) {
+      return unselected.slice(0, 5);
+    }
+
+    const typedWords = typedText.split(/\W+/).filter(Boolean);
+    const scored = unselected.map(candidate => {
+      let score = 0;
+      const candidateLower = candidate.toLowerCase();
+      typedWords.forEach(word => {
+        if (candidateLower.includes(word) || word.includes(candidateLower)) {
+          score += 3;
+        }
+      });
+      let pastFreq = 0;
+      recentEntries.forEach(e => {
+        if (e.tags?.some(t => t.toLowerCase() === candidateLower)) {
+          pastFreq++;
+        }
+      });
+      score += pastFreq * 0.5;
+      return { tag: candidate, score };
+    });
+
+    scored.sort((a, b) => b.score - a.score);
+    const filtered = scored.filter(s => s.score > 0).map(s => s.tag);
+    if (filtered.length === 0) {
+      return unselected.slice(0, 5);
+    }
+    return filtered.slice(0, 5);
+  }, [recentEntries, profileSummary, tags, currentInput]);
+
   const handleAddTag = () => {
     const clean = tagInput.trim().toLowerCase().replace(/^#/, '');
     if (clean && !tags.includes(clean)) {
@@ -488,6 +546,8 @@ export const JournalChat: React.FC<JournalChatProps> = ({
 
       // Save to Firestore with unified sentiment in a single write
       await saveJournalEntry(userId, entry);
+      setEntryCreatedAt(entry.createdAt);
+      setEntrySentiment(defaultSentiment);
       onEntrySaved(entry);
       setSaveStatus('Saved');
       setTimeout(() => setSaveStatus(null), 2500);
@@ -513,6 +573,76 @@ export const JournalChat: React.FC<JournalChatProps> = ({
     }
   };
 
+  const handleStartEditTurn = (turn: ChatTurn) => {
+    setEditingTurnId(turn.id);
+    setEditingTurnText(typeof turn.text === 'string' ? turn.text : String(turn.text || ''));
+  };
+
+  const handleCancelEditTurn = () => {
+    setEditingTurnId(null);
+    setEditingTurnText('');
+  };
+
+  const handleSaveEditTurn = async (turnId: string) => {
+    if (!editingTurnText.trim() || isEditingSaving) return;
+
+    setIsEditingSaving(true);
+    try {
+      const updatedHistory = conversation.map((turn) =>
+        turn.id === turnId ? { ...turn, text: editingTurnText.trim() } : turn
+      );
+      setConversation(updatedHistory);
+
+      const fullContent = updatedHistory
+        .filter((t) => t.role === 'user')
+        .map((t) => t.text)
+        .join('\n\n');
+
+      const fullReflection = updatedHistory
+        .filter((t) => t.role === 'assistant')
+        .map((t) => t.text)
+        .join('\n\n');
+
+      const now = new Date().toISOString();
+      const updatedEntry: JournalEntry = {
+        id: currentEntryId,
+        userId,
+        title: title.trim() || 'Untitled Reflection',
+        content: fullContent,
+        mood: selectedMood,
+        tags,
+        conversation: updatedHistory,
+        reflectionSummary: fullReflection.slice(0, 500),
+        sentiment: entrySentiment || {
+          label: 'Reflective Thought',
+          emoji: '🧘',
+          color: 'indigo',
+          score: 75,
+          summary: 'A mindful moment of conscious personal reflection.',
+        },
+        createdAt: entryCreatedAt || now,
+        updatedAt: now,
+        wordCount: fullContent.split(/\s+/).filter(Boolean).length,
+        isEdited: true,
+        editedAt: now,
+      };
+
+      // Save modified entry text directly to Firestore scoped to userId
+      await saveJournalEntry(userId, updatedEntry);
+      onEntrySaved(updatedEntry);
+      setSaveStatus('Saved');
+      setTimeout(() => setSaveStatus(null), 2500);
+      setEditingTurnId(null);
+      setEditingTurnText('');
+    } catch (err: any) {
+      console.error('Failed to update journal entry in Firestore:', err);
+      setSaveStatus('Error saving');
+      setTimeout(() => setSaveStatus(null), 2500);
+    } finally {
+      setIsEditingSaving(false);
+    }
+  };
+
   const handleStartNewEntry = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -524,6 +654,10 @@ export const JournalChat: React.FC<JournalChatProps> = ({
     setConversation([]);
     setStreamingReply(null);
     setCurrentEntryId('entry_' + Date.now());
+    setEditingTurnId(null);
+    setEditingTurnText('');
+    setEntryCreatedAt(new Date().toISOString());
+    setEntrySentiment(null);
   };
 
   return (
@@ -641,6 +775,8 @@ export const JournalChat: React.FC<JournalChatProps> = ({
         <div className="space-y-5 pt-2">
           {conversation.map((turn) => {
             const isUser = turn.role === 'user';
+            const isEditingThisTurn = editingTurnId === turn.id;
+
             return (
               <div
                 key={turn.id}
@@ -651,17 +787,88 @@ export const JournalChat: React.FC<JournalChatProps> = ({
                 }`}
               >
                 <div className="flex items-center justify-between text-xs text-slate-400 dark:text-slate-500 mb-2">
-                  <span className="font-semibold text-slate-700 dark:text-slate-300 font-serif">
-                    {isUser ? 'You' : 'Reflect'}
-                  </span>
-                  <span className="text-[11px] font-mono">
-                    {new Date(turn.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-slate-700 dark:text-slate-300 font-serif">
+                      {isUser ? 'You' : 'Reflect'}
+                    </span>
+                    {isEditingThisTurn && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-medium font-sans">
+                        Editing
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-mono">
+                      {new Date(turn.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    {isUser && !isEditingThisTurn && !isLoading && (
+                      <button
+                        id={`btn-edit-turn-${turn.id}`}
+                        type="button"
+                        onClick={() => handleStartEditTurn(turn)}
+                        title="Edit your reflection text"
+                        className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                      >
+                        <Pencil className="w-3 h-3" />
+                        <span>Edit</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
-                <div className="prose prose-slate dark:prose-invert max-w-none text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-sans">
-                  <Markdown>{typeof turn.text === 'string' ? turn.text : String(turn.text || '')}</Markdown>
-                </div>
+                {isEditingThisTurn ? (
+                  <div className="space-y-2.5 pt-1">
+                    <textarea
+                      id={`textarea-edit-turn-${turn.id}`}
+                      rows={3}
+                      value={editingTurnText}
+                      onChange={(e) => setEditingTurnText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                          e.preventDefault();
+                          handleCancelEditTurn();
+                        } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                          e.preventDefault();
+                          handleSaveEditTurn(turn.id);
+                        }
+                      }}
+                      disabled={isEditingSaving}
+                      className="w-full p-3 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 placeholder-slate-400 text-sm font-sans leading-relaxed border border-indigo-300 dark:border-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 resize-none"
+                      autoFocus
+                    />
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">
+                        Press Esc to cancel, Ctrl+Enter to save
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          id={`btn-cancel-edit-${turn.id}`}
+                          type="button"
+                          onClick={handleCancelEditTurn}
+                          disabled={isEditingSaving}
+                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-200/70 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                          <span>Cancel</span>
+                        </button>
+                        <button
+                          id={`btn-save-edit-${turn.id}`}
+                          type="button"
+                          onClick={() => handleSaveEditTurn(turn.id)}
+                          disabled={!editingTurnText.trim() || isEditingSaving}
+                          className="flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-xs cursor-pointer"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          <span>{isEditingSaving ? 'Saving...' : 'Save'}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="prose prose-slate dark:prose-invert max-w-none text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-sans">
+                    <Markdown>{typeof turn.text === 'string' ? turn.text : String(turn.text || '')}</Markdown>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -781,6 +988,31 @@ export const JournalChat: React.FC<JournalChatProps> = ({
             disabled={isLoading}
             className="w-full p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-950/60 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 text-sm font-sans leading-relaxed focus:outline-none focus:bg-white dark:focus:bg-slate-950 focus:ring-2 focus:ring-indigo-500/20 resize-none transition-all disabled:opacity-50"
           />
+
+          {/* Smart Tag Suggestions based on user typing and previous entries/themes */}
+          {suggestedTags.length > 0 && (
+            <div className="flex items-center gap-1.5 flex-wrap pt-1 px-1 animate-fade-in">
+              <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-indigo-500 dark:text-indigo-400" />
+                Suggested tags:
+              </span>
+              {suggestedTags.map((sTag) => (
+                <button
+                  key={sTag}
+                  type="button"
+                  onClick={() => {
+                    if (!tags.includes(sTag)) {
+                      setTags(prev => [...prev, sTag]);
+                    }
+                  }}
+                  className="px-2.5 py-0.5 rounded-lg bg-indigo-50/80 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 text-[11px] font-sans transition-all cursor-pointer border border-indigo-200/50 dark:border-indigo-800/60 shadow-2xs"
+                  title="Click to add suggested tag"
+                >
+                  +{sTag}
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="flex items-center justify-between pt-1">
             <span className="text-[11px] text-slate-400 dark:text-slate-500 hidden sm:inline font-sans">

@@ -556,7 +556,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={handleDeleteAccount}
-                disabled={accountActionLoading || deleteConfirmText.trim() !== 'DELETE'}
+                disabled={accountActionLoading || deleteConfirmText !== 'DELETE'}
                 className="px-4 py-2 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {accountActionLoading ? 'Deleting...' : 'Delete Permanently'}

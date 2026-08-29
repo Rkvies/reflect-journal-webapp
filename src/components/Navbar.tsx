@@ -9,15 +9,19 @@ import {
   Moon, 
   ChevronDown,
   UserX,
-  Trash2
+  Trash2,
+  Settings,
+  Sparkles,
+  Heart,
+  FileText
 } from 'lucide-react';
 import { AppUser, AppNotification } from '../types';
 import { NotificationDropdown } from './NotificationDropdown';
 
 interface NavbarProps {
   user: AppUser | null;
-  activeTab: 'journal' | 'history' | 'insights' | 'gratitude';
-  setActiveTab: (tab: 'journal' | 'history' | 'insights' | 'gratitude') => void;
+  activeTab: 'journal' | 'history' | 'insights' | 'gratitude' | 'settings';
+  setActiveTab: (tab: 'journal' | 'history' | 'insights' | 'gratitude' | 'settings') => void;
   onOpenMemory: () => void;
   onOpenSecurity: () => void;
   onOpenDeactivateModal: () => void;
@@ -62,7 +66,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   }, []);
 
   return (
-    <header className="sticky top-0 z-30 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-b border-slate-200/60 dark:border-slate-800/60 text-slate-800 dark:text-slate-100 transition-colors">
+    <>
+      <header className="sticky top-0 z-30 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-b border-slate-200/60 dark:border-slate-800/60 text-slate-800 dark:text-slate-100 transition-colors">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         
         {/* Brand */}
@@ -80,9 +85,9 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
 
-        {/* Primary Navigation Tabs */}
+        {/* Primary Navigation Tabs (Desktop & Tablet) */}
         {user && (
-          <nav className="flex items-center p-1 bg-slate-100/90 dark:bg-slate-900 rounded-2xl border border-slate-200/50 dark:border-slate-800/60">
+          <nav className="hidden md:flex items-center p-1 bg-slate-100/90 dark:bg-slate-900 rounded-2xl border border-slate-200/50 dark:border-slate-800/60">
             <button
               id="nav-tab-journal"
               onClick={() => setActiveTab('journal')}
@@ -179,6 +184,20 @@ export const Navbar: React.FC<NavbarProps> = ({
                       {user.email || 'Authenticated with Google'}
                     </p>
                   </div>
+
+                  {/* Settings Page Link */}
+                  <button
+                    id="btn-dropdown-settings-page"
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      setActiveTab('settings');
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors cursor-pointer"
+                  >
+                    <Settings className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    <span>Settings & Preferences</span>
+                  </button>
 
                   {/* Theme Toggle */}
                   <button
@@ -288,5 +307,79 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       </div>
     </header>
+
+    {/* Mobile Bottom Navigation Bar (Phone & Narrow Screens) */}
+    {user && (
+      <nav 
+        id="mobile-bottom-nav"
+        className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl border-t border-slate-200/80 dark:border-slate-800/80 px-2 py-1.5 flex items-center justify-around shadow-lg transition-colors"
+      >
+        <button
+          id="mobile-nav-tab-journal"
+          onClick={() => setActiveTab('journal')}
+          className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl text-[10px] font-medium transition-all cursor-pointer min-w-[56px] ${
+            activeTab === 'journal'
+              ? 'text-indigo-600 dark:text-indigo-400 font-semibold scale-105'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <BookOpen className="w-4 h-4" />
+          <span>Reflection</span>
+        </button>
+
+        <button
+          id="mobile-nav-tab-history"
+          onClick={() => setActiveTab('history')}
+          className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl text-[10px] font-medium transition-all cursor-pointer min-w-[56px] ${
+            activeTab === 'history'
+              ? 'text-indigo-600 dark:text-indigo-400 font-semibold scale-105'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <FileText className="w-4 h-4" />
+          <span>Past Entries</span>
+        </button>
+
+        <button
+          id="mobile-nav-tab-insights"
+          onClick={() => setActiveTab('insights')}
+          className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl text-[10px] font-medium transition-all cursor-pointer min-w-[56px] ${
+            activeTab === 'insights'
+              ? 'text-indigo-600 dark:text-indigo-400 font-semibold scale-105'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <Sparkles className="w-4 h-4" />
+          <span>Insights</span>
+        </button>
+
+        <button
+          id="mobile-nav-tab-gratitude"
+          onClick={() => setActiveTab('gratitude')}
+          className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl text-[10px] font-medium transition-all cursor-pointer min-w-[56px] ${
+            activeTab === 'gratitude'
+              ? 'text-indigo-600 dark:text-indigo-400 font-semibold scale-105'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <Heart className="w-4 h-4" />
+          <span>Gratitude</span>
+        </button>
+
+        <button
+          id="mobile-nav-tab-settings"
+          onClick={() => setActiveTab('settings')}
+          className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl text-[10px] font-medium transition-all cursor-pointer min-w-[56px] ${
+            activeTab === 'settings'
+              ? 'text-indigo-600 dark:text-indigo-400 font-semibold scale-105'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <Settings className="w-4 h-4" />
+          <span>Settings</span>
+        </button>
+      </nav>
+    )}
+    </>
   );
 };

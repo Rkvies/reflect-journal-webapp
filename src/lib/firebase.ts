@@ -321,32 +321,13 @@ export function subscribeToNotifications(uid: string, callback: (notifications: 
   const notifsCol = collection(db, 'users', uid, 'notifications');
   const q = query(notifsCol, orderBy('createdAt', 'desc'), limit(50));
   
-  return onSnapshot(q, async (snapshot) => {
+  return onSnapshot(q, (snapshot) => {
     const list: AppNotification[] = [];
     snapshot.forEach((docSnap) => {
       list.push({ id: docSnap.id, ...docSnap.data() } as AppNotification);
     });
 
-    // If no notifications exist yet, seed a welcome notification
-    if (list.length === 0) {
-      const welcomeId = 'welcome-' + Date.now();
-      const welcomeNotif: AppNotification = {
-        id: welcomeId,
-        userId: uid,
-        title: 'Welcome to Reflect',
-        message: 'Your mindful journal is ready. Start your first reflection or explore your insights anytime.',
-        type: 'system',
-        createdAt: new Date().toISOString(),
-        isRead: false,
-      };
-      try {
-        await saveNotification(uid, welcomeNotif);
-      } catch (e) {
-        console.error('Failed to seed welcome notification:', e);
-      }
-    } else {
-      callback(list);
-    }
+    callback(list);
   }, (err) => {
     console.error('Notifications subscription error:', err);
   });

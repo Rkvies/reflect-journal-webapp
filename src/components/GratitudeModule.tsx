@@ -239,14 +239,31 @@ export const GratitudeModule: React.FC<GratitudeModuleProps> = ({
         </div>
 
         {gratitudeEntries.length === 0 ? (
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-12 text-center">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950 flex items-center justify-center mx-auto mb-3 text-indigo-500">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-300 dark:border-slate-700 p-12 text-center shadow-xs">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950 flex items-center justify-center mx-auto mb-3 text-indigo-500 border border-indigo-100 dark:border-indigo-800">
               <Heart className="w-6 h-6" />
             </div>
             <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">No gratitude entries yet</h4>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
               Start your daily practice above by listing three things you are grateful for today.
             </p>
+            <button
+              id="btn-gratitude-empty-cta"
+              onClick={() => {
+                const el = document.getElementById('gratitude-form');
+                if (el) {
+                  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                const inputEl = document.getElementById('input-gratitude-1') as HTMLInputElement;
+                if (inputEl) {
+                  inputEl.focus();
+                }
+              }}
+              className="mt-5 px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-md shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 mx-auto cursor-pointer"
+            >
+              <Heart className="w-4 h-4 text-amber-300 fill-current" />
+              <span>Record First Gratitude</span>
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

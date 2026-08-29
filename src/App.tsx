@@ -30,6 +30,7 @@ import { GratitudeModule } from './components/GratitudeModule';
 import { ProfileSummaryModal } from './components/ProfileSummaryModal';
 import { SecurityReviewModal } from './components/SecurityReviewModal';
 import { DailyQuoteModal } from './components/DailyQuoteModal';
+import { SettingsPage } from './components/SettingsPage';
 import { AuthLanding } from './components/AuthLanding';
 import { requestAgenticNudge, deactivateAccount, deleteAccount } from './lib/api';
 import { 
@@ -48,7 +49,7 @@ import { UserX, Trash2 } from 'lucide-react';
 export default function App() {
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'journal' | 'history' | 'insights' | 'gratitude'>('journal');
+  const [activeTab, setActiveTab] = useState<'journal' | 'history' | 'insights' | 'gratitude' | 'settings'>('journal');
   
   // Data State
   const [entries, setEntries] = useState<JournalEntry[]>([]);
@@ -423,7 +424,7 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-10">
+      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-10 pb-24 md:pb-10 space-y-8 sm:space-y-10">
         
         {activeTab === 'journal' && (
           <JournalChat
@@ -495,10 +496,28 @@ export default function App() {
             onDeleteGratitude={handleDeleteGratitude}
           />
         )}
+
+        {activeTab === 'settings' && (
+          <SettingsPage
+            user={currentUser}
+            entries={entries}
+            gratitudeEntries={gratitudeEntries}
+            profileSummary={profileSummary}
+            theme={theme}
+            onToggleTheme={toggleTheme}
+            onOpenMemory={() => setIsMemoryOpen(true)}
+            onOpenSecurity={() => setIsSecurityOpen(true)}
+            onOpenDeactivateModal={() => setIsDeactivateModalOpen(true)}
+            onOpenDeleteModal={() => setIsDeleteModalOpen(true)}
+            onUpdateDisplayName={(newName) => {
+              setCurrentUser(prev => prev ? { ...prev, displayName: newName } : null);
+            }}
+          />
+        )}
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200/60 dark:border-slate-800/80 bg-white/50 dark:bg-slate-900/50 px-4 sm:px-6 py-4 text-xs text-slate-500 dark:text-slate-400 mt-auto transition-colors">
+      <footer className="border-t border-slate-200/60 dark:border-slate-800/80 bg-white/50 dark:bg-slate-900/50 px-4 sm:px-6 py-4 pb-20 md:pb-4 text-xs text-slate-500 dark:text-slate-400 mt-auto transition-colors">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <span className="font-serif font-bold text-slate-700 dark:text-slate-300">Reflect</span>

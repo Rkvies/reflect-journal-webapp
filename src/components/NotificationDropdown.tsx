@@ -102,10 +102,10 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
       {isOpen && (
         <div 
           id="notification-dropdown-menu"
-          className="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-2xl z-50 overflow-hidden animate-fade-in"
+          className="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-slate-900 rounded-3xl border border-slate-300 dark:border-slate-700 shadow-2xl z-50 overflow-hidden animate-fade-in"
         >
           {/* Header */}
-          <div className="px-4 py-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/50">
+          <div className="px-4 py-3.5 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/50">
             <div className="flex items-center gap-2">
               <h3 className="font-semibold text-sm text-slate-900 dark:text-white">
                 Notifications
@@ -198,7 +198,11 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                     <div className="flex items-center gap-3 mt-2">
                       {!notif.isRead && (
                         <button
-                          onClick={() => onMarkAsRead(notif.id)}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onMarkAsRead(notif.id);
+                          }}
                           className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer"
                         >
                           <Check className="w-3 h-3" />
@@ -206,7 +210,11 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                         </button>
                       )}
                       <button
-                        onClick={() => onDeleteNotification(notif.id)}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteNotification(notif.id);
+                        }}
                         className="text-[10px] font-medium text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                       >
                         <Trash2 className="w-3 h-3" />

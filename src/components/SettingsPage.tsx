@@ -1,0 +1,638 @@
+import React, { useState } from 'react';
+import { 
+  User, 
+  Settings, 
+  Sun, 
+  Moon, 
+  Download, 
+  ShieldCheck, 
+  Brain, 
+  Bell, 
+  Type, 
+  Check, 
+  Trash2, 
+  UserX, 
+  Copy, 
+  FileSpreadsheet, 
+  Sparkles,
+  Lock,
+  Save,
+  AlertCircle
+} from 'lucide-react';
+import { AppUser, JournalEntry, GratitudeEntry, ProfileSummary } from '../types';
+import { updateProfile } from 'firebase/auth';
+import { auth } from '../lib/firebase';
+
+interface SettingsPageProps {
+  user: AppUser;
+  entries: JournalEntry[];
+  gratitudeEntries: GratitudeEntry[];
+  profileSummary: ProfileSummary | null;
+  theme: 'light' | 'dark';
+  onToggleTheme: () => void;
+  onOpenMemory: () => void;
+  onOpenSecurity: () => void;
+  onOpenDeactivateModal: () => void;
+  onOpenDeleteModal: () => void;
+  onUpdateDisplayName?: (newName: string) => void;
+}
+
+export const SettingsPage: React.FC<SettingsPageProps> = ({
+  user,
+  entries,
+  gratitudeEntries,
+  profileSummary,
+  theme,
+  onToggleTheme,
+  onOpenMemory,
+  onOpenSecurity,
+  onOpenDeactivateModal,
+  onOpenDeleteModal,
+  onUpdateDisplayName,
+}) => {
+  // Display Name state
+  const [displayName, setDisplayName] = useState(user.displayName || '');
+  const [isSavingName, setIsSavingName] = useState(false);
+  const [nameSavedSuccess, setNameSavedSuccess] = useState(false);
+  const [nameSaveError, setNameSaveError] = useState<string | null>(null);
+
+  // Preference states stored in localStorage
+  const [autoSentiment, setAutoSentiment] = useState<boolean>(() => {
+    return localStorage.getItem('reflect_setting_auto_sentiment') !== 'false';
+  });
+  const [enableNudges, setEnableNudges] = useState<boolean>(() => {
+    return localStorage.getItem('reflect_setting_enable_nudges') !== 'false';
+  });
+  const [reminderEnabled, setReminderEnabled] = useState<boolean>(() => {
+    return localStorage.getItem('reflect_setting_reminder_enabled') === 'true';
+  });
+  const [reminderTime, setReminderTime] = useState<string>(() => {
+    return localStorage.getItem('reflect_setting_reminder_time') || '20:00';
+  });
+  const [gratitudeReminderEnabled, setGratitudeReminderEnabled] = useState<boolean>(() => {
+    return localStorage.getItem('reflect_setting_gratitude_reminder_enabled') === 'true';
+  });
+  const [gratitudeReminderTime, setGratitudeReminderTime] = useState<string>(() => {
+    return localStorage.getItem('reflect_setting_gratitude_reminder_time') || '09:00';
+  });
+  const [fontPreference, setFontPreference] = useState<string>(() => {
+    return localStorage.getItem('reflect_setting_font') || 'sans';
+  });
+
+  // Save Name handler
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!displayName.trim()) return;
+
+    try {
+      setIsSavingName(true);
+      setNameSaveError(null);
+      setNameSavedSuccess(false);
+
+      if (auth.currentUser) {
+        await updateProfile(auth.currentUser, { displayName: displayName.trim() });
+      }
+
+      if (onUpdateDisplayName) {
+        onUpdateDisplayName(displayName.trim());
+      }
+
+      setNameSavedSuccess(true);
+      setTimeout(() => setNameSavedSuccess(false), 3000);
+    } catch (err: any) {
+      console.error('Error updating name:', err);
+      setNameSaveError(err.message || 'Failed to update profile name');
+    } finally {
+      setIsSavingName(false);
+    }
+  };
+
+  // Preference Toggles
+  const toggleAutoSentiment = () => {
+    const next = !autoSentiment;
+    setAutoSentiment(next);
+    localStorage.setItem('reflect_setting_auto_sentiment', String(next));
+  };
+
+  const toggleEnableNudges = () => {
+    const next = !enableNudges;
+    setEnableNudges(next);
+    localStorage.setItem('reflect_setting_enable_nudges', String(next));
+  };
+
+  const toggleReminder = () => {
+    const next = !reminderEnabled;
+    setReminderEnabled(next);
+    localStorage.setItem('reflect_setting_reminder_enabled', String(next));
+  };
+
+  const handleReminderTimeChange = (time: string) => {
+    setReminderTime(time);
+    localStorage.setItem('reflect_setting_reminder_time', time);
+  };
+
+  const toggleGratitudeReminder = () => {
+    const next = !gratitudeReminderEnabled;
+    setGratitudeReminderEnabled(next);
+    localStorage.setItem('reflect_setting_gratitude_reminder_enabled', String(next));
+  };
+
+  const handleGratitudeReminderTimeChange = (time: string) => {
+    setGratitudeReminderTime(time);
+    localStorage.setItem('reflect_setting_gratitude_reminder_time', time);
+  };
+
+  const handleFontChange = (font: string) => {
+    setFontPreference(font);
+    localStorage.setItem('reflect_setting_font', font);
+  };
+
+  // Export Data JSON
+  const handleExportJSON = () => {
+    const exportData = {
+      user: {
+        uid: user.uid,
+        displayName: user.displayName,
+        email: user.email,
+      },
+      exportedAt: new Date().toISOString(),
+      entriesCount: entries.length,
+      gratitudeEntriesCount: gratitudeEntries.length,
+      entries,
+      gratitudeEntries,
+      profileSummary,
+    };
+
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `reflect-journal-backup-${new Date().toISOString().slice(0, 10)}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
+  // Export Data Markdown
+  const handleExportMarkdown = () => {
+    let mdContent = `# Reflect Journal Archive Export\n`;
+    mdContent += `**User:** ${user.displayName || 'Author'} (${user.email || user.uid})\n`;
+    mdContent += `**Export Date:** ${new Date().toLocaleString()}\n`;
+    mdContent += `**Total Reflections:** ${entries.length}\n\n`;
+
+    mdContent += `---\n\n## Journal Entries\n\n`;
+    entries.forEach((e, idx) => {
+      mdContent += `### ${idx + 1}. ${e.title || 'Untitled Reflection'}\n`;
+      mdContent += `**Date:** ${new Date(e.createdAt).toLocaleString()} | **Mood:** ${e.mood} | **Words:** ${e.wordCount}\n`;
+      if (e.sentiment) {
+        mdContent += `**Sentiment:** ${e.sentiment.emoji} ${e.sentiment.label} (Score: ${e.sentiment.score}/100)\n`;
+      }
+      if (e.tags && e.tags.length > 0) {
+        mdContent += `**Tags:** ${e.tags.map(t => `#${t}`).join(' ')}\n`;
+      }
+      mdContent += `\n${e.content}\n\n`;
+
+      if (e.conversation && e.conversation.length > 0) {
+        mdContent += `#### AI Reflections Dialogue\n`;
+        e.conversation.forEach((turn) => {
+          mdContent += `**${turn.role === 'user' ? 'Author' : 'Reflect AI'}:** ${turn.text}\n\n`;
+        });
+      }
+      mdContent += `---\n\n`;
+    });
+
+    if (gratitudeEntries.length > 0) {
+      mdContent += `## Daily Gratitude Logs\n\n`;
+      gratitudeEntries.forEach((g) => {
+        mdContent += `### Date: ${g.date}\n`;
+        mdContent += `1. ${g.item1}\n2. ${g.item2}\n3. ${g.item3}\n`;
+        if (g.reflection) {
+          mdContent += `*Reflection:* ${g.reflection}\n`;
+        }
+        mdContent += `\n`;
+      });
+    }
+
+    const dataStr = "data:text/markdown;charset=utf-8," + encodeURIComponent(mdContent);
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `reflect-journal-${new Date().toISOString().slice(0, 10)}.md`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
+      
+      {/* Settings Header */}
+      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-300 dark:border-slate-700 rounded-3xl p-6 shadow-sm flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-xs">
+            <Settings className="w-6 h-6" />
+          </div>
+          <div>
+            <h2 className="text-xl font-serif font-bold text-slate-900 dark:text-white">
+              Application Settings
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Customize your profile, preferences, AI memory, and privacy configuration
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        {/* 1. Account Profile Card */}
+        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-300 dark:border-slate-700 rounded-3xl p-6 shadow-sm space-y-5">
+          <div className="flex items-center gap-2.5 pb-3 border-b border-slate-200 dark:border-slate-800">
+            <User className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+            <h3 className="font-serif font-bold text-base text-slate-900 dark:text-white">
+              Profile & Credentials
+            </h3>
+          </div>
+
+          <form onSubmit={handleSaveProfile} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                Display Name
+              </label>
+              <div className="flex gap-2">
+                <input
+                  id="input-settings-display-name"
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Your Name"
+                  className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 text-xs focus:outline-none focus:border-indigo-500 shadow-xs"
+                />
+                <button
+                  id="btn-save-display-name"
+                  type="submit"
+                  disabled={isSavingName || !displayName.trim()}
+                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>{isSavingName ? 'Saving...' : 'Save'}</span>
+                </button>
+              </div>
+              {nameSavedSuccess && (
+                <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mt-1 flex items-center gap-1">
+                  <Check className="w-3 h-3" /> Profile name updated successfully!
+                </p>
+              )}
+              {nameSaveError && (
+                <p className="text-[11px] text-rose-600 dark:text-rose-400 font-medium mt-1">
+                  {nameSaveError}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2 pt-1">
+              <div>
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block mb-1">
+                  Authenticated Email
+                </span>
+                <div className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs font-mono">
+                  {user.email || 'Google Authentication Account'}
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        {/* 2. Theme & Customization Card */}
+        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-300 dark:border-slate-700 rounded-3xl p-6 shadow-sm space-y-5">
+          <div className="flex items-center gap-2.5 pb-3 border-b border-slate-200 dark:border-slate-800">
+            <Sun className="w-4 h-4 text-amber-500" />
+            <h3 className="font-serif font-bold text-base text-slate-900 dark:text-white">
+              Appearance & Font Styling
+            </h3>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                Color Mode
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  id="btn-settings-theme-light"
+                  type="button"
+                  onClick={() => theme !== 'light' && onToggleTheme()}
+                  className={`p-3 rounded-2xl border text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                    theme === 'light'
+                      ? 'bg-indigo-50 border-indigo-500 text-indigo-900 shadow-xs ring-2 ring-indigo-400/30'
+                      : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-400'
+                  }`}
+                >
+                  <Sun className="w-4 h-4 text-amber-500" />
+                  <span>Light Atmosphere</span>
+                </button>
+                <button
+                  id="btn-settings-theme-dark"
+                  type="button"
+                  onClick={() => theme !== 'dark' && onToggleTheme()}
+                  className={`p-3 rounded-2xl border text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                    theme === 'dark'
+                      ? 'bg-indigo-950/80 border-indigo-500 text-indigo-200 shadow-xs ring-2 ring-indigo-500/30'
+                      : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-400'
+                  }`}
+                >
+                  <Moon className="w-4 h-4 text-indigo-400" />
+                  <span>Dark Twilight</span>
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-1.5">
+                <Type className="w-3.5 h-3.5 text-indigo-500" />
+                <span>Journal Typography Preference</span>
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: 'sans', label: 'Sans (Modern)', class: 'font-sans' },
+                  { id: 'serif', label: 'Serif (Classic)', class: 'font-serif' },
+                  { id: 'mono', label: 'Mono (Technical)', class: 'font-mono' },
+                ].map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => handleFontChange(f.id)}
+                    className={`p-2.5 rounded-xl border text-xs text-center transition-all cursor-pointer ${f.class} ${
+                      fontPreference === f.id
+                        ? 'bg-indigo-600 text-white border-indigo-600 font-bold shadow-xs'
+                        : 'bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-400'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 3. AI Companion & Memory Settings */}
+        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-300 dark:border-slate-700 rounded-3xl p-6 shadow-sm space-y-5">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+            <div className="flex items-center gap-2.5">
+              <Brain className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <h3 className="font-serif font-bold text-base text-slate-900 dark:text-white">
+                AI Intelligence & Memory
+              </h3>
+            </div>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+              Gemini 3.5
+            </span>
+          </div>
+
+          <div className="space-y-4 text-xs">
+            <div className="flex items-center justify-between gap-4 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+              <div>
+                <span className="font-semibold text-slate-800 dark:text-slate-200 block">
+                  Automated Sentiment Detection
+                </span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Derive visual sentiment indicators and scores automatically for new entries
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={toggleAutoSentiment}
+                className={`w-11 h-6 rounded-full transition-colors relative p-0.5 cursor-pointer flex-shrink-0 ${
+                  autoSentiment ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'
+                }`}
+              >
+                <div
+                  className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${
+                    autoSentiment ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between gap-4 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+              <div>
+                <span className="font-semibold text-slate-800 dark:text-slate-200 block">
+                  Proactive Reflection Nudges
+                </span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Receive personalized writing suggestions based on your memory themes
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={toggleEnableNudges}
+                className={`w-11 h-6 rounded-full transition-colors relative p-0.5 cursor-pointer flex-shrink-0 ${
+                  enableNudges ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'
+                }`}
+              >
+                <div
+                  className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${
+                    enableNudges ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
+              <button
+                type="button"
+                onClick={onOpenMemory}
+                className="flex-1 px-3.5 py-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-semibold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Brain className="w-3.5 h-3.5" />
+                <span>Inspect Memory Context</span>
+              </button>
+              <button
+                type="button"
+                onClick={onOpenSecurity}
+                className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                <span>Security Audit</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* 4. Daily Reminders & Notifications */}
+        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-300 dark:border-slate-700 rounded-3xl p-6 shadow-sm space-y-5">
+          <div className="flex items-center gap-2.5 pb-3 border-b border-slate-200 dark:border-slate-800">
+            <Bell className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+            <h3 className="font-serif font-bold text-base text-slate-900 dark:text-white">
+              Mindful Reminders
+            </h3>
+          </div>
+
+          <div className="space-y-4 text-xs">
+            {/* Daily Reflection Alert */}
+            <div className="flex items-center justify-between gap-4 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+              <div>
+                <span className="font-semibold text-slate-800 dark:text-slate-200 block">
+                  Daily Reflection Alert
+                </span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Notify me to record my evening reflections
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={toggleReminder}
+                className={`w-11 h-6 rounded-full transition-colors relative p-0.5 cursor-pointer flex-shrink-0 ${
+                  reminderEnabled ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'
+                }`}
+              >
+                <div
+                  className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${
+                    reminderEnabled ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {reminderEnabled && (
+              <div className="p-3.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 space-y-2">
+                <label className="block text-xs font-semibold text-indigo-950 dark:text-indigo-200">
+                  Preferred Reflection Reminder Time
+                </label>
+                <input
+                  type="time"
+                  value={reminderTime}
+                  onChange={(e) => handleReminderTimeChange(e.target.value)}
+                  className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-700 text-slate-800 dark:text-slate-100 font-mono text-xs focus:outline-none focus:border-indigo-500 shadow-xs"
+                />
+              </div>
+            )}
+
+            {/* Daily Gratitude Reminder */}
+            <div className="flex items-center justify-between gap-4 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+              <div>
+                <span className="font-semibold text-slate-800 dark:text-slate-200 block">
+                  Daily Gratitude Reminder
+                </span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Prompt me to list 3 things I'm grateful for every day
+                </span>
+              </div>
+              <button
+                id="toggle-gratitude-reminder"
+                type="button"
+                onClick={toggleGratitudeReminder}
+                className={`w-11 h-6 rounded-full transition-colors relative p-0.5 cursor-pointer flex-shrink-0 ${
+                  gratitudeReminderEnabled ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'
+                }`}
+              >
+                <div
+                  className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${
+                    gratitudeReminderEnabled ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {gratitudeReminderEnabled && (
+              <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 space-y-2">
+                <label className="block text-xs font-semibold text-emerald-950 dark:text-emerald-200">
+                  Preferred Gratitude Reminder Time
+                </label>
+                <input
+                  id="input-gratitude-reminder-time"
+                  type="time"
+                  value={gratitudeReminderTime}
+                  onChange={(e) => handleGratitudeReminderTimeChange(e.target.value)}
+                  className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-700 text-slate-800 dark:text-slate-100 font-mono text-xs focus:outline-none focus:border-emerald-500 shadow-xs"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+      </div>
+
+      {/* 5. Data Export & Danger Zone */}
+      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-300 dark:border-slate-700 rounded-3xl p-6 shadow-sm space-y-5">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+          <div className="flex items-center gap-2.5">
+            <Download className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+            <h3 className="font-serif font-bold text-base text-slate-900 dark:text-white">
+              Data Backup & Account Management
+            </h3>
+          </div>
+          <span className="text-xs text-slate-500 font-mono">
+            {entries.length} reflections • {gratitudeEntries.length} gratitude logs
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          
+          {/* Export Box */}
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-3">
+            <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+              <Download className="w-3.5 h-3.5 text-indigo-500" />
+              <span>Export Journal Records</span>
+            </h4>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+              Download your full private journal data for offline backup or migration anytime.
+            </p>
+            <div className="flex gap-2">
+              <button
+                id="btn-export-json"
+                type="button"
+                onClick={handleExportJSON}
+                className="flex-1 px-3 py-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 text-xs font-semibold shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-500" />
+                <span>Export JSON</span>
+              </button>
+              <button
+                id="btn-export-markdown"
+                type="button"
+                onClick={handleExportMarkdown}
+                className="flex-1 px-3 py-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 text-xs font-semibold shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                <span>Export Markdown</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Account Danger Actions */}
+          <div className="p-4 rounded-2xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-200/80 dark:border-rose-900/40 space-y-3">
+            <h4 className="text-xs font-bold text-rose-800 dark:text-rose-300 flex items-center gap-1.5">
+              <AlertCircle className="w-3.5 h-3.5 text-rose-500" />
+              <span>Account Danger Zone</span>
+            </h4>
+            <p className="text-[11px] text-rose-900/70 dark:text-rose-300/70 leading-relaxed">
+              Deactivate your account temporarily or purge all data permanently from Firestore.
+            </p>
+            <div className="flex gap-2">
+              <button
+                id="btn-settings-deactivate"
+                type="button"
+                onClick={onOpenDeactivateModal}
+                className="flex-1 px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 dark:hover:bg-amber-900 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-300 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <UserX className="w-3.5 h-3.5" />
+                <span>Deactivate</span>
+              </button>
+              <button
+                id="btn-settings-delete"
+                type="button"
+                onClick={onOpenDeleteModal}
+                className="flex-1 px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete Account</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  );
+};

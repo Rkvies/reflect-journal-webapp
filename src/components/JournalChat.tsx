@@ -886,16 +886,20 @@ export const JournalChat: React.FC<JournalChatProps> = ({
 
           {/* Progressive Loading state before streaming chunks */}
           {isLoading && (!streamingReply || streamingReply === '') && (
-            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 text-slate-800 dark:text-slate-100 mr-4 sm:mr-8 shadow-sm animate-fade-in space-y-2">
+            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 mr-4 sm:mr-8 shadow-sm animate-fade-in space-y-2">
               <div className="flex items-center justify-between text-xs text-slate-400 dark:text-slate-500">
                 <span className="font-semibold text-slate-700 dark:text-slate-300 font-serif">Reflect</span>
-                <span className="text-[11px] font-mono text-indigo-600 dark:text-indigo-400">
+                <span className="text-[11px] font-mono text-indigo-600 dark:text-indigo-400 font-medium">
                   {loadingStage === 0 ? 'Loading context...' : loadingStage === 1 ? 'Holding space...' : 'Synthesizing...'}
                 </span>
               </div>
               <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 py-1">
-                <span className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-400 animate-pulse flex-shrink-0" />
-                <span className="italic">
+                <div className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-400 animate-bounce [animation-delay:-0.3s]" />
+                  <span className="w-2 h-2 rounded-full bg-indigo-500 dark:bg-indigo-300 animate-bounce [animation-delay:-0.15s]" />
+                  <span className="w-2 h-2 rounded-full bg-indigo-400 dark:bg-indigo-200 animate-bounce" />
+                </div>
+                <span className="italic ml-1">
                   {loadingStage === 0
                     ? 'Loading your journal context and recency memory...'
                     : loadingStage === 1
@@ -908,19 +912,28 @@ export const JournalChat: React.FC<JournalChatProps> = ({
 
           {/* Live Streaming Token Box */}
           {streamingReply !== null && streamingReply !== '' && (
-            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-900/60 text-slate-800 dark:text-slate-100 mr-4 sm:mr-8 shadow-sm">
+            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-indigo-300 dark:border-indigo-700 text-slate-800 dark:text-slate-100 mr-4 sm:mr-8 shadow-sm">
               <div className="flex items-center justify-between text-xs text-slate-400 dark:text-slate-500 mb-2">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-slate-700 dark:text-slate-300 font-serif">Reflect</span>
-                  <span className="inline-flex items-center gap-1 text-[10px] font-mono text-indigo-600 dark:text-indigo-400 font-medium">
+                  <span className="inline-flex items-center gap-1.5 text-[10px] font-mono text-indigo-600 dark:text-indigo-400 font-medium">
                     <Radio className="w-2.5 h-2.5 animate-pulse" /> Streaming
+                    <span className="inline-flex items-center gap-0.5 ml-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400 animate-bounce [animation-delay:-0.3s]" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 dark:bg-indigo-300 animate-bounce [animation-delay:-0.15s]" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 dark:bg-indigo-200 animate-bounce" />
+                    </span>
                   </span>
                 </div>
               </div>
 
               <div className="prose prose-slate dark:prose-invert max-w-none text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-sans">
                 <Markdown>{streamingReply}</Markdown>
-                <span className="inline-block w-1.5 h-3.5 bg-indigo-600 dark:bg-indigo-400 animate-pulse ml-1 align-middle rounded-full" />
+                <span className="inline-flex items-center gap-0.5 ml-1.5 align-middle">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400 animate-bounce [animation-delay:-0.3s]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 dark:bg-indigo-300 animate-bounce [animation-delay:-0.15s]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 dark:bg-indigo-200 animate-bounce" />
+                </span>
               </div>
             </div>
           )}

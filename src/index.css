@@ -1,19 +1,33 @@
 @import "tailwindcss";
 
+@theme {
+  --color-slate-50: #fcfcfd;
+  --color-slate-100: #f4f4f5;
+  --color-slate-200: #e8e8ea;
+  --color-slate-300: #d4d4d6;
+  --color-slate-400: #b5b5b8;
+  --color-slate-500: #959599;
+  --color-slate-600: #76767a;
+  --color-slate-700: #5c5c5f;
+  --color-slate-800: #424245;
+  --color-slate-900: #252527;
+  --color-slate-950: #121213;
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
   :root {
-    --color-bg-primary: #f8fafc;
-    --color-text-primary: #0f172a;
-    --color-text-secondary: #475569;
-    --color-border: rgba(226, 232, 240, 0.8);
+    --color-bg-primary: #fcfcfd;
+    --color-text-primary: #121213;
+    --color-text-secondary: #5c5c5f;
+    --color-border: rgba(66, 66, 69, 0.15);
   }
 
   .dark {
-    --color-bg-primary: #090d16;
-    --color-text-primary: #f8fafc;
-    --color-text-secondary: #94a3b8;
+    --color-bg-primary: #0a0a0b;
+    --color-text-primary: #f4f4f5;
+    --color-text-secondary: #959599;
     --color-border: rgba(255, 255, 255, 0.08);
   }
 
@@ -37,7 +51,7 @@
 }
 
 .dark .glass-panel {
-  background: rgba(15, 23, 42, 0.75);
+  background: rgba(18, 18, 19, 0.75);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -52,7 +66,7 @@
 }
 
 .dark .glass-card {
-  background: rgba(30, 41, 59, 0.65);
+  background: rgba(37, 37, 39, 0.65);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -66,11 +80,11 @@
 }
 
 .dark .glass-input {
-  background: rgba(15, 23, 42, 0.7);
+  background: rgba(18, 18, 19, 0.7);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #f1f5f9;
+  color: #f4f4f5;
 }
 
 /* Subtle typing dot bounce keyframe animation */

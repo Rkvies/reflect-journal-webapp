@@ -77,7 +77,7 @@ export const GratitudeModule: React.FC<GratitudeModuleProps> = ({
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-8 animate-fade-in">
       
       {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-500/10 via-rose-500/10 to-indigo-500/10 dark:from-amber-950/30 dark:via-rose-950/20 dark:to-indigo-950/30 border border-amber-200/50 dark:border-amber-900/40 p-6 sm:p-8 shadow-sm">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-500/10 via-teal-500/10 to-indigo-500/10 dark:from-amber-950/30 dark:via-teal-950/20 dark:to-indigo-950/30 border border-amber-200/50 dark:border-amber-900/40 p-6 sm:p-8 shadow-sm">
         <div className="absolute top-0 right-0 -mt-6 -mr-6 w-36 h-36 bg-amber-400/10 dark:bg-amber-600/10 rounded-full blur-2xl pointer-events-none" />
         <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="space-y-2">
@@ -94,7 +94,7 @@ export const GratitudeModule: React.FC<GratitudeModuleProps> = ({
           </div>
 
           <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 shadow-xs">
-            <div className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400">
+            <div className="p-2 rounded-xl bg-teal-50 dark:bg-teal-950/50 text-teal-600 dark:text-teal-400">
               <Heart className="w-5 h-5 fill-current" />
             </div>
             <div>
@@ -167,7 +167,7 @@ export const GratitudeModule: React.FC<GratitudeModuleProps> = ({
             {/* Item 2 */}
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-mono uppercase tracking-wider flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 flex items-center justify-center text-[10px] font-bold">2</span>
+                <span className="w-5 h-5 rounded-full bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300 flex items-center justify-center text-[10px] font-bold">2</span>
                 Second Gratitude
               </label>
               <input
@@ -176,7 +176,7 @@ export const GratitudeModule: React.FC<GratitudeModuleProps> = ({
                 value={item2}
                 onChange={(e) => setItem2(e.target.value)}
                 placeholder="e.g., A meaningful conversation with an old friend..."
-                className="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-rose-500 shadow-xs transition-all"
+                className="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-teal-500 shadow-xs transition-all"
               />
             </div>
 
@@ -292,7 +292,7 @@ export const GratitudeModule: React.FC<GratitudeModuleProps> = ({
                       <span className="leading-snug">{entry.item1}</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <span className="w-4 h-4 rounded-full bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">2</span>
+                      <span className="w-4 h-4 rounded-full bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">2</span>
                       <span className="leading-snug">{entry.item2}</span>
                     </li>
                     <li className="flex items-start gap-2">
@@ -310,7 +310,7 @@ export const GratitudeModule: React.FC<GratitudeModuleProps> = ({
 
                 <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-400 font-mono flex items-center justify-between">
                   <span>Saved {new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                  <Heart className="w-3.5 h-3.5 text-rose-500 fill-current" />
+                  <Heart className="w-3.5 h-3.5 text-teal-500 fill-current" />
                 </div>
               </div>
             ))}

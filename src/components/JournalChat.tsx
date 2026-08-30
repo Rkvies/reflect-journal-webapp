@@ -299,13 +299,26 @@ export const JournalChat: React.FC<JournalChatProps> = ({
   // Handle prefilled prompt from nudge
   useEffect(() => {
     if (prefillPrompt) {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      setConversation([]);
+      setStreamingReply(null);
+      setCurrentEntryId('entry_' + Date.now());
+      setEditingTurnId(null);
+      setEditingTurnText('');
+      setEntryCreatedAt(new Date().toISOString());
+      setEntrySentiment(null);
+
       setCurrentInput(prefillPrompt.prompt);
-      if (prefillPrompt.tag) {
-        setTags(prev => prev.includes(prefillPrompt.tag) ? prev : [...prev, prefillPrompt.tag]);
+      
+      const newTags = ['daily-reflection'];
+      if (prefillPrompt.tag && !newTags.includes(prefillPrompt.tag)) {
+        newTags.push(prefillPrompt.tag);
       }
-      if (!title) {
-        setTitle(`Reflecting on ${prefillPrompt.tag}`);
-      }
+      setTags(newTags);
+      setTitle(`Reflecting on ${prefillPrompt.tag}`);
+      
       onClearPrefill?.();
     }
   }, [prefillPrompt]);
@@ -730,9 +743,9 @@ export const JournalChat: React.FC<JournalChatProps> = ({
         </div>
 
         {/* Mood & Tags Bar (Clean and Muted) */}
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pt-1 text-xs">
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-3 pt-1 text-xs w-full">
           {/* Mood Selector Chips */}
-          <div className="flex flex-wrap items-center gap-1.5 py-0.5 max-w-full">
+          <div className="flex flex-wrap items-center gap-1.5 py-0.5 flex-1 min-w-0">
             {MOODS.map((m) => (
               <button
                 key={m.type}
@@ -751,11 +764,11 @@ export const JournalChat: React.FC<JournalChatProps> = ({
           </div>
 
           {/* Tags */}
-          <div className="flex items-center gap-1.5 flex-wrap flex-shrink-0 pt-0.5">
+          <div className="flex items-center gap-1.5 flex-wrap flex-1 min-w-0 justify-start md:justify-end pt-0.5">
             {Array.from(new Set(tags)).map((t, idx) => (
               <span
                 key={`${t}-${idx}`}
-                className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800/90 text-slate-600 dark:text-slate-300 text-[11px] font-sans flex items-center gap-1"
+                className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800/90 text-slate-600 dark:text-slate-300 text-[11px] font-sans flex items-center gap-1 whitespace-nowrap"
               >
                 #{t}
                 <button
@@ -773,7 +786,7 @@ export const JournalChat: React.FC<JournalChatProps> = ({
               value={tagInput}
               onChange={(e) => setTagInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAddTag()}
-              className="w-14 px-1 py-0.5 bg-transparent border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-300 focus:outline-none focus:border-indigo-500"
+              className="w-14 px-1 py-0.5 bg-transparent border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-300 focus:outline-none focus:border-indigo-500 flex-shrink-0"
             />
           </div>
         </div>

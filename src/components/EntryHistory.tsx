@@ -58,67 +58,67 @@ const SENTIMENT_THEMES: Record<string, {
   progressBar: string; 
 }> = {
   emerald: {
-    bg: 'bg-emerald-50/80',
-    text: 'text-emerald-900',
-    border: 'border-emerald-200/90',
-    badgeBg: 'bg-emerald-100/80 text-emerald-800 border-emerald-300/80',
-    dot: 'bg-emerald-500',
-    ring: 'ring-emerald-400/30',
-    progressBar: 'bg-emerald-500',
+    bg: 'bg-emerald-50/80 dark:bg-emerald-950/30',
+    text: 'text-emerald-900 dark:text-emerald-300',
+    border: 'border-emerald-200/90 dark:border-emerald-900/50',
+    badgeBg: 'bg-emerald-100/80 text-emerald-800 border-emerald-300/80 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-800/60',
+    dot: 'bg-emerald-500 dark:bg-emerald-400',
+    ring: 'ring-emerald-400/30 dark:ring-emerald-900/50',
+    progressBar: 'bg-emerald-500 dark:bg-emerald-400',
   },
   indigo: {
-    bg: 'bg-indigo-50/80',
-    text: 'text-indigo-900',
-    border: 'border-indigo-200/90',
-    badgeBg: 'bg-indigo-100/80 text-indigo-800 border-indigo-300/80',
-    dot: 'bg-indigo-500',
-    ring: 'ring-indigo-400/30',
-    progressBar: 'bg-indigo-500',
+    bg: 'bg-indigo-50/80 dark:bg-indigo-950/30',
+    text: 'text-indigo-900 dark:text-indigo-300',
+    border: 'border-indigo-200/90 dark:border-indigo-900/50',
+    badgeBg: 'bg-indigo-100/80 text-indigo-800 border-indigo-300/80 dark:bg-indigo-900/40 dark:text-indigo-300 dark:border-indigo-800/60',
+    dot: 'bg-indigo-500 dark:bg-indigo-400',
+    ring: 'ring-indigo-400/30 dark:ring-indigo-900/50',
+    progressBar: 'bg-indigo-500 dark:bg-indigo-400',
   },
   amber: {
-    bg: 'bg-amber-50/80',
-    text: 'text-amber-900',
-    border: 'border-amber-200/90',
-    badgeBg: 'bg-amber-100/80 text-amber-900 border-amber-300/80',
-    dot: 'bg-amber-500',
-    ring: 'ring-amber-400/30',
-    progressBar: 'bg-amber-500',
+    bg: 'bg-amber-50/80 dark:bg-amber-950/30',
+    text: 'text-amber-900 dark:text-amber-300',
+    border: 'border-amber-200/90 dark:border-amber-900/50',
+    badgeBg: 'bg-amber-100/80 text-amber-900 border-amber-300/80 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800/60',
+    dot: 'bg-amber-500 dark:bg-amber-400',
+    ring: 'ring-amber-400/30 dark:ring-amber-900/50',
+    progressBar: 'bg-amber-500 dark:bg-amber-400',
   },
   rose: {
-    bg: 'bg-rose-50/80',
-    text: 'text-rose-900',
-    border: 'border-rose-200/90',
-    badgeBg: 'bg-rose-100/80 text-rose-800 border-rose-300/80',
-    dot: 'bg-rose-500',
-    ring: 'ring-rose-400/30',
-    progressBar: 'bg-rose-500',
+    bg: 'bg-rose-50/80 dark:bg-rose-950/30',
+    text: 'text-rose-900 dark:text-rose-300',
+    border: 'border-rose-200/90 dark:border-rose-900/50',
+    badgeBg: 'bg-rose-100/80 text-rose-800 border-rose-300/80 dark:bg-rose-900/40 dark:text-rose-300 dark:border-rose-800/60',
+    dot: 'bg-rose-500 dark:bg-rose-400',
+    ring: 'ring-rose-400/30 dark:ring-rose-900/50',
+    progressBar: 'bg-rose-500 dark:bg-rose-400',
   },
   sky: {
-    bg: 'bg-sky-50/80',
-    text: 'text-sky-900',
-    border: 'border-sky-200/90',
-    badgeBg: 'bg-sky-100/80 text-sky-800 border-sky-300/80',
-    dot: 'bg-sky-500',
-    ring: 'ring-sky-400/30',
-    progressBar: 'bg-sky-500',
+    bg: 'bg-sky-50/80 dark:bg-sky-950/30',
+    text: 'text-sky-900 dark:text-sky-300',
+    border: 'border-sky-200/90 dark:border-sky-900/50',
+    badgeBg: 'bg-sky-100/80 text-sky-800 border-sky-300/80 dark:bg-sky-900/40 dark:text-sky-300 dark:border-sky-800/60',
+    dot: 'bg-sky-500 dark:bg-sky-400',
+    ring: 'ring-sky-400/30 dark:ring-sky-900/50',
+    progressBar: 'bg-sky-500 dark:bg-sky-400',
   },
   purple: {
-    bg: 'bg-purple-50/80',
-    text: 'text-purple-900',
-    border: 'border-purple-200/90',
-    badgeBg: 'bg-purple-100/80 text-purple-800 border-purple-300/80',
-    dot: 'bg-purple-500',
-    ring: 'ring-purple-400/30',
-    progressBar: 'bg-purple-500',
+    bg: 'bg-purple-50/80 dark:bg-purple-950/30',
+    text: 'text-purple-900 dark:text-purple-300',
+    border: 'border-purple-200/90 dark:border-purple-900/50',
+    badgeBg: 'bg-purple-100/80 text-purple-800 border-purple-300/80 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-800/60',
+    dot: 'bg-purple-500 dark:bg-purple-400',
+    ring: 'ring-purple-400/30 dark:ring-purple-900/50',
+    progressBar: 'bg-purple-500 dark:bg-purple-400',
   },
   teal: {
-    bg: 'bg-teal-50/80',
-    text: 'text-teal-900',
-    border: 'border-teal-200/90',
-    badgeBg: 'bg-teal-100/80 text-teal-800 border-teal-300/80',
-    dot: 'bg-teal-500',
-    ring: 'ring-teal-400/30',
-    progressBar: 'bg-teal-500',
+    bg: 'bg-teal-50/80 dark:bg-teal-950/30',
+    text: 'text-teal-900 dark:text-teal-300',
+    border: 'border-teal-200/90 dark:border-teal-900/50',
+    badgeBg: 'bg-teal-100/80 text-teal-800 border-teal-300/80 dark:bg-teal-900/40 dark:text-teal-300 dark:border-teal-800/60',
+    dot: 'bg-teal-500 dark:bg-teal-400',
+    ring: 'ring-teal-400/30 dark:ring-teal-900/50',
+    progressBar: 'bg-teal-500 dark:bg-teal-400',
   },
 };
 
@@ -155,6 +155,22 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
   const [entryToDelete, setEntryToDelete] = useState<JournalEntry | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Pagination / Batch loading state
+  const [visibleCount, setVisibleCount] = useState<number>(15);
+
+  // Close delete modal on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && entryToDelete) {
+        setEntryToDelete(null);
+      }
+    };
+    if (entryToDelete) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [entryToDelete]);
+
   // When targetEntryId is provided (e.g. from Insights link),
   // ensure the entry is un-filtered, expanded, and scrolled into view smoothly.
   useEffect(() => {
@@ -168,6 +184,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
       setSearchQuery('');
       setSelectedCalendarDate(null);
       setSortBy('newest');
+      setVisibleCount(100);
 
       const timer = setTimeout(() => {
         const el = document.getElementById(`entry-card-${targetEntryId}`);
@@ -914,8 +931,8 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
           )}
         </div>
       ) : (
-        <div className="space-y-3.5">
-          {filteredEntries.map((entry) => {
+        <div className="space-y-3.5" role="feed" aria-label="Journal reflections feed">
+          {filteredEntries.slice(0, visibleCount).map((entry) => {
             const isExpanded = expandedEntryId === entry.id;
             const isAnalyzing = analyzingIds[entry.id];
             const isOwner = entry.userId === userId;
@@ -935,13 +952,14 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
             const isTarget = targetEntryId === entry.id;
 
             return (
-              <div
+              <article
                 key={entry.id}
                 id={`entry-card-${entry.id}`}
+                aria-label={`Reflection: ${entry.title || 'Untitled Reflection'}`}
                 className={`bg-white/80 dark:bg-slate-900/80 hover:bg-white dark:hover:bg-slate-900 backdrop-blur-xl border transition-all shadow-xs rounded-3xl overflow-hidden ${
                   isTarget
                     ? 'border-indigo-500 ring-4 ring-indigo-500/20 shadow-md shadow-indigo-500/10'
-                    : sentimentTheme ? `${sentimentTheme.border} dark:border-slate-700` : 'border-slate-300 dark:border-slate-700'
+                    : sentimentTheme ? `${sentimentTheme.border}` : 'border-slate-300 dark:border-slate-700'
                 } hover:border-indigo-400 dark:hover:border-indigo-500/40`}
               >
                 {/* Target Entry Highlight Banner */}
@@ -955,6 +973,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                       <button 
                         onClick={(e) => { e.stopPropagation(); onClearTargetEntry(); }}
                         className="text-[11px] font-sans font-medium underline text-indigo-100 hover:text-white cursor-pointer"
+                        aria-label="Clear referenced reflection highlight"
                       >
                         Clear highlight
                       </button>
@@ -964,18 +983,30 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
 
                 {/* Entry Header Row */}
                 <div
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={isExpanded}
+                  aria-controls={`entry-details-${entry.id}`}
+                  aria-label={`${isExpanded ? 'Collapse' : 'Expand'} reflection: ${entry.title || 'Untitled'}`}
                   onClick={() => toggleExpand(entry.id)}
-                  className="p-4 sm:p-5 flex items-start sm:items-center justify-between gap-4 cursor-pointer select-none"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      toggleExpand(entry.id);
+                    }
+                  }}
+                  className="p-4 sm:p-5 flex items-start sm:items-center justify-between gap-4 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-3xl"
                 >
                   <div className="flex items-start sm:items-center gap-3.5 min-w-0">
                     {/* Visual Sentiment Avatar */}
                     <div 
                       className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xl flex-shrink-0 shadow-xs border transition-transform hover:scale-105 ${
                         sentimentTheme 
-                          ? `${sentimentTheme.bg} ${sentimentTheme.border} ${sentimentTheme.ring} dark:bg-slate-800 dark:border-slate-700`
+                          ? `${sentimentTheme.bg} ${sentimentTheme.border} ${sentimentTheme.ring}`
                           : 'bg-indigo-50 dark:bg-slate-800 border-indigo-100 dark:border-slate-700'
                       }`}
                       title={entry.sentiment ? `Gemini Sentiment: ${entry.sentiment.label}` : `Mood: ${entry.mood}`}
+                      aria-hidden="true"
                     >
                       {entry.sentiment?.emoji || MOOD_EMOJIS[entry.mood] || '📝'}
                     </div>
@@ -989,10 +1020,10 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                         {/* Gemini-derived Sentiment Indicator Badge */}
                         {entry.sentiment ? (
                           <div 
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${sentimentTheme?.badgeBg} dark:bg-slate-800 dark:border-slate-700 dark:text-indigo-300 shadow-2xs`}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${sentimentTheme?.badgeBg} shadow-2xs`}
                             title={`Emotional Harmony: ${entry.sentiment.score}%`}
                           >
-                            <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-current" />
+                            <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-current" aria-hidden="true" />
                             <span>{entry.sentiment.emoji}</span>
                             <span>{entry.sentiment.label}</span>
                             <ConfidenceTooltip explanation="Gemini's estimated confidence based on language and sentiment in this entry.">
@@ -1005,7 +1036,8 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                             onClick={(e) => handleAnalyzeSentiment(entry, e)}
                             disabled={isAnalyzing}
                             title="Derive visual sentiment indicator using Gemini"
-                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-indigo-700 dark:hover:text-white border border-slate-300 dark:border-slate-700 transition-colors cursor-pointer"
+                            aria-label={`Derive visual sentiment indicator for ${entry.title || 'reflection'}`}
+                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-indigo-700 dark:hover:text-white border border-slate-300 dark:border-slate-700 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                           >
                             <Sparkles className={`w-3 h-3 ${isAnalyzing ? 'animate-spin text-indigo-600 dark:text-indigo-400' : 'text-amber-500'}`} />
                             <span>{isAnalyzing ? 'Evaluating...' : 'Detect Sentiment'}</span>
@@ -1034,12 +1066,12 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
 
                       <div className="flex items-center gap-2.5 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
                         <span className="flex items-center gap-1 font-mono text-[11px]">
-                          <CalendarIcon className="w-3 h-3 text-slate-400 dark:text-slate-500" />
+                          <CalendarIcon className="w-3 h-3 text-slate-400 dark:text-slate-500" aria-hidden="true" />
                           {dateStr} at {timeStr}
                         </span>
-                        <span>•</span>
+                        <span aria-hidden="true">•</span>
                         <span className="font-mono text-[11px]">{entry.wordCount || 0} words</span>
-                        <span>•</span>
+                        <span aria-hidden="true">•</span>
                         <span className="text-slate-600 dark:text-slate-400 font-medium capitalize flex items-center gap-1">
                           <span>User mood:</span>
                           <span className="text-slate-800 dark:text-slate-200 font-semibold">{entry.mood.replace('_', ' ')}</span>
@@ -1055,13 +1087,14 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                         id={`btn-delete-entry-${entry.id}`}
                         onClick={(e) => handleOpenDelete(entry, e)}
                         title="Delete reflection from Firestore"
-                        className="p-2 rounded-xl text-slate-400 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition-colors cursor-pointer"
+                        aria-label={`Delete reflection ${entry.title || 'Untitled'}`}
+                        className="p-2 rounded-xl text-slate-400 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     )}
 
-                    <div className="p-1 text-slate-400 dark:text-slate-500">
+                    <div className="p-1 text-slate-400 dark:text-slate-500" aria-hidden="true">
                       {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                     </div>
                   </div>
@@ -1069,17 +1102,22 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
 
                 {/* Expanded Content View */}
                 {isExpanded && (
-                  <div className="border-t border-slate-200 dark:border-slate-800 bg-white/40 dark:bg-slate-950/40 backdrop-blur-md p-5 sm:p-6 space-y-4">
+                  <div 
+                    id={`entry-details-${entry.id}`}
+                    role="region"
+                    aria-label={`Reflection details for ${entry.title || 'Untitled'}`}
+                    className="border-t border-slate-200 dark:border-slate-800 bg-white/40 dark:bg-slate-950/40 backdrop-blur-md p-5 sm:p-6 space-y-4"
+                  >
                     
                     {/* Visual Sentiment Detail Card */}
                     {entry.sentiment ? (
-                      <div className={`p-4 sm:p-5 rounded-2xl border ${sentimentTheme?.bg} ${sentimentTheme?.border} dark:bg-slate-800/80 dark:border-slate-700 space-y-2.5 shadow-2xs`}>
+                      <div className={`p-4 sm:p-5 rounded-2xl border ${sentimentTheme?.bg} ${sentimentTheme?.border} space-y-2.5 shadow-2xs`}>
                         <div className="flex items-center justify-between flex-wrap gap-2">
                           <div className="flex items-center gap-2">
-                            <span className="text-2xl">{entry.sentiment.emoji}</span>
+                            <span className="text-2xl" aria-hidden="true">{entry.sentiment.emoji}</span>
                             <div>
                               <div className="flex items-center gap-2">
-                                <span className={`text-sm font-serif font-bold ${sentimentTheme?.text} dark:text-white`}>
+                                <span className={`text-sm font-serif font-bold ${sentimentTheme?.text}`}>
                                   {entry.sentiment.label}
                                 </span>
                                 <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-white/80 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200">
@@ -1101,7 +1139,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                                 </ConfidenceTooltip>
                               </div>
                             </div>
-                            <div className="w-16 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                            <div className="w-16 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden" aria-hidden="true">
                               <div 
                                 className={`h-full rounded-full ${sentimentTheme?.progressBar || 'bg-indigo-600'}`}
                                 style={{ width: `${entry.sentiment.score}%` }}
@@ -1111,7 +1149,8 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                               onClick={(e) => handleAnalyzeSentiment(entry, e)}
                               disabled={isAnalyzing}
                               title="Re-analyze with Gemini"
-                              className="p-1 rounded-lg text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                              aria-label="Re-analyze sentiment with Gemini"
+                              className="p-1 rounded-lg text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                             >
                               <RefreshCw className={`w-3.5 h-3.5 ${isAnalyzing ? 'animate-spin text-indigo-600 dark:text-indigo-400' : ''}`} />
                             </button>
@@ -1121,13 +1160,14 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                     ) : (
                       <div className="p-4 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2.5 text-xs text-indigo-900 dark:text-indigo-300">
-                          <Sparkles className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                          <Sparkles className="w-4 h-4 text-amber-500 flex-shrink-0" aria-hidden="true" />
                           <span>No sentiment indicator derived yet for this entry.</span>
                         </div>
                         <button
                           onClick={(e) => handleAnalyzeSentiment(entry, e)}
                           disabled={isAnalyzing}
-                          className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                          aria-label="Generate sentiment indicator"
+                          className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                         >
                           <Activity className={`w-3.5 h-3.5 ${isAnalyzing ? 'animate-spin' : ''}`} />
                           <span>{isAnalyzing ? 'Analyzing...' : 'Generate Sentiment'}</span>
@@ -1139,7 +1179,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider font-mono">
-                          <Feather className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+                          <Feather className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" aria-hidden="true" />
                           <span>Journal Entry Narrative</span>
                         </div>
                       </div>
@@ -1152,7 +1192,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                     {entry.conversation && entry.conversation.length > 0 && (
                       <div className="space-y-2">
                         <div className="flex items-center gap-1.5 text-xs font-semibold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider font-mono">
-                          <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                          <Sparkles className="w-3.5 h-3.5 text-amber-500" aria-hidden="true" />
                           <span>Gemini Reflective Dialogue ({entry.conversation.length} turns)</span>
                         </div>
                         <div className="space-y-2.5">
@@ -1176,9 +1216,38 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                     )}
                   </div>
                 )}
-              </div>
+              </article>
             );
           })}
+
+          {/* Load More Pagination Trigger */}
+          {filteredEntries.length > visibleCount && (
+            <div className="pt-4 pb-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-200 dark:border-slate-800">
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
+                Showing {Math.min(visibleCount, filteredEntries.length)} of {filteredEntries.length} reflections
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  id="btn-load-more-entries"
+                  onClick={() => setVisibleCount((prev) => prev + 15)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/70 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 transition-colors shadow-2xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                  aria-label="Load 15 more reflections"
+                >
+                  Load More Reflections (+15)
+                </button>
+                <button
+                  type="button"
+                  id="btn-show-all-entries"
+                  onClick={() => setVisibleCount(filteredEntries.length)}
+                  className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                  aria-label={`Show all ${filteredEntries.length} reflections`}
+                >
+                  Show All ({filteredEntries.length})
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1186,17 +1255,23 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
       {/* DELETE CONFIRMATION DIALOG MODAL */}
       {/* ========================================================================= */}
       {entryToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-fade-in">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-fade-in"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-dialog-title"
+          aria-describedby="delete-dialog-desc"
+        >
           <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-3xl shadow-2xl overflow-hidden flex flex-col transition-colors">
             
             {/* Modal Header */}
             <div className="p-5 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between bg-rose-50/40 dark:bg-rose-950/20">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-rose-100 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 flex items-center justify-center text-rose-600 dark:text-rose-400 shadow-xs">
+                <div className="w-10 h-10 rounded-2xl bg-rose-100 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 flex items-center justify-center text-rose-600 dark:text-rose-400 shadow-xs" aria-hidden="true">
                   <Trash2 className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-serif font-bold text-slate-900 dark:text-white">
+                  <h3 id="delete-dialog-title" className="text-base font-serif font-bold text-slate-900 dark:text-white">
                     Delete Journal Entry
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -1209,7 +1284,8 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                 id="btn-close-delete-modal"
                 onClick={() => setEntryToDelete(null)}
                 disabled={isDeleting}
-                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                aria-label="Close delete confirmation dialog"
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1231,12 +1307,12 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                 </div>
               </div>
 
-              <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-xs">
+              <p id="delete-dialog-desc" className="text-slate-600 dark:text-slate-300 leading-relaxed text-xs">
                 Are you sure you want to permanently delete this reflection? This entry and its reflective dialogue will be removed from your personal journal archive.
               </p>
 
               <div className="p-3 rounded-2xl bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-amber-900 dark:text-amber-300 text-[11px] flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" aria-hidden="true" />
                 <span>
                   <strong>Note:</strong> Deleting an entry removes this reflection directly. Your continuous memory profile is preserved and only updates through its normal periodic reflection cycle.
                 </span>
@@ -1249,7 +1325,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                 id="btn-cancel-delete"
                 onClick={() => setEntryToDelete(null)}
                 disabled={isDeleting}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
               >
                 Cancel
               </button>
@@ -1258,7 +1334,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                 id="btn-confirm-delete"
                 onClick={handleConfirmDelete}
                 disabled={isDeleting}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-600/20 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-600/20 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
               >
                 <Trash2 className={`w-3.5 h-3.5 ${isDeleting ? 'animate-spin' : ''}`} />
                 <span>{isDeleting ? 'Deleting Entry...' : 'Confirm Delete'}</span>

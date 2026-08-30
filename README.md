@@ -28,23 +28,28 @@
 - **Independent Weekly Recap Modal**: A dedicated 7-day chronological digest offering narrative summaries and forward-looking horizon prompts.
 - **Memory Context Inspector**: Direct visibility into your running psychological profile synthesized by Gemini.
 
-### 5. 🔔 Proactive Agentic Nudges
+### 5. 🔔 Proactive Agentic Nudges & Cloud Scheduler Cron
 - **Autonomous Check-In Prompts**: Intelligent background prompts that detect reflection gaps or milestone patterns, gently inviting you back to log your state of mind.
+- **Secured Cron Endpoint (`/api/cron/generate-nudges`)**: A protected backend endpoint built for Cloud Scheduler or cron runners that safely generates pending nudges for active users. Authenticated via `CRON_SECRET` using either `x-cron-secret: <secret>` or `Authorization: Bearer <secret>`.
 
-### 6. ⚙️ Settings & Personalization Hub
+### 6. ⚙️ Settings, PIN Security & 90-Day Secret Rotation Hub
 - **Profile & Credentials**: Real-time display name synchronization with Firebase Authentication.
 - **Appearance & Typography**: Toggle between Light Atmosphere and Dark Twilight modes, with customizable reading typography (*Sans*, *Serif*, or *Monospace*).
 - **Mindful Reminders**: Active background monitoring system that securely generates in-app notifications at user-defined preferred times for Evening Reflection and Daily Gratitude routines.
 - **Security & Privacy Audit**: Interactive inspector detailing security boundaries, encryption status, and data partitioning guarantees.
-- **Client-Side PIN Lock**: Optional 6-digit application PIN lock to protect journal entries on shared devices, utilizing SHA-256 hashing.
+- **90-Day Secret & Password Rotation Policy**: Cryptographic 6-digit PIN and password protection enforcing an automated 90-day secret rotation policy with client-side SHA-256 salted hashing, rotation countdown indicators, and immutable audit history.
+- **Mandatory Expiration Enforcement**: Option to require PIN rotation before journal access is permitted when the 90-day lifecycle expires.
+- **Interactive QA Test Simulator**: Ability to simulate 90-day expiry state to test warning triggers, lock screen enforcement, and rotation flows.
 - **Auto-Lock Inactivity Timer**: Configurable auto-lock mechanism (1-30 minutes) that actively monitors interactions to secure the application when left unattended.
-- **Data Sovereignty & Export**: Export your complete journal archive into structured **JSON** or formatted **Markdown** files for offline backup.
+- **Data Sovereignty & Multi-Format Export**: Export your complete journal archive into structured **XLSX**, formatted **Markdown**, or **JSON** files for offline backup and migration.
 - **Account Controls**: Temporary account deactivation or permanent account purging (recursively deleting all Firestore entries and Firebase Auth identity).
 
-### 7. 📱 Mobile & Tablet Responsive UX
+### 7. 📱 Mobile & Tablet Responsive UX & Accessibility
 - **Desktop Top Navigation**: Sleek top header bar with quick-access tabs and profile avatar menu.
 - **Mobile Bottom Navigation Bar**: Fixed, touch-optimized bottom menu bar (`md:hidden`) for phones ensuring single-thumb tab switching across Reflection, History, Insights, Gratitude, and Settings.
 - **Fluid Layouts**: Responsive grids engineered to adapt smoothly across mobile phones, tablets (iPad), and desktop monitors.
+- **Cursor-Based Entry Pagination**: High-efficiency batched history streaming with `limit` and `startAfter` cursors in Firestore to conserve bandwidth and guarantee instant page responsiveness.
+- **WCAG 2.1 AA Compliance**: Strict modal focus traps, Escape key listeners, explicit ARIA dialog roles (`role="dialog"`, `aria-modal="true"`, `aria-labelledby`, `aria-describedby`), and high-contrast color pairings.
 
 ---
 
@@ -56,6 +61,7 @@
 |  - React 18 + TypeScript + Tailwind CSS + Recharts + Motion                       |
 |  - Firebase Client SDK (Google Auth & UID-Scoped Firestore Listeners)             |
 |  - Desktop Header & Mobile Bottom Navigation Bar                                  |
+|  - Cursor-Based Paginated Entry History (limit & startAfter)                      |
 +-----------------------------------------+-----------------------------------------+
                                           |
                                           | HTTP / API Proxy Routes (/api/*)
@@ -66,9 +72,10 @@
 |  - Google Gemini API Orchestration Layer (@google/genai)                          |
 |  - Multi-Model Resilience Fallback Strategy                                       |
 |  - Asynchronous Memory Context & Insight Synthesizers                             |
+|  - Secured Scheduled Nudge Cron Job (/api/cron/generate-nudges)                   |
 +-------------------+---------------------------------------+-----------------------+
                     |                                       |
-      Secret Manager| (Runtime GEMINI_API_KEY)              | Firestore Operations
+      Secret Manager| (Runtime GEMINI_API_KEY, CRON_SECRET) | Firestore Operations
                     v                                       v
 +-----------------------------------+   +-------------------------------------------+
 |    GEMINI API (@google/genai)     |   |          GOOGLE CLOUD FIRESTORE           |
@@ -103,13 +110,44 @@ All data is strictly partitioned under private, UID-scoped document paths in Clo
 
 ---
 
-## 🔐 Security & Privacy Architecture
+## 🔐 Security, Secrets & 90-Day Credential Rotation Architecture
 
-- **UID-Scoped Firestore Isolation**: Security rules restrict all reads, writes, and deletes to `request.auth.uid == userId`. No cross-tenant reads are permitted.
-- **Client-Side Application Lock**: Supports an optional 6-digit PIN utilizing `crypto.subtle` for SHA-256 hashing, alongside an interaction-based inactivity monitor that automatically locks the app (1-30 minutes).
-- **Server-Side API Proxying**: The Gemini API key (`GEMINI_API_KEY`) is stored in Google Cloud Secret Manager and accessed exclusively by the server. No secrets are ever exposed to the client bundle.
-- **Input Sanitization**: User reflection text is sanitized and length-capped on the server before model evaluation to prevent prompt injection and context overflow.
-- **Data Sovereignty**: Permanent account deletion executes a full recursive deletion of all Firestore collections linked to the user's UID alongside Firebase Auth deletion.
+Reflect implements defense-in-depth security with strict 90-day credential and secret lifecycle management adhering to NIST SP 800-63 and SOC 2 guidelines:
+
+### 1. User Application PIN & Password Rotation (90-Day Policy)
+- **Lifecycle Cadence**: User access PINs and passwords are valid for **90 days**.
+- **Cryptographic Hashing**: PINs are hashed client-side with `crypto.subtle` using SHA-256 and a user-specific UID salt before storage in Firestore (`users/{uid}/settings/pin`).
+- **Policy Enforcement**: When 90 days elapse, the system transitions into an *Expired* status and prompts or requires the user to rotate their PIN with a routine rotation audit record.
+- **Rotation Audit Trail**: Every rotation event is recorded with an immutable timestamp, rotation reason (`routine_90_day_rotation`, `user_manual_change`, `initial_setup`, `reset_recovery`), and lifecycle status (`active` / `superseded`).
+
+### 2. Server Secrets Zero-Downtime Rotation (Google Secret Manager)
+- **`GEMINI_API_KEY`**: Server-side isolated in Google Cloud Run. Rotated every 90 days in Secret Manager without client bundle updates.
+- **`CRON_SECRET` & Zero-Downtime Rotation**: The scheduler endpoint `/api/cron/generate-nudges` supports dual-secret validation:
+  - `CRON_SECRET`: Active primary ingress secret token.
+  - `CRON_SECRET_SECONDARY` / `PREVIOUS_CRON_SECRET`: Grace-period secret token allowing seamless, zero-downtime rotation between Cloud Scheduler and Cloud Run deployments.
+- **Auditing Endpoint**: `GET /api/admin/secrets-status` provides an automated health and rotation compliance audit.
+
+---
+
+## ⏰ Cloud Scheduler & Agentic Cron Setup
+
+To trigger automated proactive nudges on a schedule (e.g. daily at 8:00 AM UTC):
+
+1. **Set `CRON_SECRET`** in your Cloud Run service environment / Secret Manager:
+   ```env
+   CRON_SECRET=your_super_secret_cron_token_here
+   ```
+2. **Configure Cloud Scheduler job**:
+   - **Target**: HTTP
+   - **URL**: `https://<YOUR_CLOUD_RUN_SERVICE_URL>/api/cron/generate-nudges`
+   - **HTTP Method**: `POST`
+   - **HTTP Headers**:
+     ```http
+     x-cron-secret: your_super_secret_cron_token_here
+     Content-Type: application/json
+     ```
+   - **Schedule**: `0 8 * * *` (Daily at 8:00 AM UTC)
+   - **Body**: `{}`
 
 ---
 
@@ -125,6 +163,7 @@ All data is strictly partitioned under private, UID-scoped document paths in Clo
 1. Define environment variables in `.env`:
    ```env
    GEMINI_API_KEY=your_gemini_api_key_here
+   CRON_SECRET=your_super_secret_cron_token_here
    ```
 2. Ensure `firebase-applet-config.json` is configured with your Firebase web credentials.
 

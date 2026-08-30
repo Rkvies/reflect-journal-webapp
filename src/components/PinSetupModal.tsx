@@ -2,14 +2,14 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Lock, ShieldCheck, X, Check, ArrowRight, ShieldAlert, KeyRound } from 'lucide-react';
 import { hashPin, verifyPin } from '../lib/pinSecurity';
 
-export type PinModalMode = 'prompt' | 'create' | 'change' | 'disable';
+export type PinModalMode = 'prompt' | 'create' | 'change' | 'disable' | 'rotate';
 
 interface PinSetupModalProps {
   isOpen: boolean;
   initialMode: PinModalMode;
   storedPinHash?: string;
   onClose: () => void;
-  onSavePin: (pinHash: string) => Promise<void>;
+  onSavePin: (pinHash: string, reason?: 'initial_setup' | 'routine_90_day_rotation' | 'manual_rotation' | 'reset_recovery' | 'policy_enforcement') => Promise<void>;
   onDisablePin?: () => Promise<void>;
   onSkipPrompt?: () => Promise<void>;
 }
@@ -27,7 +27,7 @@ export const PinSetupModal: React.FC<PinSetupModalProps> = ({
   
   // Internal step management
   // For 'create': 'enter_new' | 'confirm_new'
-  // For 'change': 'enter_current' | 'enter_new' | 'confirm_new'
+  // For 'change' | 'rotate': 'enter_current' | 'enter_new' | 'confirm_new'
   // For 'disable': 'enter_current'
   const [step, setStep] = useState<'prompt' | 'enter_current' | 'enter_new' | 'confirm_new'>('prompt');
   
@@ -48,7 +48,7 @@ export const PinSetupModal: React.FC<PinSetupModalProps> = ({
         setStep('prompt');
       } else if (initialMode === 'create') {
         setStep('enter_new');
-      } else if (initialMode === 'change' || initialMode === 'disable') {
+      } else if (initialMode === 'change' || initialMode === 'rotate' || initialMode === 'disable') {
         setStep('enter_current');
       }
     }
@@ -79,7 +79,7 @@ export const PinSetupModal: React.FC<PinSetupModalProps> = ({
                 if (onDisablePin) await onDisablePin();
                 setIsSubmitting(false);
                 onClose();
-              } else if (mode === 'change') {
+              } else if (mode === 'change' || mode === 'rotate') {
                 // Proceed to enter new pin
                 setInputPin('');
                 setStep('enter_new');
@@ -103,7 +103,8 @@ export const PinSetupModal: React.FC<PinSetupModalProps> = ({
               // PIN confirmed! Hash and save.
               setIsSubmitting(true);
               const hash = await hashPin(next);
-              await onSavePin(hash);
+              const rotationReason = mode === 'rotate' ? 'routine_90_day_rotation' : (mode === 'change' ? 'manual_rotation' : 'initial_setup');
+              await onSavePin(hash, rotationReason);
               setIsSubmitting(false);
               onClose();
             }
@@ -134,25 +135,37 @@ export const PinSetupModal: React.FC<PinSetupModalProps> = ({
       } else if (e.key === 'Backspace') {
         handleBackspace();
       } else if (e.key === 'Escape') {
-        handleClear();
+        if (mode !== 'prompt') {
+          onClose();
+        } else {
+          handleClear();
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, step, handleDigit, handleBackspace, handleClear]);
+  }, [isOpen, step, mode, handleDigit, handleBackspace, handleClear, onClose]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+    <div 
+      className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pin-modal-title"
+      aria-describedby="pin-modal-desc"
+    >
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-sm w-full space-y-5 relative shadow-2xl text-slate-800 dark:text-slate-100">
         
         {/* Close Button (if not compulsory prompt) */}
         {mode !== 'prompt' && (
           <button
+            type="button"
             onClick={onClose}
-            className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-1"
+            aria-label="Close PIN setup dialog"
+            className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-1 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
           >
             <X className="w-5 h-5" />
           </button>
@@ -161,15 +174,15 @@ export const PinSetupModal: React.FC<PinSetupModalProps> = ({
         {/* Modal Content - STEP: PROMPT */}
         {step === 'prompt' ? (
           <div className="space-y-5 text-center py-2">
-            <div className="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 mx-auto shadow-xs">
+            <div className="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 mx-auto shadow-xs" aria-hidden="true">
               <Lock className="w-7 h-7" />
             </div>
 
             <div className="space-y-2">
-              <h3 className="text-xl font-serif font-bold text-slate-900 dark:text-white">
+              <h3 id="pin-modal-title" className="text-xl font-serif font-bold text-slate-900 dark:text-white">
                 Protect Your Journal
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed px-2">
+              <p id="pin-modal-desc" className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed px-2">
                 Would you like to setup a 6-digit PIN lock? Whenever you sign in, your reflections will be safely protected.
               </p>
             </div>
@@ -187,8 +200,9 @@ export const PinSetupModal: React.FC<PinSetupModalProps> = ({
             <div className="space-y-2 pt-2">
               <button
                 type="button"
+                id="btn-pin-modal-setup"
                 onClick={() => setStep('enter_new')}
-                className="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                className="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
               >
                 <span>Set Up 6-Digit PIN</span>
                 <ArrowRight className="w-4 h-4" />
@@ -196,11 +210,12 @@ export const PinSetupModal: React.FC<PinSetupModalProps> = ({
 
               <button
                 type="button"
+                id="btn-pin-modal-skip"
                 onClick={async () => {
                   if (onSkipPrompt) await onSkipPrompt();
                   onClose();
                 }}
-                className="w-full py-2.5 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-semibold text-xs transition-colors cursor-pointer"
+                className="w-full py-2.5 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-semibold text-xs transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
               >
                 Maybe Later (Skip)
               </button>
@@ -210,20 +225,20 @@ export const PinSetupModal: React.FC<PinSetupModalProps> = ({
           /* Modal Content - STEPS: enter_current | enter_new | confirm_new */
           <div className="space-y-5 text-center">
             
-            <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 mx-auto shadow-xs">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 mx-auto shadow-xs" aria-hidden="true">
               <KeyRound className="w-6 h-6" />
             </div>
 
             <div className="space-y-1">
-              <h3 className="text-lg font-serif font-bold text-slate-900 dark:text-white">
-                {step === 'enter_current' && 'Enter Current PIN'}
-                {step === 'enter_new' && 'Create 6-Digit PIN'}
-                {step === 'confirm_new' && 'Confirm 6-Digit PIN'}
+              <h3 id="pin-modal-title" className="text-lg font-serif font-bold text-slate-900 dark:text-white">
+                {step === 'enter_current' && (mode === 'rotate' ? 'Verify Current PIN for 90-Day Rotation' : 'Enter Current PIN')}
+                {step === 'enter_new' && (mode === 'rotate' ? 'Create Rotated 6-Digit PIN' : 'Create 6-Digit PIN')}
+                {step === 'confirm_new' && (mode === 'rotate' ? 'Confirm Rotated 6-Digit PIN' : 'Confirm 6-Digit PIN')}
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                {step === 'enter_current' && 'Enter your existing 6-digit PIN code'}
-                {step === 'enter_new' && 'Choose a 6-digit PIN code for app lock'}
-                {step === 'confirm_new' && 'Re-enter your 6-digit PIN to confirm'}
+              <p id="pin-modal-desc" className="text-xs text-slate-500 dark:text-slate-400">
+                {step === 'enter_current' && (mode === 'rotate' ? 'Enter your current PIN to authorize 90-day secret rotation' : 'Enter your existing 6-digit PIN code')}
+                {step === 'enter_new' && (mode === 'rotate' ? 'Choose a fresh 6-digit PIN to maintain 90-day security policy compliance' : 'Choose a 6-digit PIN code for app lock')}
+                {step === 'confirm_new' && 'Re-enter your new 6-digit PIN to confirm'}
               </p>
             </div>
 

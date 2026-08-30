@@ -76,10 +76,10 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
     
     if (!dist) {
       return [
-        { label: 'Uplifting', value: 35, barColor: 'bg-indigo-600 dark:bg-indigo-400' },
-        { label: 'Reflective', value: 35, barColor: 'bg-slate-400 dark:bg-slate-500' },
-        { label: 'Tension / Challenge', value: 15, barColor: 'bg-slate-300 dark:bg-slate-600' },
-        { label: 'Neutral / Unclassified', value: 15, barColor: 'bg-slate-200 dark:bg-slate-700' },
+        { label: 'Uplifting', value: 35, barColor: 'bg-purple-600 dark:bg-purple-400' },
+        { label: 'Reflective', value: 35, barColor: 'bg-purple-500 dark:bg-purple-500' },
+        { label: 'Tension / Challenge', value: 15, barColor: 'bg-purple-400 dark:bg-purple-600' },
+        { label: 'Neutral / Unclassified', value: 15, barColor: 'bg-purple-300 dark:bg-purple-700' },
       ];
     }
 
@@ -97,10 +97,10 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
 
     if (sum <= 0) {
       return [
-        { label: 'Uplifting', value: 35, barColor: 'bg-indigo-600 dark:bg-indigo-400' },
-        { label: 'Reflective', value: 35, barColor: 'bg-slate-400 dark:bg-slate-500' },
-        { label: 'Tension / Challenge', value: 15, barColor: 'bg-slate-300 dark:bg-slate-600' },
-        { label: 'Neutral / Unclassified', value: 15, barColor: 'bg-slate-200 dark:bg-slate-700' },
+        { label: 'Uplifting', value: 35, barColor: 'bg-purple-600 dark:bg-purple-400' },
+        { label: 'Reflective', value: 35, barColor: 'bg-purple-500 dark:bg-purple-500' },
+        { label: 'Tension / Challenge', value: 15, barColor: 'bg-purple-400 dark:bg-purple-600' },
+        { label: 'Neutral / Unclassified', value: 15, barColor: 'bg-purple-300 dark:bg-purple-700' },
       ];
     }
 
@@ -120,16 +120,16 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
     }
 
     const items = [
-      { label: 'Uplifting', value: posScaled, barColor: 'bg-indigo-600 dark:bg-indigo-400' },
-      { label: 'Reflective', value: refScaled, barColor: 'bg-slate-400 dark:bg-slate-500' },
-      { label: 'Tension / Challenge', value: chaScaled, barColor: 'bg-slate-300 dark:bg-slate-600' },
+      { label: 'Uplifting', value: posScaled, barColor: 'bg-purple-600 dark:bg-purple-400' },
+      { label: 'Reflective', value: refScaled, barColor: 'bg-purple-500 dark:bg-purple-500' },
+      { label: 'Tension / Challenge', value: chaScaled, barColor: 'bg-purple-400 dark:bg-purple-600' },
     ];
 
     if (neuScaled > 0) {
       items.push({
         label: 'Neutral / Unclassified',
         value: neuScaled,
-        barColor: 'bg-slate-200 dark:bg-slate-700',
+        barColor: 'bg-purple-300 dark:bg-purple-700',
       });
     }
 
@@ -312,7 +312,13 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
                     <div className="space-y-2">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-sm font-semibold font-serif text-slate-900 dark:text-white">{th.name}</span>
-                        <span className="text-xs font-medium text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800">
+                        <span className={`text-xs font-medium px-2.5 py-0.5 rounded-md border ${
+                          th.score >= 80 
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60' 
+                            : th.score >= 50 
+                            ? 'bg-amber-50 text-amber-700 border-amber-200/60 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60'
+                            : 'bg-slate-50 text-slate-600 border-slate-200/60 dark:bg-slate-800/80 dark:text-slate-400 dark:border-slate-700'
+                        }`}>
                           <ConfidenceTooltip explanation="Gemini's estimated confidence based on language and sentiment in this entry.">
                             <span>{th.score}% resonance</span>
                           </ConfidenceTooltip>

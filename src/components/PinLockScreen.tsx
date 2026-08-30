@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Lock, LogOut, ShieldAlert, KeyRound, Check, RefreshCw, X } from 'lucide-react';
+import { Lock, LogOut, ShieldAlert, KeyRound, Check, RefreshCw, X, AlertTriangle, ArrowRight, ShieldCheck } from 'lucide-react';
 import { AppUser } from '../types';
-import { verifyPin, savePinSettings } from '../lib/pinSecurity';
+import { verifyPin, savePinSettings, getLocalPinSettings, calculateRotationStatus, hashPin } from '../lib/pinSecurity';
 import { signOut } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
 import { signInWithPopup } from 'firebase/auth';
@@ -27,8 +27,21 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
   const [isResettingWithGoogle, setIsResettingWithGoogle] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
 
+  // 90-Day Rotation State
+  const pinSettings = getLocalPinSettings(user.uid);
+  const rotationStatus = calculateRotationStatus(pinSettings);
+  
+  const [showMandatoryRotationModal, setShowMandatoryRotationModal] = useState(false);
+  const [rotationStep, setRotationStep] = useState<'enter_new' | 'confirm_new'>('enter_new');
+  const [newRotatedPin, setNewRotatedPin] = useState('');
+  const [confirmRotatedPin, setConfirmRotatedPin] = useState('');
+  const [rotationError, setRotationError] = useState<string | null>(null);
+  const [isRotating, setIsRotating] = useState(false);
+
   const handleKeyPress = useCallback(
     async (digit: string) => {
+      if (showMandatoryRotationModal || showForgotModal) return;
+
       if (pin.length < 6) {
         const newPin = pin + digit;
         setPin(newPin);
@@ -40,7 +53,13 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
           setIsVerifying(false);
 
           if (isValid) {
-            onUnlockSuccess();
+            // Check if 90-day rotation is enforced and expired
+            if (pinSettings.enforceRotation && rotationStatus.isExpired) {
+              setShowMandatoryRotationModal(true);
+              setPin('');
+            } else {
+              onUnlockSuccess();
+            }
           } else {
             setIsShaking(true);
             setErrorMessage('Incorrect PIN. Please try again.');
@@ -52,7 +71,7 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
         }
       }
     },
-    [pin, storedPinHash, onUnlockSuccess]
+    [pin, storedPinHash, onUnlockSuccess, pinSettings, rotationStatus, showMandatoryRotationModal, showForgotModal]
   );
 
   const handleBackspace = useCallback(() => {
@@ -68,7 +87,7 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
   // Keyboard listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (showForgotModal) return;
+      if (showForgotModal || showMandatoryRotationModal) return;
 
       if (e.key >= '0' && e.key <= '9') {
         handleKeyPress(e.key);
@@ -81,7 +100,7 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleKeyPress, handleBackspace, handleClear, showForgotModal]);
+  }, [handleKeyPress, handleBackspace, handleClear, showForgotModal, showMandatoryRotationModal]);
 
   const handleSignOut = async () => {
     try {
@@ -95,15 +114,12 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
     setIsResettingWithGoogle(true);
     setResetError(null);
     try {
-      // Re-authenticate with Google Popup to confirm user identity
       await signInWithPopup(auth, googleProvider);
-      
-      // User identity verified via Google auth! Clear PIN requirement
       await savePinSettings(user.uid, {
         pinEnabled: false,
         pinHash: '',
         hasPromptedSetup: false,
-      });
+      }, 'reset_recovery');
 
       setShowForgotModal(false);
       onResetPinSuccess();
@@ -119,24 +135,68 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
     }
   };
 
+  // Complete 90-day PIN rotation
+  const handleCompleteRotation = async () => {
+    if (newRotatedPin.length !== 6) {
+      setRotationError('PIN must be exactly 6 digits');
+      return;
+    }
+    if (newRotatedPin !== confirmRotatedPin) {
+      setRotationError('PINs do not match. Please re-enter.');
+      setConfirmRotatedPin('');
+      return;
+    }
+
+    setIsRotating(true);
+    setRotationError(null);
+    try {
+      const hash = await hashPin(newRotatedPin);
+      await savePinSettings(user.uid, {
+        pinHash: hash,
+        lastRotatedAt: new Date().toISOString(),
+      }, 'routine_90_day_rotation');
+
+      setShowMandatoryRotationModal(false);
+      onUnlockSuccess();
+    } catch (err: any) {
+      console.error('Failed to rotate PIN:', err);
+      setRotationError('Failed to save rotated PIN. Please try again.');
+    } finally {
+      setIsRotating(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/95 backdrop-blur-2xl flex items-center justify-center p-4 animate-fade-in text-slate-100">
-      <div className="w-full max-w-sm flex flex-col items-center space-y-6 text-center">
+      <div className="w-full max-w-sm flex flex-col items-center space-y-5 text-center">
         
         {/* App Logo & Header */}
-        <div className="flex flex-col items-center space-y-3">
-          <div className="w-16 h-16 rounded-3xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shadow-lg shadow-indigo-950/50">
-            <Lock className="w-8 h-8" />
+        <div className="flex flex-col items-center space-y-2.5">
+          <div className="w-14 h-14 rounded-3xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shadow-lg shadow-indigo-950/50">
+            <Lock className="w-7 h-7" />
           </div>
           <div>
-            <h1 className="text-2xl font-serif font-bold text-white tracking-wide">
+            <h1 className="text-xl font-serif font-bold text-white tracking-wide">
               Reflect Journal
             </h1>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-slate-400 mt-0.5">
               Welcome back, <span className="text-slate-200 font-medium">{user.displayName || 'Author'}</span>
             </p>
           </div>
         </div>
+
+        {/* 90-Day Rotation Policy Status Notice */}
+        {rotationStatus.isExpired ? (
+          <div className="w-full px-3.5 py-2 rounded-2xl bg-rose-950/60 border border-rose-800/80 text-rose-300 text-[11px] flex items-center justify-center gap-1.5 animate-pulse">
+            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 text-rose-400" />
+            <span>90-Day Secret Rotation Required upon unlocking</span>
+          </div>
+        ) : rotationStatus.isExpiringSoon ? (
+          <div className="w-full px-3.5 py-1.5 rounded-2xl bg-amber-950/50 border border-amber-800/60 text-amber-300 text-[11px] flex items-center justify-center gap-1.5">
+            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 text-amber-400" />
+            <span>PIN expires in {rotationStatus.daysRemaining} days (90-day policy)</span>
+          </div>
+        ) : null}
 
         {/* Status / Instruction */}
         <div className="space-y-1">
@@ -144,13 +204,13 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
             Enter 6-Digit Security PIN
           </h2>
           <p className="text-xs text-slate-400">
-            Your journal is protected with PIN lock security
+            Your journal is protected with encrypted PIN lock security
           </p>
         </div>
 
         {/* 6 Digit Indicators */}
         <div
-          className={`flex justify-center gap-3 my-2 transition-transform ${
+          className={`flex justify-center gap-3 my-1 transition-transform ${
             isShaking ? 'animate-shake' : ''
           }`}
         >
@@ -159,14 +219,14 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
             return (
               <div
                 key={idx}
-                className={`w-11 h-12 rounded-2xl border flex items-center justify-center transition-all ${
+                className={`w-10 h-11 rounded-2xl border flex items-center justify-center transition-all ${
                   isFilled
                     ? 'border-indigo-500 bg-indigo-600/30 text-white shadow-md shadow-indigo-950/50'
                     : 'border-slate-700 bg-slate-800/60 text-slate-600'
                 }`}
               >
                 {isFilled ? (
-                  <div className="w-3.5 h-3.5 rounded-full bg-indigo-400 animate-scale-up" />
+                  <div className="w-3 h-3 rounded-full bg-indigo-400 animate-scale-up" />
                 ) : (
                   <div className="w-2 h-2 rounded-full bg-slate-700" />
                 )}
@@ -184,14 +244,14 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
         )}
 
         {/* Numpad */}
-        <div className="grid grid-cols-3 gap-3 w-full max-w-xs pt-2">
+        <div className="grid grid-cols-3 gap-2.5 w-full max-w-xs pt-1">
           {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((digit) => (
             <button
               key={digit}
               type="button"
               onClick={() => handleKeyPress(digit)}
               disabled={isVerifying || pin.length >= 6}
-              className="h-14 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:bg-indigo-600/40 border border-slate-700/60 text-white text-xl font-semibold transition-all cursor-pointer shadow-xs disabled:opacity-50 flex items-center justify-center"
+              className="h-12 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:bg-indigo-600/40 border border-slate-700/60 text-white text-lg font-semibold transition-all cursor-pointer shadow-xs disabled:opacity-50 flex items-center justify-center"
             >
               {digit}
             </button>
@@ -200,7 +260,7 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
             type="button"
             onClick={handleClear}
             disabled={pin.length === 0}
-            className="h-14 rounded-2xl bg-slate-800/40 hover:bg-slate-800 border border-slate-800 text-slate-400 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-30 flex items-center justify-center"
+            className="h-12 rounded-2xl bg-slate-800/40 hover:bg-slate-800 border border-slate-800 text-slate-400 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-30 flex items-center justify-center"
           >
             Clear
           </button>
@@ -208,7 +268,7 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
             type="button"
             onClick={() => handleKeyPress('0')}
             disabled={isVerifying || pin.length >= 6}
-            className="h-14 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:bg-indigo-600/40 border border-slate-700/60 text-white text-xl font-semibold transition-all cursor-pointer shadow-xs disabled:opacity-50 flex items-center justify-center"
+            className="h-12 rounded-2xl bg-slate-800/80 hover:bg-slate-700/80 active:bg-indigo-600/40 border border-slate-700/60 text-white text-lg font-semibold transition-all cursor-pointer shadow-xs disabled:opacity-50 flex items-center justify-center"
           >
             0
           </button>
@@ -216,14 +276,14 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
             type="button"
             onClick={handleBackspace}
             disabled={pin.length === 0}
-            className="h-14 rounded-2xl bg-slate-800/40 hover:bg-slate-800 border border-slate-800 text-slate-300 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-30 flex items-center justify-center"
+            className="h-12 rounded-2xl bg-slate-800/40 hover:bg-slate-800 border border-slate-800 text-slate-300 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-30 flex items-center justify-center"
           >
             ⌫
           </button>
         </div>
 
         {/* Actions Footer */}
-        <div className="flex items-center justify-between w-full max-w-xs pt-4 border-t border-slate-800 text-xs">
+        <div className="flex items-center justify-between w-full max-w-xs pt-3 border-t border-slate-800 text-xs">
           <button
             type="button"
             onClick={() => setShowForgotModal(true)}
@@ -244,12 +304,114 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
 
       </div>
 
+      {/* Mandatory 90-Day Secret Rotation Modal */}
+      {showMandatoryRotationModal && (
+        <div 
+          className="fixed inset-0 z-60 bg-black/85 backdrop-blur-md flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="mandatory-rotation-title"
+          aria-describedby="mandatory-rotation-desc"
+        >
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl p-6 max-w-sm w-full space-y-4 relative shadow-2xl text-left">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-950 border border-amber-800 flex items-center justify-center text-amber-400 flex-shrink-0">
+                <RefreshCw className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 id="mandatory-rotation-title" className="text-base font-bold text-white">90-Day PIN Rotation Required</h3>
+                <p id="mandatory-rotation-desc" className="text-xs text-slate-400">Policy: Rotate secret every 90 days</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Your 6-digit access PIN has exceeded the 90-day security lifecycle. To safeguard your reflections, please create a new 6-digit PIN.
+            </p>
+
+            {rotationError && (
+              <p className="text-xs text-rose-400 font-medium">
+                {rotationError}
+              </p>
+            )}
+
+            <div className="space-y-3 pt-1">
+              <div>
+                <label className="block text-[11px] font-medium text-slate-300 mb-1">
+                  New 6-Digit PIN
+                </label>
+                <input
+                  type="password"
+                  maxLength={6}
+                  value={newRotatedPin}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    setNewRotatedPin(val);
+                  }}
+                  placeholder="••••••"
+                  className="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-center text-lg tracking-widest text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-medium text-slate-300 mb-1">
+                  Confirm New PIN
+                </label>
+                <input
+                  type="password"
+                  maxLength={6}
+                  value={confirmRotatedPin}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    setConfirmRotatedPin(val);
+                  }}
+                  placeholder="••••••"
+                  className="w-full px-3.5 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-center text-lg tracking-widest text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="space-y-2 pt-2">
+                <button
+                  type="button"
+                  onClick={handleCompleteRotation}
+                  disabled={isRotating || newRotatedPin.length !== 6 || confirmRotatedPin.length !== 6}
+                  className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shadow-md"
+                >
+                  {isRotating ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <ShieldCheck className="w-4 h-4" />
+                  )}
+                  <span>Rotate PIN & Unlock</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  className="w-full py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Forgot PIN / Google Verification Reset Modal */}
       {showForgotModal && (
-        <div className="fixed inset-0 z-60 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div 
+          className="fixed inset-0 z-60 bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="forgot-pin-title"
+          aria-describedby="forgot-pin-desc"
+        >
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-sm w-full space-y-5 relative shadow-2xl text-left">
             <button
+              type="button"
               onClick={() => setShowForgotModal(false)}
+              aria-label="Close forgot PIN modal"
               className="absolute top-4 right-4 text-slate-400 hover:text-white"
             >
               <X className="w-5 h-5" />
@@ -260,8 +422,8 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
                 <KeyRound className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-white">Reset App PIN Lock</h3>
-                <p className="text-xs text-slate-400">Verify your Google account to reset PIN</p>
+                <h3 id="forgot-pin-title" className="text-base font-bold text-white">Reset App PIN Lock</h3>
+                <p id="forgot-pin-desc" className="text-xs text-slate-400">Verify your Google account to reset PIN</p>
               </div>
             </div>
 
@@ -305,3 +467,4 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
     </div>
   );
 };
+

@@ -35,7 +35,13 @@ export const WeeklyReflectionModal: React.FC<WeeklyReflectionModalProps> = ({
   if (!isOpen || !summary) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/40 dark:bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/40 dark:bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="weekly-reflection-title"
+      aria-describedby="weekly-reflection-desc"
+    >
       <div 
         ref={modalRef}
         className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl shadow-xl border border-slate-300 dark:border-slate-700 flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200"
@@ -43,19 +49,21 @@ export const WeeklyReflectionModal: React.FC<WeeklyReflectionModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+            <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400" aria-hidden="true">
               <Sparkles className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-sm font-bold font-serif text-slate-800 dark:text-slate-100">Your Week in Reflection</h2>
-              <p className="text-[11px] font-sans text-slate-500 dark:text-slate-400">
+              <h2 id="weekly-reflection-title" className="text-sm font-bold font-serif text-slate-800 dark:text-slate-100">Your Week in Reflection</h2>
+              <p id="weekly-reflection-desc" className="text-[11px] font-sans text-slate-500 dark:text-slate-400">
                 {summary.weekRange} • {summary.entryCount} {summary.entryCount === 1 ? 'reflection' : 'reflections'}
               </p>
             </div>
           </div>
           <button 
+            type="button"
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            aria-label="Close weekly reflection dialog"
+            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
           >
             <X className="w-4 h-4" />
           </button>

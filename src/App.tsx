@@ -532,13 +532,18 @@ export default function App() {
   };
 
   // PIN Lock Handlers
-  const handleSavePinFromModal = async (newHash: string) => {
+  const handleSavePinFromModal = async (
+    newHash: string,
+    reason?: 'initial_setup' | 'routine_90_day_rotation' | 'manual_rotation' | 'reset_recovery' | 'policy_enforcement'
+  ) => {
     if (!currentUser?.uid) return;
+    const inferredReason = reason || (pinModalMode === 'rotate' ? 'routine_90_day_rotation' : pinModalMode === 'create' ? 'initial_setup' : 'manual_rotation');
     await savePinSettings(currentUser.uid, {
       pinEnabled: true,
       pinHash: newHash,
       hasPromptedSetup: true,
-    });
+      lastRotatedAt: new Date().toISOString(),
+    }, inferredReason);
     setPinEnabled(true);
     setPinHash(newHash);
     setHasPromptedPinSetup(true);
@@ -579,7 +584,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center text-slate-500 font-sans text-xs">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 animate-pulse flex items-center justify-center">
+          <div className="w-16 h-16 animate-pulse flex items-center justify-center">
             <img src="/reflect_logo.png" alt="Loading" className="w-full h-full object-contain dark:invert opacity-70" />
           </div>
           <span className="text-slate-500 dark:text-slate-400 font-medium">Loading Reflect...</span>
@@ -734,6 +739,10 @@ export default function App() {
               setPinModalMode('change');
               setIsPinModalOpen(true);
             }}
+            onOpenPinRotate={() => {
+              setPinModalMode('rotate');
+              setIsPinModalOpen(true);
+            }}
             onOpenPinDisable={() => {
               setPinModalMode('disable');
               setIsPinModalOpen(true);
@@ -798,19 +807,25 @@ export default function App() {
 
       {/* Deactivate Account Confirmation Modal */}
       {isDeactivateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="deactivate-modal-title"
+          aria-describedby="deactivate-modal-desc"
+        >
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full p-6 space-y-5 text-slate-800 dark:text-slate-100">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950/60 flex items-center justify-center text-amber-600 dark:text-amber-400">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950/60 flex items-center justify-center text-amber-600 dark:text-amber-400" aria-hidden="true">
                 <UserX className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-serif text-lg font-bold">Deactivate Account</h3>
+                <h3 id="deactivate-modal-title" className="font-serif text-lg font-bold">Deactivate Account</h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">Preserve all data with temporary sign-out</p>
               </div>
             </div>
 
-            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+            <p id="deactivate-modal-desc" className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
               Your account will be temporarily deactivated, and you will be signed out. All your journal entries, AI memory summaries, insights, and nudges will be securely preserved. You can return and reactivate your account anytime simply by signing back in.
             </p>
 
@@ -828,7 +843,7 @@ export default function App() {
                   setAccountActionError(null);
                 }}
                 disabled={accountActionLoading}
-                className="px-4 py-2 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                className="px-4 py-2 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
               >
                 Cancel
               </button>
@@ -836,7 +851,7 @@ export default function App() {
                 type="button"
                 onClick={handleDeactivateAccount}
                 disabled={accountActionLoading}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
               >
                 {accountActionLoading ? 'Deactivating...' : 'Deactivate Account'}
               </button>
@@ -847,27 +862,34 @@ export default function App() {
 
       {/* Delete Account Permanently Modal */}
       {isDeleteModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-account-modal-title"
+          aria-describedby="delete-account-modal-desc"
+        >
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-rose-200 dark:border-rose-900/50 shadow-2xl max-w-md w-full p-6 space-y-5 text-slate-800 dark:text-slate-100">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-950/60 flex items-center justify-center text-rose-600 dark:text-rose-400">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-950/60 flex items-center justify-center text-rose-600 dark:text-rose-400" aria-hidden="true">
                 <Trash2 className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-serif text-lg font-bold text-rose-600 dark:text-rose-400">Delete Account Permanently</h3>
+                <h3 id="delete-account-modal-title" className="font-serif text-lg font-bold text-rose-600 dark:text-rose-400">Delete Account Permanently</h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400">This action is irreversible</p>
               </div>
             </div>
 
-            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+            <p id="delete-account-modal-desc" className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
               Warning: All your journal entries, AI memory summaries, insights, nudges, and account authentication records will be <strong>permanently purged</strong> from the database immediately. You will not be able to recover this data.
             </p>
 
             <div className="space-y-1.5">
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">
+              <label htmlFor="input-delete-confirm-text" className="block text-xs font-medium text-slate-700 dark:text-slate-300">
                 To confirm, please type <span className="font-mono font-bold text-rose-600 dark:text-rose-400">DELETE</span> below:
               </label>
               <input
+                id="input-delete-confirm-text"
                 type="text"
                 value={deleteConfirmText}
                 onChange={(e) => setDeleteConfirmText(e.target.value)}
@@ -891,7 +913,7 @@ export default function App() {
                   setAccountActionError(null);
                 }}
                 disabled={accountActionLoading}
-                className="px-4 py-2 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                className="px-4 py-2 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
               >
                 Cancel
               </button>
@@ -899,7 +921,7 @@ export default function App() {
                 type="button"
                 onClick={handleDeleteAccount}
                 disabled={accountActionLoading || deleteConfirmText !== 'DELETE'}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
               >
                 {accountActionLoading ? 'Deleting...' : 'Delete Permanently'}
               </button>

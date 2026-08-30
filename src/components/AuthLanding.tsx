@@ -48,7 +48,7 @@ export const AuthLanding: React.FC<AuthLandingProps> = ({ onSignedIn }) => {
           <img 
             src="/reflect_logo.png" 
             alt="Reflect Logo" 
-            className="h-28 w-auto object-contain dark:invert" 
+            className="h-36 w-auto object-contain dark:invert" 
           />
         </div>
 

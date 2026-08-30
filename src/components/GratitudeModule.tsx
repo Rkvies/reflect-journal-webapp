@@ -98,7 +98,7 @@ export const GratitudeModule: React.FC<GratitudeModuleProps> = ({
               <Heart className="w-5 h-5 fill-current" />
             </div>
             <div>
-              <div className="text-xs font-medium text-slate-400 dark:text-slate-500">Gratitude Streak</div>
+              <div className="text-xs font-medium text-slate-500 dark:text-slate-400">Gratitude Streak</div>
               <div className="text-lg font-bold font-serif text-slate-900 dark:text-white">
                 {streakCount} {streakCount === 1 ? 'Entry' : 'Entries'}
               </div>

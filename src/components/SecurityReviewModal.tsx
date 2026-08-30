@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ShieldCheck, Server, Database, AlertTriangle, X, CheckCircle2 } from 'lucide-react';
 
 interface SecurityReviewModalProps {
@@ -7,34 +7,56 @@ interface SecurityReviewModalProps {
 }
 
 export const SecurityReviewModal: React.FC<SecurityReviewModalProps> = ({ isOpen, onClose }) => {
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-fade-in">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-fade-in"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="security-review-title"
+      aria-describedby="security-review-desc"
+    >
       <div className="w-full max-w-3xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] transition-colors">
         
         {/* Header */}
         <div className="p-5 sm:p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between bg-white/40 dark:bg-slate-950/40">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center text-emerald-700 dark:text-emerald-300 shadow-xs">
+            <div className="w-9 h-9 rounded-2xl bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center text-emerald-700 dark:text-emerald-300 shadow-xs" aria-hidden="true">
               <ShieldCheck className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-serif font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <h3 id="security-review-title" className="text-base font-serif font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <span>Security Architecture & Threat Model Review</span>
                 <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-medium">
                   Status: Hardened
                 </span>
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p id="security-review-desc" className="text-xs text-slate-500 dark:text-slate-400">
                 Threat modeling & defense-in-depth guarantees for Reflect
               </p>
             </div>
           </div>
 
           <button
+            type="button"
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            aria-label="Close security review dialog"
+            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
           >
             <X className="w-4 h-4" />
           </button>
@@ -123,6 +145,21 @@ export const SecurityReviewModal: React.FC<SecurityReviewModalProps> = ({ isOpen
                   <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-emerald-600 dark:text-emerald-400" />
                   <span>
                     <strong>Mitigation:</strong> "Your Week in Reflection" is strictly on-demand or cached at <code>users/{'{uid}'}/insights/weeklySummary</code>. Zero automatic Gemini calls on routine dashboard navigations.
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-white/70 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700 space-y-2 shadow-xs md:col-span-2">
+                <div className="flex items-center gap-1.5 font-semibold text-rose-700 dark:text-rose-400 text-xs font-mono">
+                  <span>6. Long-Lived Secrets & Stale Credentials</span>
+                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                  <strong className="text-slate-800 dark:text-slate-100">Threat:</strong> Compromised static secrets (application access PINs, cron ingress keys, API keys) remaining valid indefinitely.
+                </p>
+                <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/80 dark:border-emerald-800 text-[11px] text-emerald-800 dark:text-emerald-300 flex items-start gap-1.5 font-sans">
+                  <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>
+                    <strong>Mitigation:</strong> 90-Day Secret Rotation Lifecycle Policy: Client PINs enforce mandatory 90-day rotation with cryptographic SHA-256 user-salt hashing; cron endpoints support zero-downtime dual-secret grace windows; API keys rotated via Google Secret Manager.
                   </span>
                 </div>
               </div>

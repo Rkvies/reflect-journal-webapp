@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Brain, X, Shield, Check, Sparkles, RefreshCw } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { ProfileSummary } from '../types';
@@ -22,6 +22,20 @@ export const ProfileSummaryModal: React.FC<ProfileSummaryModalProps> = ({
   const [editedText, setEditedText] = useState(profileSummary?.summary || '');
   const [isSaving, setIsSaving] = useState(false);
   const [isSynthesizing, setIsSynthesizing] = useState(false);
+
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -72,31 +86,39 @@ export const ProfileSummaryModal: React.FC<ProfileSummaryModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-fade-in">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-fade-in"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="memory-layer-title"
+      aria-describedby="memory-layer-desc"
+    >
       <div className="w-full max-w-2xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] transition-colors">
         
         {/* Header */}
         <div className="p-5 sm:p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between bg-white/40 dark:bg-slate-950/40">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-700 dark:text-indigo-300 shadow-xs">
+            <div className="w-9 h-9 rounded-2xl bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-700 dark:text-indigo-300 shadow-xs" aria-hidden="true">
               <Brain className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-serif font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <h3 id="memory-layer-title" className="text-base font-serif font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <span>Agentic Memory Layer</span>
                 <span className="text-[10px] font-sans px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 font-medium">
                   Continuous Context Memory
                 </span>
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p id="memory-layer-desc" className="text-xs text-slate-500 dark:text-slate-400">
                 Living contextual summary maintained asynchronously by Gemini
               </p>
             </div>
           </div>
 
           <button
+            type="button"
             onClick={onClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            aria-label="Close memory inspector dialog"
+            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
           >
             <X className="w-4 h-4" />
           </button>

@@ -12,10 +12,14 @@ import {
   doc, 
   setDoc, 
   getDoc, 
+  getDocs,
   collection, 
   query, 
   orderBy, 
   limit, 
+  startAfter,
+  QueryDocumentSnapshot,
+  DocumentData,
   onSnapshot, 
   deleteDoc, 
   updateDoc 
@@ -139,7 +143,7 @@ export async function deleteJournalEntry(uid: string, entryId: string): Promise<
 export function subscribeToEntries(uid: string, callback: (entries: JournalEntry[]) => void) {
   if (!uid) return () => {};
   const entriesCol = collection(db, 'users', uid, 'entries');
-  const q = query(entriesCol, orderBy('createdAt', 'desc'), limit(50));
+  const q = query(entriesCol, orderBy('createdAt', 'desc'), limit(100));
   
   return onSnapshot(q, (snapshot) => {
     const entries: JournalEntry[] = [];
@@ -150,6 +154,36 @@ export function subscribeToEntries(uid: string, callback: (entries: JournalEntry
   }, (error) => {
     console.error('Firestore entries subscription error:', error);
   });
+}
+
+export interface PaginatedEntriesResult {
+  entries: JournalEntry[];
+  lastDoc: QueryDocumentSnapshot<DocumentData> | null;
+  hasMore: boolean;
+}
+
+/**
+ * Fetch journal entries using cursor-based pagination (orderBy createdAt desc + startAfter)
+ */
+export async function fetchEntriesPaginated(
+  uid: string,
+  pageSize: number = 20,
+  startAfterDoc?: QueryDocumentSnapshot<DocumentData> | null
+): Promise<PaginatedEntriesResult> {
+  if (!uid) return { entries: [], lastDoc: null, hasMore: false };
+  const entriesCol = collection(db, 'users', uid, 'entries');
+  let q = query(entriesCol, orderBy('createdAt', 'desc'), limit(pageSize + 1));
+  if (startAfterDoc) {
+    q = query(entriesCol, orderBy('createdAt', 'desc'), startAfter(startAfterDoc), limit(pageSize + 1));
+  }
+  const snap = await getDocs(q);
+  const docs = snap.docs;
+  const hasMore = docs.length > pageSize;
+  const pageDocs = hasMore ? docs.slice(0, pageSize) : docs;
+  const entries = pageDocs.map((d) => ({ id: d.id, ...d.data() } as JournalEntry));
+  const lastDoc = pageDocs.length > 0 ? pageDocs[pageDocs.length - 1] : null;
+
+  return { entries, lastDoc, hasMore };
 }
 
 /**

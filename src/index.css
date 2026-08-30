@@ -12,6 +12,9 @@
   --color-slate-800: #424245;
   --color-slate-900: #252527;
   --color-slate-950: #121213;
+
+  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  --font-serif: 'Playfair Display', ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
 }
 
 @custom-variant dark (&:where(.dark, .dark *));

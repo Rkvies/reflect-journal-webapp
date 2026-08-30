@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { 
   collection, 
@@ -32,6 +32,9 @@ import { SecurityReviewModal } from './components/SecurityReviewModal';
 import { DailyQuoteModal } from './components/DailyQuoteModal';
 import { SettingsPage } from './components/SettingsPage';
 import { AuthLanding } from './components/AuthLanding';
+import { PinLockScreen } from './components/PinLockScreen';
+import { PinSetupModal, PinModalMode } from './components/PinSetupModal';
+import { getLocalPinSettings, savePinSettings, PinSettings } from './lib/pinSecurity';
 import { requestAgenticNudge, deactivateAccount, deleteAccount } from './lib/api';
 import { 
   saveNudge, 
@@ -108,6 +111,15 @@ export default function App() {
   const [prefillPrompt, setPrefillPrompt] = useState<{ prompt: string; tag: string } | null>(null);
   const [targetEntryId, setTargetEntryId] = useState<string | null>(null);
 
+  // PIN Security Lock State
+  const [pinEnabled, setPinEnabled] = useState<boolean>(false);
+  const [pinHash, setPinHash] = useState<string>('');
+  const [hasPromptedPinSetup, setHasPromptedPinSetup] = useState<boolean>(false);
+  const [autoLockMinutes, setAutoLockMinutes] = useState<number>(0);
+  const [isPinUnlocked, setIsPinUnlocked] = useState<boolean>(false);
+  const [isPinModalOpen, setIsPinModalOpen] = useState<boolean>(false);
+  const [pinModalMode, setPinModalMode] = useState<PinModalMode>('prompt');
+
   // Theme Management
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('reflect_theme');
@@ -148,8 +160,26 @@ export default function App() {
           displayName: user.displayName,
           photoURL: user.photoURL,
         });
+
+        // Initialize local PIN settings
+        const localPin = getLocalPinSettings(user.uid);
+        setPinEnabled(localPin.pinEnabled);
+        setPinHash(localPin.pinHash);
+        setHasPromptedPinSetup(localPin.hasPromptedSetup);
+        setAutoLockMinutes(localPin.autoLockMinutes || 0);
+
+        // If PIN lock is enabled, user must unlock first
+        if (localPin.pinEnabled) {
+          setIsPinUnlocked(false);
+        } else {
+          setIsPinUnlocked(true);
+        }
       } else {
         setCurrentUser(null);
+        setPinEnabled(false);
+        setPinHash('');
+        setHasPromptedPinSetup(false);
+        setIsPinUnlocked(false);
       }
       setIsAuthLoading(false);
     });
@@ -285,6 +315,38 @@ export default function App() {
       setGratitudeEntries(entries);
     });
 
+    // 8. users/{uid}/settings/pin listener
+    const pinDocRef = doc(db, 'users', uid, 'settings', 'pin');
+    const unsubPin = onSnapshot(pinDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data() as PinSettings;
+        setPinEnabled(data.pinEnabled);
+        setPinHash(data.pinHash || '');
+        setHasPromptedPinSetup(data.hasPromptedSetup);
+        setAutoLockMinutes(data.autoLockMinutes || 0);
+
+        // Sync local storage for immediate access next login
+        try {
+          localStorage.setItem(`reflect_pin_enabled_${uid}`, String(data.pinEnabled));
+          localStorage.setItem(`reflect_pin_hash_${uid}`, data.pinHash || '');
+          localStorage.setItem(`reflect_pin_prompted_${uid}`, String(data.hasPromptedSetup));
+          localStorage.setItem(`reflect_pin_autolock_${uid}`, String(data.autoLockMinutes || 0));
+        } catch {}
+
+        // Prompt user for setup on first login if pin not enabled and prompt not shown yet
+        if (!data.pinEnabled && !data.hasPromptedSetup) {
+          setPinModalMode('prompt');
+          setIsPinModalOpen(true);
+        }
+      } else {
+        // No PIN config yet -> prompt user for optional PIN setup
+        setPinModalMode('prompt');
+        setIsPinModalOpen(true);
+      }
+    }, (err) => {
+      console.warn('PIN settings subscription notice:', err.message);
+    });
+
     return () => {
       unsubEntries();
       unsubSummary();
@@ -293,8 +355,36 @@ export default function App() {
       unsubWeekly();
       unsubNotifications();
       unsubGratitude();
+      unsubPin();
     };
   }, [currentUser?.uid]);
+
+  // Inactivity Auto-Lock Timer
+  const autoLockTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const resetAutoLockTimer = useCallback(() => {
+    if (autoLockTimeoutRef.current) clearTimeout(autoLockTimeoutRef.current);
+    if (pinEnabled && isPinUnlocked && autoLockMinutes > 0) {
+      autoLockTimeoutRef.current = setTimeout(() => {
+        setIsPinUnlocked(false);
+      }, autoLockMinutes * 60 * 1000);
+    }
+  }, [pinEnabled, isPinUnlocked, autoLockMinutes]);
+
+  useEffect(() => {
+    const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'];
+    const handleActivity = () => resetAutoLockTimer();
+
+    if (pinEnabled && isPinUnlocked && autoLockMinutes > 0) {
+      resetAutoLockTimer(); // Initial start
+      events.forEach((evt) => window.addEventListener(evt, handleActivity));
+    }
+
+    return () => {
+      if (autoLockTimeoutRef.current) clearTimeout(autoLockTimeoutRef.current);
+      events.forEach((evt) => window.removeEventListener(evt, handleActivity));
+    };
+  }, [pinEnabled, isPinUnlocked, autoLockMinutes, resetAutoLockTimer]);
 
   const handleSaveGratitude = async (entry: GratitudeEntry) => {
     if (!currentUser?.uid) return;
@@ -384,6 +474,50 @@ export default function App() {
     }
   };
 
+  // PIN Lock Handlers
+  const handleSavePinFromModal = async (newHash: string) => {
+    if (!currentUser?.uid) return;
+    await savePinSettings(currentUser.uid, {
+      pinEnabled: true,
+      pinHash: newHash,
+      hasPromptedSetup: true,
+    });
+    setPinEnabled(true);
+    setPinHash(newHash);
+    setHasPromptedPinSetup(true);
+    setIsPinUnlocked(true);
+    setIsPinModalOpen(false);
+  };
+
+  const handleDisablePinFromModal = async () => {
+    if (!currentUser?.uid) return;
+    await savePinSettings(currentUser.uid, {
+      pinEnabled: false,
+      pinHash: '',
+      hasPromptedSetup: true,
+    });
+    setPinEnabled(false);
+    setPinHash('');
+    setHasPromptedPinSetup(true);
+    setIsPinUnlocked(true);
+    setIsPinModalOpen(false);
+  };
+
+  const handleSkipPinPrompt = async () => {
+    if (!currentUser?.uid) return;
+    await savePinSettings(currentUser.uid, {
+      hasPromptedSetup: true,
+    });
+    setHasPromptedPinSetup(true);
+    setIsPinModalOpen(false);
+  };
+
+  const handleLockAppNow = () => {
+    if (pinEnabled) {
+      setIsPinUnlocked(false);
+    }
+  };
+
   if (isAuthLoading) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center text-slate-500 font-sans text-xs">
@@ -399,6 +533,22 @@ export default function App() {
 
   if (!currentUser) {
     return <AuthLanding onSignedIn={() => {}} />;
+  }
+
+  // Active PIN Lock Screen Gatekeeper
+  if (pinEnabled && !isPinUnlocked) {
+    return (
+      <PinLockScreen
+        user={currentUser}
+        storedPinHash={pinHash}
+        onUnlockSuccess={() => setIsPinUnlocked(true)}
+        onResetPinSuccess={() => {
+          setIsPinUnlocked(true);
+          setPinEnabled(false);
+          setPinHash('');
+        }}
+      />
+    );
   }
 
   const activeNudge = nudges.length > 0 ? nudges[0] : null;
@@ -424,6 +574,8 @@ export default function App() {
         onMarkAsRead={handleMarkAsRead}
         onMarkAllAsRead={handleMarkAllAsRead}
         onDeleteNotification={handleDeleteNotification}
+        pinEnabled={pinEnabled}
+        onLockApp={handleLockAppNow}
       />
 
       {/* Proactive Check-in Nudge Banner */}
@@ -515,6 +667,24 @@ export default function App() {
             gratitudeEntries={gratitudeEntries}
             profileSummary={profileSummary}
             theme={theme}
+            pinEnabled={pinEnabled}
+            autoLockMinutes={autoLockMinutes}
+            onOpenPinSetup={() => {
+              setPinModalMode('create');
+              setIsPinModalOpen(true);
+            }}
+            onOpenPinChange={() => {
+              setPinModalMode('change');
+              setIsPinModalOpen(true);
+            }}
+            onOpenPinDisable={() => {
+              setPinModalMode('disable');
+              setIsPinModalOpen(true);
+            }}
+            onChangeAutoLock={async (mins) => {
+              setAutoLockMinutes(mins);
+              await savePinSettings(currentUser.uid, { autoLockMinutes: mins });
+            }}
             onToggleTheme={toggleTheme}
             onOpenMemory={() => setIsMemoryOpen(true)}
             onOpenSecurity={() => setIsSecurityOpen(true)}
@@ -685,6 +855,17 @@ export default function App() {
       <DailyQuoteModal
         isOpen={isDailyQuoteOpen}
         onClose={() => setIsDailyQuoteOpen(false)}
+      />
+
+      {/* PIN Security Setup / Management Modal */}
+      <PinSetupModal
+        isOpen={isPinModalOpen}
+        initialMode={pinModalMode}
+        storedPinHash={pinHash}
+        onClose={() => setIsPinModalOpen(false)}
+        onSavePin={handleSavePinFromModal}
+        onDisablePin={handleDisablePinFromModal}
+        onSkipPrompt={handleSkipPinPrompt}
       />
 
     </div>

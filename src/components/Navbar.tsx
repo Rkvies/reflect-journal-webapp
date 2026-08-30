@@ -13,7 +13,8 @@ import {
   Settings,
   Sparkles,
   Heart,
-  FileText
+  FileText,
+  Lock
 } from 'lucide-react';
 import { AppUser, AppNotification } from '../types';
 import { NotificationDropdown } from './NotificationDropdown';
@@ -33,6 +34,8 @@ interface NavbarProps {
   onMarkAsRead: (id: string) => void;
   onMarkAllAsRead: () => void;
   onDeleteNotification: (id: string) => void;
+  pinEnabled?: boolean;
+  onLockApp?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -50,6 +53,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onMarkAsRead,
   onMarkAllAsRead,
   onDeleteNotification,
+  pinEnabled = false,
+  onLockApp,
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -248,6 +253,22 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <ShieldCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                     <span>Security & Transparency</span>
                   </button>
+
+                  {/* Quick Lock Application */}
+                  {pinEnabled && onLockApp && (
+                    <button
+                      id="btn-dropdown-lock-app"
+                      type="button"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        onLockApp();
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors cursor-pointer font-medium"
+                    >
+                      <Lock className="w-4 h-4" />
+                      <span>Lock Application Now</span>
+                    </button>
+                  )}
 
                   <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
 

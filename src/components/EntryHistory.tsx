@@ -140,6 +140,9 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMoodFilter, setSelectedMoodFilter] = useState<string>('all');
+  const [selectedTagFilter, setSelectedTagFilter] = useState<string>('all');
+  const [selectedDateRange, setSelectedDateRange] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'title'>('newest');
   const [expandedEntryId, setExpandedEntryId] = useState<string | null>(null);
   const [analyzingIds, setAnalyzingIds] = useState<Record<string, boolean>>({});
 
@@ -159,16 +162,12 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
       setExpandedEntryId(targetEntryId);
       setViewMode('list');
 
-      const targetEntry = entries.find((e) => e.id === targetEntryId);
-      if (targetEntry && selectedMoodFilter !== 'all' && targetEntry.mood !== selectedMoodFilter) {
-        setSelectedMoodFilter('all');
-      }
-      if (searchQuery.trim() !== '') {
-        setSearchQuery('');
-      }
-      if (selectedCalendarDate) {
-        setSelectedCalendarDate(null);
-      }
+      setSelectedMoodFilter('all');
+      setSelectedTagFilter('all');
+      setSelectedDateRange('all');
+      setSearchQuery('');
+      setSelectedCalendarDate(null);
+      setSortBy('newest');
 
       const timer = setTimeout(() => {
         const el = document.getElementById(`entry-card-${targetEntryId}`);
@@ -276,24 +275,86 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
     return days;
   }, [calendarMonth, entries]);
 
-  const filteredEntries = useMemo(() => {
-    return entries.filter((e) => {
-      const matchSearch =
-        searchQuery.trim() === '' ||
-        e.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        e.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (e.sentiment?.label && e.sentiment.label.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (e.tags && e.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase())));
-
-      const matchMood =
-        selectedMoodFilter === 'all' || e.mood === selectedMoodFilter;
-
-      const matchDate =
-        !selectedCalendarDate || getLocalDateString(e.createdAt) === selectedCalendarDate;
-
-      return matchSearch && matchMood && matchDate;
+  const availableTags = useMemo(() => {
+    const map = new Map<string, number>();
+    entries.forEach((e) => {
+      if (e.tags && Array.isArray(e.tags)) {
+        e.tags.forEach((t) => {
+          const tag = t.trim().toLowerCase();
+          if (tag) {
+            map.set(tag, (map.get(tag) || 0) + 1);
+          }
+        });
+      }
     });
-  }, [entries, searchQuery, selectedMoodFilter, selectedCalendarDate]);
+    return Array.from(map.entries()).map(([tag, count]) => ({ tag, count }));
+  }, [entries]);
+
+  const filteredEntries = useMemo(() => {
+    return entries
+      .filter((e) => {
+        const matchSearch =
+          searchQuery.trim() === '' ||
+          e.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          e.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (e.sentiment?.label && e.sentiment.label.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (e.tags && e.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase())));
+
+        const matchMood =
+          selectedMoodFilter === 'all' || e.mood === selectedMoodFilter;
+
+        const matchTag =
+          selectedTagFilter === 'all' || (e.tags && e.tags.some((t) => t.toLowerCase() === selectedTagFilter.toLowerCase()));
+
+        let matchDate = true;
+        const entryDateStr = getLocalDateString(e.createdAt);
+        if (selectedCalendarDate) {
+          matchDate = entryDateStr === selectedCalendarDate;
+        } else if (selectedDateRange !== 'all') {
+          const now = new Date();
+          const entryDate = new Date(e.createdAt);
+          if (selectedDateRange === 'today') {
+            matchDate = entryDateStr === getLocalDateString(now);
+          } else if (selectedDateRange === '7days') {
+            const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            matchDate = entryDate >= sevenDaysAgo;
+          } else if (selectedDateRange === '30days') {
+            const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            matchDate = entryDate >= thirtyDaysAgo;
+          } else if (selectedDateRange === 'this_month') {
+            matchDate = entryDate.getMonth() === now.getMonth() && entryDate.getFullYear() === now.getFullYear();
+          }
+        }
+
+        return matchSearch && matchMood && matchTag && matchDate;
+      })
+      .sort((a, b) => {
+        if (sortBy === 'oldest') {
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        } else if (sortBy === 'title') {
+          return a.title.localeCompare(b.title);
+        } else {
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        }
+      });
+  }, [entries, searchQuery, selectedMoodFilter, selectedTagFilter, selectedDateRange, selectedCalendarDate, sortBy]);
+
+  const isFilterActive =
+    searchQuery.trim() !== '' ||
+    selectedMoodFilter !== 'all' ||
+    selectedTagFilter !== 'all' ||
+    selectedDateRange !== 'all' ||
+    selectedCalendarDate !== null ||
+    sortBy !== 'newest';
+
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setSelectedMoodFilter('all');
+    setSelectedTagFilter('all');
+    setSelectedDateRange('all');
+    setSelectedCalendarDate(null);
+    setSortBy('newest');
+  };
 
   // Open Delete Confirmation Modal
   const handleOpenDelete = (entry: JournalEntry, e: React.MouseEvent) => {
@@ -527,16 +588,17 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
       </div>
 
       {/* ========================================================================= */}
-      {/* 2. HEADER BAR WITH VIEW SWITCHER (List View vs Calendar View) */}
+      {/* 2. HEADER BAR WITH COMPACT DROPDOWN FILTERS */}
       {/* ========================================================================= */}
       <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-300 dark:border-slate-700 rounded-3xl p-5 sm:p-6 shadow-sm transition-colors space-y-4">
+        {/* Top Header Row */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
           <div>
             <h2 className="text-xl font-serif font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <span>Journal Archive</span>
               {selectedCalendarDate && (
                 <span className="text-xs font-mono font-normal px-2.5 py-1 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 flex items-center gap-1">
-                  <span>Filtered: {selectedCalendarDate}</span>
+                  <span>Filtered Date: {selectedCalendarDate}</span>
                   <button onClick={() => setSelectedCalendarDate(null)} className="hover:text-indigo-900 dark:hover:text-white cursor-pointer ml-1">×</button>
                 </span>
               )}
@@ -574,68 +636,141 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                 <span>Calendar View</span>
               </button>
             </div>
-
-            {/* Search Bar */}
-            <div className="relative w-full sm:w-64">
-              <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                id="input-search-entries"
-                type="text"
-                placeholder="Search keywords or tags..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 text-xs focus:outline-none focus:border-indigo-500 shadow-xs"
-              />
-            </div>
           </div>
         </div>
 
-        {/* Mood Filter Chips */}
-        <div className="space-y-2.5">
-          <div className="text-slate-400 dark:text-slate-500 flex items-center justify-between text-[11px] font-semibold">
-            <span className="flex items-center gap-1.5">
-              <Filter className="w-3.5 h-3.5" /> Filter by Mood:
-            </span>
-            {selectedCalendarDate && (
+        {/* Compact Dropdown Toolbar */}
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 text-xs">
+          {/* Search Input */}
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              id="input-search-entries"
+              type="text"
+              placeholder="Search title, content, tags..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-8 pr-8 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 text-xs focus:outline-none focus:border-indigo-500 transition-colors shadow-xs"
+            />
+            {searchQuery && (
               <button
-                onClick={() => setSelectedCalendarDate(null)}
-                className="text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer text-xs"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
               >
-                Show All Dates
+                <X className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2 text-xs">
-            <button
-              onClick={() => setSelectedMoodFilter('all')}
-              className={`w-full px-3 py-2 rounded-xl text-xs font-medium border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                selectedMoodFilter === 'all'
-                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs font-semibold'
-                  : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800'
-              }`}
-            >
-              <span>All Moods</span>
-              <span className="text-[10px] opacity-70">({entries.length})</span>
-            </button>
-            {(['reflective', 'peaceful', 'optimistic', 'grounded', 'seeking_clarity', 'anxious', 'fatigued', 'energized'] as MoodType[]).map((mood) => {
-              const count = entries.filter((e) => e.mood === mood).length;
-              if (count === 0) return null;
-              return (
-                <button
-                  key={mood}
-                  onClick={() => setSelectedMoodFilter(mood)}
-                  className={`w-full px-3 py-2 rounded-xl text-xs font-medium border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                    selectedMoodFilter === mood
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs font-semibold'
-                      : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800'
-                  }`}
+
+          {/* Dropdowns controls */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Mood Dropdown */}
+            <div className="relative flex items-center">
+              <select
+                id="select-mood-filter"
+                value={selectedMoodFilter}
+                onChange={(e) => setSelectedMoodFilter(e.target.value)}
+                className={`appearance-none bg-slate-50 dark:bg-slate-800/90 border ${
+                  selectedMoodFilter !== 'all'
+                    ? 'border-indigo-500 text-indigo-700 dark:text-indigo-300 font-semibold bg-indigo-50/50 dark:bg-indigo-950/40'
+                    : 'border-slate-200 dark:border-slate-700/80 text-slate-700 dark:text-slate-300'
+                } text-xs rounded-xl pl-3 pr-7 py-2 focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer shadow-xs`}
+              >
+                <option value="all">All Moods ({entries.length})</option>
+                {Object.entries(MOOD_EMOJIS).map(([mood, emoji]) => {
+                  const count = entries.filter((e) => e.mood === mood).length;
+                  return (
+                    <option key={mood} value={mood}>
+                      {emoji} {mood.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase())} ({count})
+                    </option>
+                  );
+                })}
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 pointer-events-none" />
+            </div>
+
+            {/* Tag Dropdown */}
+            {availableTags.length > 0 && (
+              <div className="relative flex items-center">
+                <select
+                  id="select-tag-filter"
+                  value={selectedTagFilter}
+                  onChange={(e) => setSelectedTagFilter(e.target.value)}
+                  className={`appearance-none bg-slate-50 dark:bg-slate-800/90 border ${
+                    selectedTagFilter !== 'all'
+                      ? 'border-indigo-500 text-indigo-700 dark:text-indigo-300 font-semibold bg-indigo-50/50 dark:bg-indigo-950/40'
+                      : 'border-slate-200 dark:border-slate-700/80 text-slate-700 dark:text-slate-300'
+                  } text-xs rounded-xl pl-3 pr-7 py-2 focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer shadow-xs`}
                 >
-                  <span>{MOOD_EMOJIS[mood] || '📝'}</span>
-                  <span className="capitalize truncate">{mood.replace('_', ' ')}</span>
-                  <span className="text-[10px] opacity-70">({count})</span>
-                </button>
-              );
-            })}
+                  <option value="all">All Tags ({availableTags.length})</option>
+                  {availableTags.map(({ tag, count }) => (
+                    <option key={tag} value={tag}>
+                      #{tag} ({count})
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 pointer-events-none" />
+              </div>
+            )}
+
+            {/* Date Range Dropdown */}
+            <div className="relative flex items-center">
+              <select
+                id="select-daterange-filter"
+                value={selectedCalendarDate ? 'custom' : selectedDateRange}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === 'custom') return;
+                  setSelectedCalendarDate(null);
+                  setSelectedDateRange(val);
+                }}
+                className={`appearance-none bg-slate-50 dark:bg-slate-800/90 border ${
+                  selectedDateRange !== 'all' || selectedCalendarDate
+                    ? 'border-indigo-500 text-indigo-700 dark:text-indigo-300 font-semibold bg-indigo-50/50 dark:bg-indigo-950/40'
+                    : 'border-slate-200 dark:border-slate-700/80 text-slate-700 dark:text-slate-300'
+                } text-xs rounded-xl pl-3 pr-7 py-2 focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer shadow-xs`}
+              >
+                <option value="all">All Time</option>
+                <option value="today">Today</option>
+                <option value="7days">Last 7 Days</option>
+                <option value="30days">Last 30 Days</option>
+                <option value="this_month">This Month</option>
+                {selectedCalendarDate && (
+                  <option value="custom" disabled>
+                    📅 {selectedCalendarDate}
+                  </option>
+                )}
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 pointer-events-none" />
+            </div>
+
+            {/* Sort Order Dropdown */}
+            <div className="relative flex items-center">
+              <select
+                id="select-sort-order"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="appearance-none bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80 text-slate-700 dark:text-slate-300 text-xs rounded-xl pl-3 pr-7 py-2 focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer shadow-xs"
+              >
+                <option value="newest">Sort: Newest First</option>
+                <option value="oldest">Sort: Oldest First</option>
+                <option value="title">Sort: Title (A–Z)</option>
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 pointer-events-none" />
+            </div>
+
+            {/* Reset Filters Button */}
+            {isFilterActive && (
+              <button
+                id="btn-reset-filters"
+                onClick={handleResetFilters}
+                className="flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-900/60 transition-colors cursor-pointer shadow-xs"
+                title="Reset all search and filter options"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>Reset</span>
+              </button>
+            )}
           </div>
         </div>
       </div>

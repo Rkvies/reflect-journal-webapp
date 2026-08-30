@@ -43,6 +43,7 @@ import {
   markNotificationAsRead, 
   markAllNotificationsAsRead, 
   deleteNotification,
+  saveNotification,
   saveGratitudeEntry,
   subscribeToGratitudeEntries,
   deleteGratitudeEntry
@@ -385,6 +386,62 @@ export default function App() {
       events.forEach((evt) => window.removeEventListener(evt, handleActivity));
     };
   }, [pinEnabled, isPinUnlocked, autoLockMinutes, resetAutoLockTimer]);
+
+  // Mindful Reminders Auto-Trigger
+  useEffect(() => {
+    if (!currentUser?.uid) return;
+    
+    const checkReminders = () => {
+      const now = new Date();
+      const currentHHMM = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+      const todayDateStr = now.toISOString().split('T')[0];
+      
+      const evtRefEnabled = localStorage.getItem('reflect_setting_reminder_enabled') === 'true';
+      const evtRefTime = localStorage.getItem('reflect_setting_reminder_time') || '20:00';
+      
+      const gratRefEnabled = localStorage.getItem('reflect_setting_gratitude_reminder_enabled') === 'true';
+      const gratRefTime = localStorage.getItem('reflect_setting_gratitude_reminder_time') || '09:00';
+
+      if (evtRefEnabled && currentHHMM === evtRefTime) {
+        const lastTrigger = localStorage.getItem(`reflect_last_reminder_${currentUser.uid}`);
+        if (lastTrigger !== todayDateStr) {
+          localStorage.setItem(`reflect_last_reminder_${currentUser.uid}`, todayDateStr);
+          saveNotification(currentUser.uid, {
+            id: crypto.randomUUID(),
+            userId: currentUser.uid,
+            title: 'Evening Reflection',
+            message: 'It is time for your evening reflection. Take a moment to clear your mind.',
+            type: 'reminder',
+            createdAt: new Date().toISOString(),
+            isRead: false
+          }).catch(console.error);
+        }
+      }
+
+      if (gratRefEnabled && currentHHMM === gratRefTime) {
+        const lastTrigger = localStorage.getItem(`reflect_last_gratitude_${currentUser.uid}`);
+        if (lastTrigger !== todayDateStr) {
+          localStorage.setItem(`reflect_last_gratitude_${currentUser.uid}`, todayDateStr);
+          saveNotification(currentUser.uid, {
+            id: crypto.randomUUID(),
+            userId: currentUser.uid,
+            title: 'Daily Gratitude',
+            message: 'Time to log your daily gratitude. What are you thankful for today?',
+            type: 'reminder',
+            createdAt: new Date().toISOString(),
+            isRead: false
+          }).catch(console.error);
+        }
+      }
+    };
+
+    // Check immediately on mount/auth
+    checkReminders();
+    
+    // Check every minute
+    const interval = setInterval(checkReminders, 60000);
+    return () => clearInterval(interval);
+  }, [currentUser?.uid]);
 
   const handleSaveGratitude = async (entry: GratitudeEntry) => {
     if (!currentUser?.uid) return;

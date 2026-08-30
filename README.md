@@ -34,7 +34,7 @@
 ### 6. ⚙️ Settings & Personalization Hub
 - **Profile & Credentials**: Real-time display name synchronization with Firebase Authentication.
 - **Appearance & Typography**: Toggle between Light Atmosphere and Dark Twilight modes, with customizable reading typography (*Sans*, *Serif*, or *Monospace*).
-- **Mindful Reminders**: Independent alert toggles and preferred time pickers for both Evening Reflection and Daily Gratitude routines.
+- **Mindful Reminders**: Active background monitoring system that securely generates in-app notifications at user-defined preferred times for Evening Reflection and Daily Gratitude routines.
 - **Security & Privacy Audit**: Interactive inspector detailing security boundaries, encryption status, and data partitioning guarantees.
 - **Client-Side PIN Lock**: Optional 6-digit application PIN lock to protect journal entries on shared devices, utilizing SHA-256 hashing.
 - **Auto-Lock Inactivity Timer**: Configurable auto-lock mechanism (1-30 minutes) that actively monitors interactions to secure the application when left unattended.

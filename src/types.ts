@@ -54,6 +54,10 @@ export interface InsightReport {
   userId: string;
   overallMoodTrend: string;
   primaryMood: string;
+  dateRange?: {
+    start?: string;
+    end?: string;
+  };
   themes: ThemeMetric[];
   notableShift: string;
   notableShiftInfluencedBy?: string[];

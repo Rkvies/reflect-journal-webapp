@@ -746,9 +746,6 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                           </span>
                         )}
                       </div>
-                      <div className={`text-[10px] font-sans truncate ${isSelected ? 'text-indigo-100' : 'text-slate-600 dark:text-slate-300'}`}>
-                        {dayItem.entries[0].title || 'Reflection'}
-                      </div>
                     </div>
                   ) : (
                     <div className="text-[10px] text-slate-300 dark:text-slate-600 italic">No entry</div>

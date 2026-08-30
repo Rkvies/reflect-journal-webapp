@@ -45,6 +45,9 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
 }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
 
   const latestInsight = insightsHistory[0] || null;
 
@@ -53,6 +56,20 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
     entries.forEach((e) => map.set(e.id, e));
     return map;
   }, [entries]);
+
+  const filteredEntries = useMemo(() => {
+    return entries.filter(entry => {
+      const entryDate = new Date(entry.createdAt);
+      if (startDate && new Date(startDate) > entryDate) return false;
+      
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        if (end < entryDate) return false;
+      }
+      return true;
+    });
+  }, [entries, startDate, endDate]);
 
   const sentimentDistributionList = useMemo(() => {
     const dist = latestInsight?.sentimentDistribution;
@@ -120,8 +137,8 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
   }, [latestInsight?.sentimentDistribution]);
 
   const handleGenerate = async () => {
-    if (entries.length === 0) {
-      setErrorMessage('You need at least one journal entry to generate insights.');
+    if (filteredEntries.length === 0) {
+      setErrorMessage('You need at least one journal entry in this date range to generate insights.');
       return;
     }
 
@@ -130,7 +147,7 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
 
     try {
       const res = await requestInsights({
-        entries,
+        entries: filteredEntries,
         profileSummary,
       });
 
@@ -140,6 +157,7 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
         ...res.insight,
         generatedAt: res.generatedAt,
         entriesAnalyzedCount: res.entriesAnalyzedCount,
+        dateRange: (startDate || endDate) ? { start: startDate || undefined, end: endDate || undefined } : undefined
       };
 
       await saveInsightReport(userId, newReport);
@@ -165,15 +183,35 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
           </p>
         </div>
 
-        <button
-          id="btn-generate-insights"
-          onClick={handleGenerate}
-          disabled={isGenerating || entries.length === 0}
-          className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-xs flex-shrink-0 cursor-pointer"
-        >
-          <Sparkles className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
-          <span>{isGenerating ? 'Synthesizing...' : 'Generate New Insights'}</span>
-        </button>
+        <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3">
+          <div className="flex items-center gap-2 text-xs">
+            <input 
+              type="date" 
+              value={startDate} 
+              onChange={e => setStartDate(e.target.value)}
+              title="Start Date"
+              className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 py-2 text-slate-700 dark:text-slate-300 outline-none focus:border-indigo-500 transition-colors"
+            />
+            <span className="text-slate-400">to</span>
+            <input 
+              type="date" 
+              value={endDate} 
+              onChange={e => setEndDate(e.target.value)}
+              title="End Date"
+              className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 py-2 text-slate-700 dark:text-slate-300 outline-none focus:border-indigo-500 transition-colors"
+            />
+          </div>
+
+          <button
+            id="btn-generate-insights"
+            onClick={handleGenerate}
+            disabled={isGenerating || entries.length === 0}
+            className="flex items-center justify-center gap-2 px-5 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-xs flex-shrink-0 cursor-pointer"
+          >
+            <Sparkles className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
+            <span>{isGenerating ? 'Synthesizing...' : 'Generate'}</span>
+          </button>
+        </div>
       </div>
 
       {errorMessage && (

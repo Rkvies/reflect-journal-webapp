@@ -706,16 +706,14 @@ export const JournalChat: React.FC<JournalChatProps> = ({
               </span>
             )}
 
-            {(conversation.length > 0 || title.trim() || currentInput.trim()) && (
-              <button
-                id="btn-new-entry"
-                onClick={handleStartNewEntry}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>New Reflection</span>
-              </button>
-            )}
+            <button
+              id="btn-new-entry"
+              onClick={handleStartNewEntry}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer border border-slate-200/50 dark:border-slate-700/50"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>New entry</span>
+            </button>
           </div>
         </div>
 

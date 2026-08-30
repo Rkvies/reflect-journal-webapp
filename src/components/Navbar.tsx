@@ -72,8 +72,8 @@ export const Navbar: React.FC<NavbarProps> = ({
         
         {/* Brand */}
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-2xl bg-indigo-600/10 dark:bg-indigo-500/15 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-            <BookOpen className="w-4 h-4" />
+          <div className="w-9 h-9 flex items-center justify-center">
+            <img src="/reflect_logo.png" alt="Reflect Logo" className="w-full h-full object-contain dark:invert" />
           </div>
           <div>
             <h1 className="font-serif text-lg font-bold tracking-tight text-slate-900 dark:text-white leading-none">

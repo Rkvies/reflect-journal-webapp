@@ -35,6 +35,7 @@ interface SettingsPageProps {
   onOpenDeactivateModal: () => void;
   onOpenDeleteModal: () => void;
   onUpdateDisplayName?: (newName: string) => void;
+  onFontChange?: (font: string) => void;
 }
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({
@@ -49,6 +50,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   onOpenDeactivateModal,
   onOpenDeleteModal,
   onUpdateDisplayName,
+  onFontChange,
 }) => {
   // Display Name state
   const [displayName, setDisplayName] = useState(user.displayName || '');
@@ -145,31 +147,30 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const handleFontChange = (font: string) => {
     setFontPreference(font);
     localStorage.setItem('reflect_setting_font', font);
+    if (onFontChange) onFontChange(font);
   };
 
-  // Export Data JSON
-  const handleExportJSON = () => {
-    const exportData = {
-      user: {
-        uid: user.uid,
-        displayName: user.displayName,
-        email: user.email,
-      },
-      exportedAt: new Date().toISOString(),
-      entriesCount: entries.length,
-      gratitudeEntriesCount: gratitudeEntries.length,
-      entries,
-      gratitudeEntries,
-      profileSummary,
-    };
-
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute("href", dataStr);
-    downloadAnchor.setAttribute("download", `reflect-journal-backup-${new Date().toISOString().slice(0, 10)}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
+  // Export Data XLSX
+  const handleExportXLSX = async () => {
+    try {
+      const XLSX = await import('xlsx');
+      const data = entries.map(e => ({
+        Date: new Date(e.createdAt).toLocaleString(),
+        Title: e.title || 'Untitled',
+        Mood: e.mood,
+        Sentiment: e.sentiment?.label || '',
+        'Sentiment Score': e.sentiment?.score || '',
+        'Word Count': e.wordCount,
+        Tags: e.tags?.join(', ') || '',
+        Content: e.content
+      }));
+      const worksheet = XLSX.utils.json_to_sheet(data);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Journal Entries");
+      XLSX.writeFile(workbook, `reflect-journal-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (error) {
+      console.error("Failed to export XLSX", error);
+    }
   };
 
   // Export Data Markdown
@@ -577,15 +578,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
               Download your full private journal data for offline backup or migration anytime.
             </p>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <button
-                id="btn-export-json"
+                id="btn-export-xlsx"
                 type="button"
-                onClick={handleExportJSON}
+                onClick={handleExportXLSX}
                 className="flex-1 px-3 py-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 text-xs font-semibold shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-500" />
-                <span>Export JSON</span>
+                <FileSpreadsheet className="w-3.5 h-3.5 text-green-600" />
+                <span>Export XLSX</span>
               </button>
               <button
                 id="btn-export-markdown"

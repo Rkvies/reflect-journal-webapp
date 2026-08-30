@@ -115,6 +115,15 @@ export default function App() {
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   });
 
+  const [fontPreference, setFontPreference] = useState<'sans' | 'serif' | 'mono'>('sans');
+
+  useEffect(() => {
+    const savedFont = localStorage.getItem('reflect_setting_font');
+    if (savedFont && ['sans', 'serif', 'mono'].includes(savedFont)) {
+      setFontPreference(savedFont as any);
+    }
+  }, []);
+
   useEffect(() => {
     const root = document.documentElement;
     if (theme === 'dark') {
@@ -379,8 +388,8 @@ export default function App() {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center text-slate-500 font-sans text-xs">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-9 h-9 rounded-2xl bg-indigo-600/10 border border-indigo-500/20 animate-pulse flex items-center justify-center text-indigo-600 font-serif text-base font-bold">
-            R
+          <div className="w-12 h-12 animate-pulse flex items-center justify-center">
+            <img src="/reflect_logo.png" alt="Loading" className="w-full h-full object-contain dark:invert opacity-70" />
           </div>
           <span className="text-slate-500 dark:text-slate-400 font-medium">Loading Reflect...</span>
         </div>
@@ -394,8 +403,10 @@ export default function App() {
 
   const activeNudge = nudges.length > 0 ? nudges[0] : null;
 
+  const fontClass = fontPreference === 'serif' ? 'font-serif' : fontPreference === 'mono' ? 'font-mono' : 'font-sans';
+
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col selection:bg-indigo-500/20 selection:text-indigo-900 dark:selection:text-indigo-200 transition-colors duration-200">
+    <div className={`min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col selection:bg-indigo-500/20 selection:text-indigo-900 dark:selection:text-indigo-200 transition-colors duration-200 ${fontClass}`}>
       
       {/* Top Navigation */}
       <Navbar
@@ -426,7 +437,7 @@ export default function App() {
       {/* Main Content Area */}
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-10 pb-24 md:pb-10 space-y-8 sm:space-y-10">
         
-        {activeTab === 'journal' && (
+        <div className={activeTab === 'journal' ? 'block' : 'hidden'}>
           <JournalChat
             userId={currentUser.uid}
             profileSummary={profileSummary}
@@ -438,7 +449,7 @@ export default function App() {
             onClearPrefill={() => setPrefillPrompt(null)}
             activeNudge={activeNudge}
           />
-        )}
+        </div>
 
         {activeTab === 'history' && (
           <EntryHistory
@@ -512,6 +523,7 @@ export default function App() {
             onUpdateDisplayName={(newName) => {
               setCurrentUser(prev => prev ? { ...prev, displayName: newName } : null);
             }}
+            onFontChange={(font) => setFontPreference(font as any)}
           />
         )}
       </main>

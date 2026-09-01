@@ -18,7 +18,9 @@ import {
   ProactiveNudge,
   WeeklyReflectionReport,
   AppNotification,
-  GratitudeEntry
+  GratitudeEntry,
+  UserMilestones,
+  MilestoneKey
 } from './types';
 import { Navbar } from './components/Navbar';
 import { NudgeBanner } from './components/NudgeBanner';
@@ -27,6 +29,7 @@ import { EntryHistory } from './components/EntryHistory';
 import { InsightsPanel } from './components/InsightsPanel';
 import { WeeklyReflectionCard } from './components/WeeklyReflectionCard';
 import { GratitudeModule } from './components/GratitudeModule';
+import { MilestoneToast, MilestoneToastData } from './components/MilestoneToast';
 import { ProfileSummaryModal } from './components/ProfileSummaryModal';
 import { SecurityReviewModal } from './components/SecurityReviewModal';
 import { DailyQuoteModal } from './components/DailyQuoteModal';
@@ -36,6 +39,7 @@ import { PinLockScreen } from './components/PinLockScreen';
 import { PinSetupModal, PinModalMode } from './components/PinSetupModal';
 import { getLocalPinSettings, savePinSettings, PinSettings } from './lib/pinSecurity';
 import { requestAgenticNudge, deactivateAccount, deleteAccount } from './lib/api';
+import { MILESTONES, calculateActiveStreak } from './lib/milestones';
 import { 
   saveNudge, 
   dismissNudge, 
@@ -46,9 +50,11 @@ import {
   saveNotification,
   saveGratitudeEntry,
   subscribeToGratitudeEntries,
-  deleteGratitudeEntry
+  deleteGratitudeEntry,
+  saveMilestone,
+  subscribeToMilestones
 } from './lib/firebase';
-import { UserX, Trash2 } from 'lucide-react';
+import { UserX, Trash2, Sparkles } from 'lucide-react';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
@@ -63,6 +69,11 @@ export default function App() {
   const [weeklySummary, setWeeklySummary] = useState<WeeklyReflectionReport | null>(null);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [gratitudeEntries, setGratitudeEntries] = useState<GratitudeEntry[]>([]);
+  const [milestones, setMilestones] = useState<UserMilestones>({});
+  const milestonesRef = useRef<UserMilestones>({});
+  const pendingMilestonesRef = useRef<Set<string>>(new Set());
+  const toastQueueRef = useRef<MilestoneToastData[]>([]);
+  const [activeMilestoneToast, setActiveMilestoneToast] = useState<MilestoneToastData | null>(null);
 
   // Inspector Modals
   const [isMemoryOpen, setIsMemoryOpen] = useState(false);
@@ -348,6 +359,12 @@ export default function App() {
       console.warn('PIN settings subscription notice:', err.message);
     });
 
+    // 9. users/{uid}/profile/milestones listener
+    const unsubMilestones = subscribeToMilestones(uid, (data) => {
+      setMilestones(data || {});
+      milestonesRef.current = data || {};
+    });
+
     return () => {
       unsubEntries();
       unsubSummary();
@@ -357,6 +374,7 @@ export default function App() {
       unsubNotifications();
       unsubGratitude();
       unsubPin();
+      unsubMilestones();
     };
   }, [currentUser?.uid]);
 
@@ -443,9 +461,64 @@ export default function App() {
     return () => clearInterval(interval);
   }, [currentUser?.uid]);
 
+  // Milestone Trigger Engine
+  const triggerMilestone = useCallback(async (key: MilestoneKey) => {
+    if (!currentUser?.uid) return;
+    if (milestonesRef.current[key] || pendingMilestonesRef.current.has(key)) {
+      return;
+    }
+
+    // Immediately mark pending locally so concurrent checks do not re-trigger
+    pendingMilestonesRef.current.add(key);
+
+    try {
+      await saveMilestone(currentUser.uid, key);
+    } catch (err) {
+      console.warn('Failed to persist milestone:', err);
+    }
+
+    const config = MILESTONES[key];
+    if (config) {
+      setActiveMilestoneToast((curr) => {
+        if (!curr) {
+          return { key, message: config.message };
+        } else {
+          toastQueueRef.current.push({ key, message: config.message });
+          return curr;
+        }
+      });
+    }
+  }, [currentUser?.uid]);
+
+  const handleDismissMilestoneToast = useCallback(() => {
+    setActiveMilestoneToast(null);
+    if (toastQueueRef.current.length > 0) {
+      const next = toastQueueRef.current.shift()!;
+      setTimeout(() => {
+        setActiveMilestoneToast(next);
+      }, 250);
+    }
+  }, []);
+
+  const checkStreakMilestones = useCallback((currentEntries: JournalEntry[], currentGratitude: GratitudeEntry[]) => {
+    const streak = calculateActiveStreak(currentEntries, currentGratitude);
+    if (streak >= 3) {
+      triggerMilestone('streak_3');
+    }
+    if (streak >= 7) {
+      triggerMilestone('streak_7');
+    }
+    if (streak >= 14) {
+      triggerMilestone('streak_14');
+    }
+  }, [triggerMilestone]);
+
   const handleSaveGratitude = async (entry: GratitudeEntry) => {
     if (!currentUser?.uid) return;
     await saveGratitudeEntry(currentUser.uid, entry);
+    triggerMilestone('first_gratitude');
+    const updatedGratitude = [entry, ...gratitudeEntries.filter(g => g.id !== entry.id)];
+    checkStreakMilestones(entries, updatedGratitude);
   };
 
   const handleDeleteGratitude = async (entryId: string) => {
@@ -584,10 +657,13 @@ export default function App() {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center text-slate-500 font-sans text-xs">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-16 h-16 animate-pulse flex items-center justify-center">
-            <img src="/reflect_logo.png" alt="Loading" className="w-full h-full object-contain dark:invert opacity-70" />
+          <div className="w-16 h-16 animate-spark-glimmer flex items-center justify-center">
+            <img src="/reflect_logo.png" alt="Loading" className="w-full h-full object-contain dark:invert opacity-80" />
           </div>
-          <span className="text-slate-500 dark:text-slate-400 font-medium">Loading Reflect...</span>
+          <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-medium">
+            <Sparkles className="w-3.5 h-3.5 text-indigo-500 animate-spark-glimmer" />
+            <span>Loading Reflect...</span>
+          </div>
         </div>
       </div>
     );
@@ -656,8 +732,10 @@ export default function App() {
             userId={currentUser.uid}
             profileSummary={profileSummary}
             recentEntries={entries}
-            onEntrySaved={(_savedEntry) => {
-              // Real-time listener automatically updates list
+            onEntrySaved={(savedEntry) => {
+              triggerMilestone('first_entry');
+              const updatedEntries = [savedEntry, ...entries.filter(e => e.id !== savedEntry.id)];
+              checkStreakMilestones(updatedEntries, gratitudeEntries);
             }}
             prefillPrompt={prefillPrompt}
             onClearPrefill={() => setPrefillPrompt(null)}
@@ -694,6 +772,9 @@ export default function App() {
               onReflectOnPrompt={(prompt, tag) => {
                 handleReflectOnPrompt(prompt, tag);
               }}
+              onWeeklySummaryGenerated={() => {
+                triggerMilestone('first_weekly_recap');
+              }}
             />
 
             {/* Pattern & Themes Analysis Panel */}
@@ -708,6 +789,9 @@ export default function App() {
               onNavigateToEntry={(entryId) => {
                 setTargetEntryId(entryId);
                 setActiveTab('history');
+              }}
+              onInsightGenerated={() => {
+                triggerMilestone('first_insights');
               }}
             />
           </div>
@@ -945,6 +1029,12 @@ export default function App() {
         onSavePin={handleSavePinFromModal}
         onDisablePin={handleDisablePinFromModal}
         onSkipPrompt={handleSkipPinPrompt}
+      />
+
+      {/* Milestone Achievement Toast */}
+      <MilestoneToast
+        toast={activeMilestoneToast}
+        onDismiss={handleDismissMilestoneToast}
       />
 
     </div>

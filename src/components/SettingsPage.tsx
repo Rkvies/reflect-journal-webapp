@@ -295,7 +295,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
       
       {/* Settings Header */}
-      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-300 dark:border-slate-700 rounded-3xl p-6 shadow-sm flex items-center justify-between gap-4">
+      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-300 dark:border-slate-700 rounded-3xl p-6 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
           <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-xs">
             <Settings className="w-6 h-6" />
@@ -314,7 +314,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
         {/* 1. Account Profile Card */}
-        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-300 dark:border-slate-700 rounded-3xl p-6 shadow-sm space-y-5">
+        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-300 dark:border-slate-700 rounded-3xl p-6 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300 space-y-5">
           <div className="flex items-center gap-2.5 pb-3 border-b border-slate-200 dark:border-slate-800">
             <User className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
             <h3 className="font-serif font-bold text-base text-slate-900 dark:text-white">
@@ -372,7 +372,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         </div>
 
         {/* 2. PIN Lock Security & 90-Day Secret Rotation Card */}
-        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-300 dark:border-slate-700 rounded-3xl p-6 shadow-sm space-y-6">
+        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-300 dark:border-slate-700 rounded-3xl p-6 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300 space-y-6">
           <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
             <div className="flex items-center gap-2.5">
               <Lock className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
@@ -681,7 +681,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         </div>
 
         {/* 2. Theme & Customization Card */}
-        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-300 dark:border-slate-700 rounded-3xl p-6 shadow-sm space-y-5">
+        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-300 dark:border-slate-700 rounded-3xl p-6 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300 space-y-5">
           <div className="flex items-center gap-2.5 pb-3 border-b border-slate-200 dark:border-slate-800">
             <Sun className="w-4 h-4 text-amber-500" />
             <h3 className="font-serif font-bold text-base text-slate-900 dark:text-white">
@@ -754,7 +754,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         </div>
 
         {/* 3. AI Companion & Memory Settings */}
-        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-300 dark:border-slate-700 rounded-3xl p-6 shadow-sm space-y-5">
+        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-300 dark:border-slate-700 rounded-3xl p-6 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300 space-y-5">
           <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
             <div className="flex items-center gap-2.5">
               <Brain className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
@@ -838,7 +838,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         </div>
 
         {/* 4. Daily Reminders & Notifications */}
-        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-300 dark:border-slate-700 rounded-3xl p-6 shadow-sm space-y-5">
+        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-300 dark:border-slate-700 rounded-3xl p-6 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300 space-y-5">
           <div className="flex items-center gap-2.5 pb-3 border-b border-slate-200 dark:border-slate-800">
             <Bell className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
             <h3 className="font-serif font-bold text-base text-slate-900 dark:text-white">
@@ -932,7 +932,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       </div>
 
       {/* 5. Data Export & Danger Zone */}
-      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-300 dark:border-slate-700 rounded-3xl p-6 shadow-sm space-y-5">
+      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-300 dark:border-slate-700 rounded-3xl p-6 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300 space-y-5">
         <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-2.5">
             <Download className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />

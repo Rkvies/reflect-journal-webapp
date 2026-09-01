@@ -14,6 +14,7 @@ import { JournalEntry, ProfileSummary, InsightReport } from '../types';
 import { requestInsights } from '../lib/api';
 import { saveInsightReport } from '../lib/firebase';
 import { ConfidenceTooltip } from './ConfidenceTooltip';
+import { SparkLoader, SparkMotif, SparkEncouragement } from './SparkVisual';
 
 interface InsightsPanelProps {
   userId: string;
@@ -22,6 +23,7 @@ interface InsightsPanelProps {
   insightsHistory: InsightReport[];
   onReflectOnSuggestion: (prompt: string, tag: string) => void;
   onNavigateToEntry?: (entryId: string) => void;
+  onInsightGenerated?: (report: InsightReport) => void;
 }
 
 const MOOD_EMOJIS: Record<string, string> = {
@@ -42,6 +44,7 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
   insightsHistory,
   onReflectOnSuggestion,
   onNavigateToEntry,
+  onInsightGenerated,
 }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -161,6 +164,7 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
       };
 
       await saveInsightReport(userId, newReport);
+      onInsightGenerated?.(newReport);
     } catch (err: any) {
       console.error('Failed to generate insight report:', err);
       setErrorMessage(err.message || 'Failed to synthesize insights');
@@ -208,7 +212,7 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
             disabled={isGenerating || entries.length === 0}
             className="flex items-center justify-center gap-2 px-5 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-xs flex-shrink-0 cursor-pointer"
           >
-            <Sparkles className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
+            <Sparkles className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spark-glimmer' : ''}`} />
             <span>{isGenerating ? 'Synthesizing...' : 'Generate'}</span>
           </button>
         </div>
@@ -222,16 +226,18 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
 
       {/* Main Analysis Display */}
       {isGenerating ? (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-10 text-center space-y-3 shadow-sm animate-pulse">
-          <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-950 flex items-center justify-center text-indigo-600 dark:text-indigo-400 mx-auto">
-            <Brain className="w-5 h-5 animate-pulse" />
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-10 text-center space-y-4 shadow-sm animate-fade-in">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400 mx-auto">
+            <Sparkles className="w-6 h-6 animate-spark-glimmer" />
           </div>
-          <h3 className="text-sm font-serif font-semibold text-slate-900 dark:text-white">
-            Synthesizing Emotional Patterns & Themes...
-          </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-            Reviewing your reflections, analyzing sentiment trajectory, and discovering meaningful connections.
-          </p>
+          <div className="space-y-1">
+            <h3 className="text-sm font-serif font-semibold text-slate-900 dark:text-white">
+              Synthesizing Emotional Patterns & Themes...
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
+              Reviewing your reflections, analyzing sentiment trajectory, and discovering meaningful connections.
+            </p>
+          </div>
         </div>
       ) : latestInsight ? (
         <div className="space-y-6">
@@ -240,7 +246,7 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
             
             {/* Trajectory */}
-            <div className="md:col-span-8 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 space-y-3 shadow-sm">
+            <div className="md:col-span-8 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 space-y-3 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300">
               <div className="flex items-center justify-between text-xs text-slate-400 dark:text-slate-500">
                 <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 font-medium">
                   <TrendingUp className="w-4 h-4" />
@@ -266,7 +272,7 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
             </div>
 
             {/* Sentiment Balance breakdown */}
-            <div className="md:col-span-4 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 space-y-3 shadow-sm">
+            <div className="md:col-span-4 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 space-y-3 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300">
               <div className="text-xs font-semibold flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
                 <BarChart3 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                 <span>Sentiment Balance</span>
@@ -307,7 +313,7 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
                 return (
                   <div
                     key={idx}
-                    className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 flex flex-col justify-between space-y-3 shadow-sm hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors"
+                    className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 flex flex-col justify-between space-y-3 shadow-sm hover:border-indigo-300 dark:hover:border-indigo-700 transition-all duration-300 hover:-translate-y-1 hover:shadow-md"
                   >
                     <div className="space-y-2">
                       <div className="flex items-center justify-between gap-2">
@@ -369,7 +375,7 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             
             {/* Shift */}
-            <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 flex flex-col justify-between space-y-3 shadow-sm">
+            <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 flex flex-col justify-between space-y-3 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300">
               <div className="space-y-2">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
                   <Flame className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
@@ -410,7 +416,7 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
             </div>
 
             {/* Actionable Suggestion */}
-            <div className="p-6 rounded-3xl bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 flex flex-col justify-between space-y-3 shadow-sm">
+            <div className="p-6 rounded-3xl bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 flex flex-col justify-between space-y-3 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300">
               <div className="space-y-2">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300">
                   <Lightbulb className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
@@ -463,12 +469,20 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
 
         </div>
       ) : (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-12 text-center text-slate-500 dark:text-slate-400 space-y-3">
-          <Brain className="w-8 h-8 text-slate-400 dark:text-slate-600 mx-auto" />
-          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 font-serif">No insights generated yet</h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-            Click "Generate New Insights" above to synthesize emotional trends, recurring themes, and perspective shifts from your journal entries.
-          </p>
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-10 sm:p-12 text-center text-slate-500 dark:text-slate-400 space-y-4">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400 mx-auto">
+            <Sparkles className="w-6 h-6 animate-spark-glimmer" />
+          </div>
+          <div className="space-y-1.5 max-w-md mx-auto">
+            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 font-serif">No insights generated yet</h3>
+            <div className="inline-flex items-center justify-center pt-1">
+              <SparkEncouragement
+                message="Your reflections hold patterns waiting to be discovered."
+                subtext="Click Generate above to synthesize recurring themes and emotional trajectories."
+                variant="indigo"
+              />
+            </div>
+          </div>
         </div>
       )}
 

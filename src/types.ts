@@ -130,3 +130,24 @@ export interface AppUser {
   photoURL: string | null;
   isAnonymous?: boolean;
 }
+
+export type MilestoneKey = 
+  | 'first_entry'
+  | 'first_gratitude'
+  | 'streak_3'
+  | 'streak_7'
+  | 'first_insights'
+  | 'first_weekly_recap'
+  | 'streak_14';
+
+export interface UserMilestones {
+  userId?: string;
+  first_entry?: string;
+  first_gratitude?: string;
+  streak_3?: string;
+  streak_7?: string;
+  first_insights?: string;
+  first_weekly_recap?: string;
+  streak_14?: string;
+  [key: string]: any;
+}

@@ -12,6 +12,8 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { GratitudeEntry } from '../types';
+import { SparkLoader, SparkMotif, SparkEncouragement } from './SparkVisual';
+import { StreakParticles } from './StreakParticles';
 
 interface GratitudeModuleProps {
   userId: string;
@@ -93,11 +95,12 @@ export const GratitudeModule: React.FC<GratitudeModuleProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 shadow-xs">
-            <div className="p-2 rounded-xl bg-teal-50 dark:bg-teal-950/50 text-teal-600 dark:text-teal-400">
+          <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 shadow-xs relative overflow-hidden">
+            <StreakParticles count={streakCount} className="rounded-2xl" variant="teal" />
+            <div className="p-2 rounded-xl bg-teal-50 dark:bg-teal-950/50 text-teal-600 dark:text-teal-400 relative z-10">
               <Heart className="w-5 h-5 fill-current" />
             </div>
-            <div>
+            <div className="relative z-10">
               <div className="text-xs font-medium text-slate-500 dark:text-slate-400">Gratitude Streak</div>
               <div className="text-lg font-bold font-serif text-slate-900 dark:text-white">
                 {streakCount} {streakCount === 1 ? 'Entry' : 'Entries'}
@@ -219,7 +222,7 @@ export const GratitudeModule: React.FC<GratitudeModuleProps> = ({
               disabled={isSubmitting}
               className="px-6 py-3 rounded-2xl text-xs sm:text-sm font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/25 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              <Heart className={`w-4 h-4 fill-current ${isSubmitting ? 'animate-pulse' : ''}`} />
+              <Sparkles className={`w-4 h-4 text-indigo-200 ${isSubmitting ? 'animate-spark-glimmer' : ''}`} />
               <span>{isSubmitting ? 'Saving Gratitude...' : (existingToday ? 'Update Today’s Gratitude' : 'Save Today’s Gratitude')}</span>
             </button>
           </div>
@@ -239,14 +242,20 @@ export const GratitudeModule: React.FC<GratitudeModuleProps> = ({
         </div>
 
         {gratitudeEntries.length === 0 ? (
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-300 dark:border-slate-700 p-12 text-center shadow-xs">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950 flex items-center justify-center mx-auto mb-3 text-indigo-500 border border-indigo-100 dark:border-indigo-800">
-              <Heart className="w-6 h-6" />
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-300 dark:border-slate-700 p-10 sm:p-12 text-center shadow-xs space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 flex items-center justify-center mx-auto text-indigo-600 dark:text-indigo-400">
+              <Sparkles className="w-6 h-6 animate-spark-glimmer" />
             </div>
-            <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">No gratitude entries yet</h4>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
-              Start your daily practice above by listing three things you are grateful for today.
-            </p>
+            <div className="space-y-1.5 max-w-md mx-auto">
+              <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200 font-serif">No gratitude logged today yet</h4>
+              <div className="inline-flex items-center justify-center pt-1">
+                <SparkEncouragement
+                  message="A moment of appreciation alters perspective."
+                  subtext="List three simple gifts or moments from your day to begin your archive."
+                  variant="indigo"
+                />
+              </div>
+            </div>
             <button
               id="btn-gratitude-empty-cta"
               onClick={() => {
@@ -259,9 +268,9 @@ export const GratitudeModule: React.FC<GratitudeModuleProps> = ({
                   inputEl.focus();
                 }
               }}
-              className="mt-5 px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-md shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 mx-auto cursor-pointer"
+              className="mt-3 px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-md shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 mx-auto cursor-pointer"
             >
-              <Heart className="w-4 h-4 text-amber-300 fill-current" />
+              <Sparkles className="w-3.5 h-3.5 text-indigo-200" />
               <span>Record First Gratitude</span>
             </button>
           </div>
@@ -270,7 +279,7 @@ export const GratitudeModule: React.FC<GratitudeModuleProps> = ({
             {gratitudeEntries.map((entry) => (
               <div 
                 key={entry.id}
-                className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-xs flex flex-col justify-between space-y-4 hover:border-indigo-300 dark:hover:border-indigo-800 transition-all group"
+                className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-xs flex flex-col justify-between space-y-4 hover:border-indigo-300 dark:hover:border-indigo-800 transition-all duration-300 hover:-translate-y-1 hover:shadow-md group"
               >
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">

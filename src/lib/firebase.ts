@@ -25,7 +25,7 @@ import {
   updateDoc 
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { JournalEntry, ProfileSummary, InsightReport, ProactiveNudge, WeeklyReflectionReport, AppNotification, GratitudeEntry } from '../types';
+import { JournalEntry, ProfileSummary, InsightReport, ProactiveNudge, WeeklyReflectionReport, AppNotification, GratitudeEntry, UserMilestones, MilestoneKey } from '../types';
 
 // Initialize Firebase App
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
@@ -439,5 +439,47 @@ export async function deleteGratitudeEntry(uid: string, entryId: string): Promis
   if (!uid) return;
   const entryRef = doc(db, 'users', uid, 'gratitudeEntries', entryId);
   await deleteDoc(entryRef);
+}
+
+/**
+ * Record a milestone achievement (users/{uid}/profile/milestones)
+ * Uses merge: true so each milestone is recorded with its achievement timestamp.
+ */
+export async function saveMilestone(uid: string, milestoneKey: MilestoneKey): Promise<void> {
+  if (!uid) throw new Error('Unauthenticated milestone save rejected');
+  const milestonesRef = doc(db, 'users', uid, 'profile', 'milestones');
+  await setDoc(milestonesRef, {
+    [milestoneKey]: new Date().toISOString()
+  }, { merge: true });
+}
+
+/**
+ * Fetch milestones snapshot (users/{uid}/profile/milestones)
+ */
+export async function getMilestones(uid: string): Promise<UserMilestones | null> {
+  if (!uid) return null;
+  const milestonesRef = doc(db, 'users', uid, 'profile', 'milestones');
+  const snap = await getDoc(milestonesRef);
+  if (snap.exists()) {
+    return snap.data() as UserMilestones;
+  }
+  return null;
+}
+
+/**
+ * Subscribe to milestones in real-time (users/{uid}/profile/milestones)
+ */
+export function subscribeToMilestones(uid: string, callback: (milestones: UserMilestones) => void) {
+  if (!uid) return () => {};
+  const milestonesRef = doc(db, 'users', uid, 'profile', 'milestones');
+  return onSnapshot(milestonesRef, (snap) => {
+    if (snap.exists()) {
+      callback(snap.data() as UserMilestones);
+    } else {
+      callback({});
+    }
+  }, (err) => {
+    console.warn('Milestones subscription error:', err);
+  });
 }
 

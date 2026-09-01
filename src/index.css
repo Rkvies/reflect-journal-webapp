@@ -117,3 +117,38 @@
   animation-delay: 0.4s;
 }
 
+/* Subtle spark animations (<800ms non-blocking) */
+@keyframes sparkGlimmer {
+  0% {
+    transform: scale(0.95) rotate(0deg);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.08) rotate(4deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.95) rotate(0deg);
+    opacity: 0.8;
+  }
+}
+
+@keyframes sparkPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+}
+
+.animate-spark-glimmer {
+  animation: sparkGlimmer 0.75s ease-in-out infinite;
+}
+
+.animate-spark-pulse {
+  animation: sparkPulse 0.75s ease-in-out infinite;
+}
+

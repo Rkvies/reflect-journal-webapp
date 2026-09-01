@@ -24,6 +24,9 @@ import {
 } from '../types';
 import { streamGeminiReflection, triggerMemoryUpdate } from '../lib/api';
 import { saveJournalEntry, saveProfileSummary } from '../lib/firebase';
+import { SparkLoader } from './SparkVisual';
+import { StreakParticles } from './StreakParticles';
+import { motion } from 'motion/react';
 
 interface JournalChatProps {
   userId: string;
@@ -696,14 +699,26 @@ export const JournalChat: React.FC<JournalChatProps> = ({
                 Daily Reflection
               </h2>
               {streakCount > 0 && (
-                <div 
+                <motion.div 
                   id="streak-counter-badge"
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/20 dark:border-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-sans font-medium select-none animate-fade-in"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/20 dark:border-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-sans font-medium select-none animate-fade-in relative"
                   title="Consecutive daily reflections streak"
+                  key={streakCount}
+                  initial={{ scale: 1, boxShadow: "0px 0px 0px rgba(99, 102, 241, 0)" }}
+                  animate={{ 
+                    scale: [1, 1.05, 1], 
+                    boxShadow: [
+                      "0px 0px 0px rgba(99, 102, 241, 0)", 
+                      "0px 0px 12px rgba(99, 102, 241, 0.5)", 
+                      "0px 0px 0px rgba(99, 102, 241, 0)"
+                    ] 
+                  }}
+                  transition={{ duration: 0.8 }}
                 >
-                  <Flame className="w-3 h-3 fill-current text-indigo-500 dark:text-indigo-400" />
-                  <span>{streakCount} {streakCount === 1 ? 'day' : 'days'} streak</span>
-                </div>
+                  <StreakParticles count={streakCount} />
+                  <Flame className="w-3 h-3 fill-current text-indigo-500 dark:text-indigo-400 relative z-10" />
+                  <span className="relative z-10">{streakCount} {streakCount === 1 ? 'day' : 'days'} streak</span>
+                </motion.div>
               )}
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -895,22 +910,18 @@ export const JournalChat: React.FC<JournalChatProps> = ({
             );
           })}
 
-          {/* Progressive Loading state before streaming chunks */}
+          {/* Progressive Loading state with subtle SparkLoader */}
           {isLoading && (!streamingReply || streamingReply === '') && (
-            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 mr-4 sm:mr-8 shadow-sm animate-fade-in space-y-2">
+            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 mr-4 sm:mr-8 shadow-sm animate-fade-in space-y-2.5">
               <div className="flex items-center justify-between text-xs text-slate-400 dark:text-slate-500">
                 <span className="font-semibold text-slate-700 dark:text-slate-300 font-serif">Reflect</span>
                 <span className="text-[11px] font-mono text-indigo-600 dark:text-indigo-400 font-medium">
                   {loadingStage === 0 ? 'Loading context...' : loadingStage === 1 ? 'Holding space...' : 'Synthesizing...'}
                 </span>
               </div>
-              <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 py-1">
-                <div className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-400 animate-bounce [animation-delay:-0.3s]" />
-                  <span className="w-2 h-2 rounded-full bg-indigo-500 dark:bg-indigo-300 animate-bounce [animation-delay:-0.15s]" />
-                  <span className="w-2 h-2 rounded-full bg-indigo-400 dark:bg-indigo-200 animate-bounce" />
-                </div>
-                <span className="italic ml-1">
+              <div className="flex items-center gap-3 text-xs text-slate-600 dark:text-slate-300 py-1">
+                <SparkLoader size="sm" variant="indigo" />
+                <span className="italic">
                   {loadingStage === 0
                     ? 'Loading your journal context and recency memory...'
                     : loadingStage === 1
@@ -921,29 +932,23 @@ export const JournalChat: React.FC<JournalChatProps> = ({
             </div>
           )}
 
-          {/* Live Streaming Token Box */}
+          {/* Live Streaming Token Box with Spark motif */}
           {streamingReply !== null && streamingReply !== '' && (
             <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-indigo-300 dark:border-indigo-700 text-slate-800 dark:text-slate-100 mr-4 sm:mr-8 shadow-sm">
               <div className="flex items-center justify-between text-xs text-slate-400 dark:text-slate-500 mb-2">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-slate-700 dark:text-slate-300 font-serif">Reflect</span>
                   <span className="inline-flex items-center gap-1.5 text-[10px] font-mono text-indigo-600 dark:text-indigo-400 font-medium">
-                    <Radio className="w-2.5 h-2.5 animate-pulse" /> Streaming
-                    <span className="inline-flex items-center gap-0.5 ml-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400 animate-bounce [animation-delay:-0.3s]" />
-                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 dark:bg-indigo-300 animate-bounce [animation-delay:-0.15s]" />
-                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 dark:bg-indigo-200 animate-bounce" />
-                    </span>
+                    <Sparkles className="w-3 h-3 text-indigo-500 animate-spark-glimmer" />
+                    <span>Streaming reflection</span>
                   </span>
                 </div>
               </div>
 
               <div className="prose prose-slate dark:prose-invert max-w-none text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-sans">
                 <Markdown>{streamingReply}</Markdown>
-                <span className="inline-flex items-center gap-0.5 ml-1.5 align-middle">
-                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400 animate-bounce [animation-delay:-0.3s]" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 dark:bg-indigo-300 animate-bounce [animation-delay:-0.15s]" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 dark:bg-indigo-200 animate-bounce" />
+                <span className="inline-flex items-center gap-1 ml-1.5 align-middle">
+                  <Sparkles className="w-3 h-3 text-indigo-500 animate-spark-glimmer inline" />
                 </span>
               </div>
             </div>

@@ -12,6 +12,7 @@ interface WeeklyReflectionCardProps {
   cachedWeeklySummary: WeeklyReflectionReport | null;
   onStartEntry: () => void;
   onReflectOnPrompt?: (prompt: string, tag: string) => void;
+  onWeeklySummaryGenerated?: (report: WeeklyReflectionReport) => void;
 }
 
 export const WeeklyReflectionCard: React.FC<WeeklyReflectionCardProps> = ({
@@ -21,6 +22,7 @@ export const WeeklyReflectionCard: React.FC<WeeklyReflectionCardProps> = ({
   cachedWeeklySummary,
   onStartEntry,
   onReflectOnPrompt,
+  onWeeklySummaryGenerated,
 }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -71,6 +73,7 @@ export const WeeklyReflectionCard: React.FC<WeeklyReflectionCardProps> = ({
       };
       
       await saveWeeklySummary(userId, newSummaryReport);
+      onWeeklySummaryGenerated?.(newSummaryReport);
       // Automatically open the modal once generated successfully
       setIsModalOpen(true);
     } catch (err: any) {
@@ -121,7 +124,7 @@ export const WeeklyReflectionCard: React.FC<WeeklyReflectionCardProps> = ({
               disabled={isGenerating}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-colors cursor-pointer disabled:opacity-50"
             >
-              {isGenerating ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+              <Sparkles className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spark-glimmer' : ''}`} />
               <span>{isGenerating ? 'Synthesizing...' : (cachedWeeklySummary ? 'Refresh Recap' : 'Generate Weekly Recap')}</span>
             </button>
           </div>

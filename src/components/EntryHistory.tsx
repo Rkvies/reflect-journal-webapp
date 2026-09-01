@@ -27,6 +27,7 @@ import { JournalEntry, MoodType } from '../types';
 import { deleteJournalEntry, saveJournalEntry } from '../lib/firebase';
 import { analyzeEntrySentiment } from '../lib/api';
 import { ConfidenceTooltip } from './ConfidenceTooltip';
+import { SparkLoader, SparkMotif, SparkEncouragement } from './SparkVisual';
 
 interface EntryHistoryProps {
   userId: string;
@@ -456,17 +457,19 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
       <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
         <div className="bg-white/80 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-300 dark:border-slate-700 rounded-3xl p-8 sm:p-12 text-center shadow-md space-y-6">
           <div className="w-16 h-16 rounded-3xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 mx-auto shadow-inner">
-            <Feather className="w-8 h-8" />
+            <Sparkles className="w-8 h-8 animate-spark-glimmer" />
           </div>
 
-          <div className="space-y-2 max-w-md mx-auto">
+          <div className="space-y-3 max-w-md mx-auto">
             <h2 className="text-xl sm:text-2xl font-serif font-bold text-slate-900 dark:text-white">
               Your Memory Archive is Waiting
             </h2>
-            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-sans">
-              Write your first reflection — try starting with{' '}
-              <span className="font-semibold text-indigo-600 dark:text-indigo-400">"Today I..."</span>
-            </p>
+            <div className="inline-flex items-center justify-center">
+              <SparkEncouragement
+                message="Write your first reflection — try starting with 'Today I...'"
+                variant="indigo"
+              />
+            </div>
           </div>
 
           <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -482,7 +485,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
               }}
               className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-all shadow-md shadow-indigo-600/20 flex items-center justify-center gap-2 cursor-pointer"
             >
-              <Sparkles className="w-4 h-4 text-amber-300" />
+              <Sparkles className="w-4 h-4 text-indigo-200" />
               <span>Begin First Reflection</span>
             </button>
           </div>
@@ -913,18 +916,22 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
       {/* 4. ENTRIES LIST (Filtered by search, mood, and selected date) */}
       {/* ========================================================================= */}
       {filteredEntries.length === 0 ? (
-        <div className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border border-dashed border-slate-300 dark:border-slate-700 rounded-3xl p-12 text-center text-slate-500 dark:text-slate-400 space-y-3">
-          <FileText className="w-10 h-10 text-slate-400 dark:text-slate-600 mx-auto" />
-          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 font-serif">No matching journal entries found</h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-            {selectedCalendarDate 
-              ? `No reflections recorded on ${selectedCalendarDate}. Try clearing the date filter.`
-              : 'Try adjusting your search keywords or mood filter.'}
-          </p>
+        <div className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border border-dashed border-slate-300 dark:border-slate-700 rounded-3xl p-10 text-center text-slate-500 dark:text-slate-400 space-y-4">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400 mx-auto">
+            <Sparkles className="w-6 h-6 animate-spark-glimmer" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 font-serif">No matching reflections found</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+              {selectedCalendarDate 
+                ? `No reflections recorded on ${selectedCalendarDate}. Clear the filter to view all reflections.`
+                : 'Try adjusting your search keywords or mood filter to explore your archive.'}
+            </p>
+          </div>
           {selectedCalendarDate && (
             <button
               onClick={() => setSelectedCalendarDate(null)}
-              className="mt-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold cursor-pointer"
+              className="mt-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold cursor-pointer shadow-xs"
             >
               Show All Reflections
             </button>
@@ -956,7 +963,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                 key={entry.id}
                 id={`entry-card-${entry.id}`}
                 aria-label={`Reflection: ${entry.title || 'Untitled Reflection'}`}
-                className={`bg-white/80 dark:bg-slate-900/80 hover:bg-white dark:hover:bg-slate-900 backdrop-blur-xl border transition-all shadow-xs rounded-3xl overflow-hidden ${
+                className={`bg-white/80 dark:bg-slate-900/80 hover:bg-white dark:hover:bg-slate-900 backdrop-blur-xl border transition-all duration-300 hover:-translate-y-1 hover:shadow-md shadow-xs rounded-3xl overflow-hidden ${
                   isTarget
                     ? 'border-indigo-500 ring-4 ring-indigo-500/20 shadow-md shadow-indigo-500/10'
                     : sentimentTheme ? `${sentimentTheme.border}` : 'border-slate-300 dark:border-slate-700'
@@ -1039,7 +1046,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                             aria-label={`Derive visual sentiment indicator for ${entry.title || 'reflection'}`}
                             className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-indigo-700 dark:hover:text-white border border-slate-300 dark:border-slate-700 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                           >
-                            <Sparkles className={`w-3 h-3 ${isAnalyzing ? 'animate-spin text-indigo-600 dark:text-indigo-400' : 'text-amber-500'}`} />
+                            <Sparkles className={`w-3 h-3 ${isAnalyzing ? 'animate-spark-glimmer text-indigo-600 dark:text-indigo-400' : 'text-indigo-500 dark:text-indigo-400'}`} />
                             <span>{isAnalyzing ? 'Evaluating...' : 'Detect Sentiment'}</span>
                           </button>
                         )}

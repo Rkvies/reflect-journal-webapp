@@ -151,13 +151,13 @@ export const PinSetupModal: React.FC<PinSetupModalProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+      className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/70 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in"
       role="dialog"
       aria-modal="true"
       aria-labelledby="pin-modal-title"
       aria-describedby="pin-modal-desc"
     >
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-sm w-full space-y-5 relative shadow-2xl text-slate-800 dark:text-slate-100">
+      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-white/80 dark:border-white/10 rounded-3xl p-6 max-w-sm w-full space-y-5 relative shadow-2xl text-slate-800 dark:text-slate-100">
         
         {/* Close Button (if not compulsory prompt) */}
         {mode !== 'prompt' && (
@@ -174,7 +174,7 @@ export const PinSetupModal: React.FC<PinSetupModalProps> = ({
         {/* Modal Content - STEP: PROMPT */}
         {step === 'prompt' ? (
           <div className="space-y-5 text-center py-2">
-            <div className="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 mx-auto shadow-xs" aria-hidden="true">
+            <div className="w-14 h-14 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/70 border border-indigo-200/80 dark:border-indigo-800/80 flex items-center justify-center text-indigo-600 dark:text-indigo-400 mx-auto shadow-2xs" aria-hidden="true">
               <Lock className="w-7 h-7" />
             </div>
 
@@ -187,7 +187,7 @@ export const PinSetupModal: React.FC<PinSetupModalProps> = ({
               </p>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900 text-left text-xs space-y-1.5">
+            <div className="p-3.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 backdrop-blur-md border border-indigo-200/80 dark:border-indigo-800/80 text-left text-xs space-y-1.5">
               <div className="font-semibold text-indigo-900 dark:text-indigo-200 flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                 <span>Private & Local PIN Lock</span>
@@ -202,7 +202,7 @@ export const PinSetupModal: React.FC<PinSetupModalProps> = ({
                 type="button"
                 id="btn-pin-modal-setup"
                 onClick={() => setStep('enter_new')}
-                className="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                className="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-indigo-600/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
               >
                 <span>Set Up 6-Digit PIN</span>
                 <ArrowRight className="w-4 h-4" />
@@ -215,7 +215,7 @@ export const PinSetupModal: React.FC<PinSetupModalProps> = ({
                   if (onSkipPrompt) await onSkipPrompt();
                   onClose();
                 }}
-                className="w-full py-2.5 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-semibold text-xs transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                className="w-full py-2.5 px-4 rounded-xl bg-white/60 dark:bg-slate-800/60 hover:bg-white/80 dark:hover:bg-slate-700 border border-white/80 dark:border-white/10 text-slate-600 dark:text-slate-300 font-semibold text-xs transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
               >
                 Maybe Later (Skip)
               </button>
@@ -225,7 +225,7 @@ export const PinSetupModal: React.FC<PinSetupModalProps> = ({
           /* Modal Content - STEPS: enter_current | enter_new | confirm_new */
           <div className="space-y-5 text-center">
             
-            <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 mx-auto shadow-xs" aria-hidden="true">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/70 border border-indigo-200/80 dark:border-indigo-800/80 flex items-center justify-center text-indigo-600 dark:text-indigo-400 mx-auto shadow-2xs" aria-hidden="true">
               <KeyRound className="w-6 h-6" />
             </div>
 
@@ -255,8 +255,8 @@ export const PinSetupModal: React.FC<PinSetupModalProps> = ({
                     key={idx}
                     className={`w-9 h-10 rounded-xl border flex items-center justify-center transition-all ${
                       isFilled
-                        ? 'border-indigo-500 bg-indigo-600/20 text-indigo-600 dark:text-indigo-400'
-                        : 'border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60'
+                        ? 'border-indigo-500 bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 shadow-2xs'
+                        : 'border-white/80 dark:border-white/10 bg-white/50 dark:bg-slate-800/60'
                     }`}
                   >
                     {isFilled ? (
@@ -285,7 +285,7 @@ export const PinSetupModal: React.FC<PinSetupModalProps> = ({
                   type="button"
                   onClick={() => handleDigit(digit)}
                   disabled={isSubmitting || inputPin.length >= 6}
-                  className="h-11 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-lg font-semibold transition-all cursor-pointer disabled:opacity-50"
+                  className="h-11 rounded-xl bg-white/60 dark:bg-slate-800/60 hover:bg-white/90 dark:hover:bg-slate-700 border border-white/80 dark:border-white/10 text-slate-900 dark:text-white text-lg font-semibold transition-all cursor-pointer disabled:opacity-50"
                 >
                   {digit}
                 </button>
@@ -294,7 +294,7 @@ export const PinSetupModal: React.FC<PinSetupModalProps> = ({
                 type="button"
                 onClick={handleClear}
                 disabled={inputPin.length === 0}
-                className="h-11 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 dark:text-slate-500 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-30"
+                className="h-11 rounded-xl bg-white/40 dark:bg-slate-800/40 hover:bg-white/80 dark:hover:bg-slate-700 text-slate-400 dark:text-slate-500 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-30 border border-white/60 dark:border-white/10"
               >
                 Clear
               </button>
@@ -302,7 +302,7 @@ export const PinSetupModal: React.FC<PinSetupModalProps> = ({
                 type="button"
                 onClick={() => handleDigit('0')}
                 disabled={isSubmitting || inputPin.length >= 6}
-                className="h-11 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-lg font-semibold transition-all cursor-pointer disabled:opacity-50"
+                className="h-11 rounded-xl bg-white/60 dark:bg-slate-800/60 hover:bg-white/90 dark:hover:bg-slate-700 border border-white/80 dark:border-white/10 text-slate-900 dark:text-white text-lg font-semibold transition-all cursor-pointer disabled:opacity-50"
               >
                 0
               </button>
@@ -310,7 +310,7 @@ export const PinSetupModal: React.FC<PinSetupModalProps> = ({
                 type="button"
                 onClick={handleBackspace}
                 disabled={inputPin.length === 0}
-                className="h-11 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-30"
+                className="h-11 rounded-xl bg-white/40 dark:bg-slate-800/40 hover:bg-white/80 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-30 border border-white/60 dark:border-white/10"
               >
                 ⌫
               </button>

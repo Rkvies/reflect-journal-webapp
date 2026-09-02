@@ -32,20 +32,20 @@ export const DailyQuoteModal: React.FC<DailyQuoteModalProps> = ({ isOpen, onClos
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/70 backdrop-blur-md animate-fade-in"
       role="dialog"
       aria-modal="true"
       aria-labelledby="daily-quote-title"
       aria-describedby="daily-quote-desc"
     >
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-300 dark:border-slate-700 shadow-2xl max-w-lg w-full p-8 relative overflow-hidden text-slate-800 dark:text-slate-100 transition-all">
+      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl rounded-3xl border border-white/80 dark:border-white/10 shadow-2xl max-w-lg w-full p-8 relative overflow-hidden text-slate-800 dark:text-slate-100 transition-all">
         {/* Decorative background ambient glow */}
-        <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/10 dark:bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" aria-hidden="true" />
-        <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-purple-500/10 dark:bg-purple-500/5 rounded-full blur-3xl pointer-events-none" aria-hidden="true" />
+        <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/15 dark:bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" aria-hidden="true" />
+        <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-purple-500/15 dark:bg-purple-500/10 rounded-full blur-3xl pointer-events-none" aria-hidden="true" />
 
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-sm" aria-hidden="true">
+            <div className="w-9 h-9 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/60 border border-indigo-200/80 dark:border-indigo-800/80 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-2xs" aria-hidden="true">
               <Sparkles className="w-4 h-4" />
             </div>
             <div>
@@ -56,7 +56,7 @@ export const DailyQuoteModal: React.FC<DailyQuoteModalProps> = ({ isOpen, onClos
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/60 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
             aria-label="Close daily quote dialog"
           >
             <X className="w-4 h-4" />
@@ -72,13 +72,13 @@ export const DailyQuoteModal: React.FC<DailyQuoteModalProps> = ({ isOpen, onClos
             <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
               — {quote.author}
             </span>
-            <span className="text-xs px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-medium">
+            <span className="text-xs px-2.5 py-1 rounded-full bg-white/60 dark:bg-slate-800/60 border border-white/80 dark:border-white/10 text-slate-600 dark:text-slate-300 font-medium">
               {quote.theme}
             </span>
           </div>
         </div>
 
-        <div className="flex items-center justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
+        <div className="flex items-center justify-end pt-4 border-t border-white/60 dark:border-white/10">
           <button
             type="button"
             onClick={onClose}

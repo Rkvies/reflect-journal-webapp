@@ -88,7 +88,7 @@ export const WeeklyReflectionCard: React.FC<WeeklyReflectionCardProps> = ({
     <>
       <div 
         id="card-weekly-reflection-intro"
-        className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-sm transition-all"
+        className="bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl border border-white/80 dark:border-white/10 rounded-3xl p-5 sm:p-6 shadow-sm hover:shadow-lg transition-all"
       >
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
@@ -96,7 +96,7 @@ export const WeeklyReflectionCard: React.FC<WeeklyReflectionCardProps> = ({
               <h3 className="text-base font-serif font-semibold text-slate-900 dark:text-white">
                 Your Week in Reflection
               </h3>
-              <span className="text-[11px] font-sans px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-medium">
+              <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-white/60 dark:bg-slate-800/60 backdrop-blur-xs text-slate-600 dark:text-slate-400 font-medium border border-white/70 dark:border-white/10">
                 {recent7DayEntries.length} {recent7DayEntries.length === 1 ? 'entry' : 'entries'} • {activeDaysCount} {activeDaysCount === 1 ? 'active day' : 'active days'}
               </span>
             </div>
@@ -111,7 +111,7 @@ export const WeeklyReflectionCard: React.FC<WeeklyReflectionCardProps> = ({
                 id="btn-view-weekly-summary"
                 type="button"
                 onClick={() => setIsModalOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-xs transition-colors cursor-pointer"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-white/60 hover:bg-white/80 dark:bg-slate-800/60 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-white/70 dark:border-white/10 shadow-2xs transition-colors cursor-pointer"
               >
                 <Eye className="w-3.5 h-3.5" />
                 <span>View Latest Recap</span>
@@ -122,7 +122,7 @@ export const WeeklyReflectionCard: React.FC<WeeklyReflectionCardProps> = ({
               type="button"
               onClick={handleGenerateWeeklySummary}
               disabled={isGenerating}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 transition-colors cursor-pointer disabled:opacity-50"
             >
               <Sparkles className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spark-glimmer' : ''}`} />
               <span>{isGenerating ? 'Synthesizing...' : (cachedWeeklySummary ? 'Refresh Recap' : 'Generate Weekly Recap')}</span>
@@ -131,7 +131,7 @@ export const WeeklyReflectionCard: React.FC<WeeklyReflectionCardProps> = ({
         </div>
 
         {errorMessage && (
-          <div className="mt-4 p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-xs text-rose-700 dark:text-rose-300">
+          <div className="mt-4 p-3 rounded-2xl bg-rose-50/80 dark:bg-rose-950/60 backdrop-blur-md border border-rose-200/80 dark:border-rose-900/60 text-xs text-rose-700 dark:text-rose-300">
             {errorMessage}
           </div>
         )}

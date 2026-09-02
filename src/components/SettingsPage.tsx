@@ -295,9 +295,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
     <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
       
       {/* Settings Header */}
-      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-300 dark:border-slate-700 rounded-3xl p-6 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300 flex items-center justify-between gap-4">
+      <div className="bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl border border-white/80 dark:border-white/10 rounded-3xl p-6 shadow-sm hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-xs">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/70 border border-indigo-200/80 dark:border-indigo-800/80 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-2xs">
             <Settings className="w-6 h-6" />
           </div>
           <div>
@@ -314,8 +314,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
         {/* 1. Account Profile Card */}
-        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-300 dark:border-slate-700 rounded-3xl p-6 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300 space-y-5">
-          <div className="flex items-center gap-2.5 pb-3 border-b border-slate-200 dark:border-slate-800">
+        <div className="bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl border border-white/80 dark:border-white/10 rounded-3xl p-6 shadow-sm hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300 space-y-5">
+          <div className="flex items-center gap-2.5 pb-3 border-b border-white/60 dark:border-white/10">
             <User className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
             <h3 className="font-serif font-bold text-base text-slate-900 dark:text-white">
               Profile & Credentials
@@ -334,13 +334,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   placeholder="Your Name"
-                  className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 text-xs focus:outline-none focus:border-indigo-500 shadow-xs"
+                  className="w-full px-3.5 py-2 rounded-xl bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border border-white/80 dark:border-white/10 text-slate-800 dark:text-slate-100 text-xs focus:outline-none focus:border-indigo-500 shadow-2xs"
                 />
                 <button
                   id="btn-save-display-name"
                   type="submit"
                   disabled={isSavingName || !displayName.trim()}
-                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-md shadow-indigo-600/20 transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
                   <Save className="w-3.5 h-3.5" />
                   <span>{isSavingName ? 'Saving...' : 'Save'}</span>
@@ -363,7 +363,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block mb-1">
                   Authenticated Email
                 </span>
-                <div className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs font-mono">
+                <div className="px-3 py-2 rounded-xl bg-white/50 dark:bg-slate-800/60 backdrop-blur-md border border-white/80 dark:border-white/10 text-slate-800 dark:text-slate-200 text-xs font-mono">
                   {user.email || 'Google Authentication Account'}
                 </div>
               </div>
@@ -372,8 +372,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         </div>
 
         {/* 2. PIN Lock Security & 90-Day Secret Rotation Card */}
-        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-300 dark:border-slate-700 rounded-3xl p-6 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300 space-y-6">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+        <div className="bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl border border-white/80 dark:border-white/10 rounded-3xl p-6 shadow-sm hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300 space-y-6">
+          <div className="flex items-center justify-between pb-3 border-b border-white/60 dark:border-white/10">
             <div className="flex items-center gap-2.5">
               <Lock className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
               <h3 className="font-serif font-bold text-base text-slate-900 dark:text-white">
@@ -381,12 +381,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               </h3>
             </div>
             {pinEnabled ? (
-              <span className="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
+              <span className="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-emerald-100/80 dark:bg-emerald-950/80 backdrop-blur-xs text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/80 flex items-center gap-1">
                 <ShieldCheck className="w-3 h-3" />
                 <span>Active Protection</span>
               </span>
             ) : (
-              <span className="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+              <span className="text-[10px] font-semibold px-2.5 py-1 rounded-full bg-white/60 dark:bg-slate-800/60 backdrop-blur-xs text-slate-600 dark:text-slate-400 border border-white/70 dark:border-white/10">
                 Disabled
               </span>
             )}
@@ -400,11 +400,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             {pinEnabled ? (
               <div className="space-y-4">
                 {/* 90-Day Rotation Policy Status Card */}
-                <div className={`p-4 rounded-2xl border transition-all ${
+                <div className={`p-4 rounded-2xl border backdrop-blur-md transition-all ${
                   rotationStatus.isExpired
-                    ? 'bg-rose-50/80 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800 text-rose-900 dark:text-rose-200'
+                    ? 'bg-rose-50/80 dark:bg-rose-950/40 border-rose-200/80 dark:border-rose-800/80 text-rose-900 dark:text-rose-200'
                     : rotationStatus.isExpiringSoon
-                    ? 'bg-amber-50/80 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200'
+                    ? 'bg-amber-50/80 dark:bg-amber-950/40 border-amber-200/80 dark:border-amber-800/80 text-amber-900 dark:text-amber-200'
                     : 'bg-indigo-50/60 dark:bg-indigo-950/30 border-indigo-200/80 dark:border-indigo-900/60 text-slate-900 dark:text-slate-100'
                 }`}>
                   <div className="flex items-center justify-between gap-3 mb-2.5">
@@ -417,10 +417,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
                     <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border flex items-center gap-1 ${
                       rotationStatus.isExpired
-                        ? 'bg-rose-100 dark:bg-rose-900/80 text-rose-800 dark:text-rose-200 border-rose-300 dark:border-rose-700'
+                        ? 'bg-rose-100/90 dark:bg-rose-900/80 text-rose-800 dark:text-rose-200 border-rose-300 dark:border-rose-700'
                         : rotationStatus.isExpiringSoon
-                        ? 'bg-amber-100 dark:bg-amber-900/80 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700'
-                        : 'bg-emerald-100 dark:bg-emerald-900/80 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700'
+                        ? 'bg-amber-100/90 dark:bg-amber-900/80 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700'
+                        : 'bg-emerald-100/90 dark:bg-emerald-900/80 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700'
                     }`}>
                       {rotationStatus.isExpired ? (
                         <>
@@ -443,7 +443,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
                   {/* Visual 90-Day Progress Bar */}
                   <div className="space-y-1.5 my-3">
-                    <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                    <div className="w-full h-2 rounded-full bg-slate-200/80 dark:bg-slate-800 overflow-hidden">
                       <div 
                         className={`h-full rounded-full transition-all duration-500 ${
                           rotationStatus.isExpired
@@ -463,13 +463,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
                   {/* Metadata Grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[11px]">
-                    <div className="p-2 rounded-xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800/80">
+                    <div className="p-2 rounded-xl bg-white/70 dark:bg-slate-900/70 backdrop-blur-xs border border-white/80 dark:border-white/10">
                       <span className="text-slate-500 dark:text-slate-400 block text-[10px]">Last Secret Rotation:</span>
                       <span className="font-semibold text-slate-800 dark:text-slate-200 font-mono">
                         {pinSettingsState.lastRotatedAt ? new Date(pinSettingsState.lastRotatedAt).toLocaleDateString() : 'Initial Setup'}
                       </span>
                     </div>
-                    <div className="p-2 rounded-xl bg-white/70 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800/80">
+                    <div className="p-2 rounded-xl bg-white/70 dark:bg-slate-900/70 backdrop-blur-xs border border-white/80 dark:border-white/10">
                       <span className="text-slate-500 dark:text-slate-400 block text-[10px]">Next Mandatory Rotation:</span>
                       <span className="font-semibold text-slate-800 dark:text-slate-200 font-mono">
                         {new Date(rotationStatus.nextRotationDeadline).toLocaleDateString()}
@@ -483,7 +483,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                       id="btn-rotate-pin-now"
                       type="button"
                       onClick={onOpenPinRotate || onOpenPinChange}
-                      className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                      className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-md shadow-indigo-600/20 transition-colors flex items-center gap-1.5 cursor-pointer"
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
                       <span>Rotate PIN / Secret Now</span>
@@ -492,7 +492,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                     <button
                       type="button"
                       onClick={() => setShowRotationHistory(!showRotationHistory)}
-                      className="px-3 py-2 rounded-xl bg-slate-200/80 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium text-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                      className="px-3 py-2 rounded-xl bg-white/60 dark:bg-slate-800/60 hover:bg-white/80 dark:hover:bg-slate-700 border border-white/70 dark:border-white/10 text-slate-700 dark:text-slate-300 font-medium text-xs transition-colors flex items-center gap-1.5 cursor-pointer"
                     >
                       <History className="w-3.5 h-3.5" />
                       <span>{showRotationHistory ? 'Hide Audit Log' : 'View Rotation Audit Log'}</span>
@@ -502,7 +502,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
                 {/* Simulation & Testing Notice */}
                 {simulateNotice && (
-                  <div className="p-2.5 rounded-xl bg-indigo-100 dark:bg-indigo-950/80 border border-indigo-300 dark:border-indigo-800 text-indigo-900 dark:text-indigo-200 text-[11px] flex items-center gap-2 animate-fade-in">
+                  <div className="p-2.5 rounded-xl bg-indigo-100/80 dark:bg-indigo-950/80 border border-indigo-300/80 dark:border-indigo-800 text-indigo-900 dark:text-indigo-200 text-[11px] flex items-center gap-2 animate-fade-in shadow-2xs">
                     <CheckCircle2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
                     <span>{simulateNotice}</span>
                   </div>
@@ -510,13 +510,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
                 {/* Rotation Audit History Log */}
                 {showRotationHistory && (
-                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-2.5 animate-fade-in">
+                  <div className="p-3.5 rounded-2xl bg-white/60 dark:bg-slate-950/60 backdrop-blur-md border border-white/80 dark:border-white/10 space-y-2.5 animate-fade-in">
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-[11px] text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                         <History className="w-3.5 h-3.5 text-indigo-500" />
                         <span>Secret Rotation Audit Trail</span>
                       </span>
-                      <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
                         {pinSettingsState.rotationHistory?.length || 0} Recorded Rotations
                       </span>
                     </div>
@@ -526,7 +526,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                         pinSettingsState.rotationHistory.slice().reverse().map((record, index) => (
                           <div 
                             key={record.id || index}
-                            className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between text-[10px]"
+                            className="p-2 rounded-xl bg-white/70 dark:bg-slate-900/70 border border-white/80 dark:border-white/10 flex items-center justify-between text-[10px]"
                           >
                             <div className="space-y-0.5">
                               <span className="font-semibold text-slate-800 dark:text-slate-200 block">
@@ -562,7 +562,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
                 {/* Policy Enforcement & Inactivity Controls */}
                 <div className="space-y-3 pt-1">
-                  <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+                  <div className="flex items-center justify-between p-3 rounded-2xl bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border border-white/80 dark:border-white/10">
                     <div>
                       <span className="font-semibold text-slate-800 dark:text-slate-200 block">
                         Enforce 90-Day Mandatory Rotation
@@ -595,7 +595,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                       <select
                         value={autoLockMinutes}
                         onChange={(e) => onChangeAutoLock(parseInt(e.target.value, 10))}
-                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-xs text-slate-800 dark:text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                        className="w-full px-3 py-2 bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border border-white/80 dark:border-white/10 rounded-xl text-xs text-slate-800 dark:text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 cursor-pointer"
                       >
                         <option value={0}>Never (Manual Lock Only)</option>
                         <option value={1}>1 Minute</option>
@@ -608,7 +608,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   )}
 
                   {/* Simulation Controls for Testing */}
-                  <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                  <div className="pt-2 border-t border-white/60 dark:border-white/10 flex items-center justify-between">
                     <span className="text-[11px] text-slate-500 dark:text-slate-400">
                       QA Test Rotation State:
                     </span>
@@ -617,7 +617,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                         type="button"
                         disabled={isSimulating}
                         onClick={() => handleSimulateExpiryToggle(92)}
-                        className="px-2.5 py-1 rounded-lg bg-amber-100 dark:bg-amber-950/80 hover:bg-amber-200 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-800 text-[10px] font-semibold cursor-pointer"
+                        className="px-2.5 py-1 rounded-lg bg-amber-100/80 dark:bg-amber-950/80 hover:bg-amber-200 text-amber-800 dark:text-amber-200 border border-amber-300/80 dark:border-amber-800 text-[10px] font-semibold cursor-pointer"
                       >
                         Simulate Expired (92d)
                       </button>
@@ -625,7 +625,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                         type="button"
                         disabled={isSimulating}
                         onClick={() => handleSimulateExpiryToggle(0)}
-                        className="px-2.5 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-950/80 hover:bg-emerald-200 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800 text-[10px] font-semibold cursor-pointer"
+                        className="px-2.5 py-1 rounded-lg bg-emerald-100/80 dark:bg-emerald-950/80 hover:bg-emerald-200 text-emerald-800 dark:text-emerald-200 border border-emerald-300/80 dark:border-emerald-800 text-[10px] font-semibold cursor-pointer"
                       >
                         Reset to Compliant (0d)
                       </button>
@@ -638,7 +638,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                       id="btn-change-pin"
                       type="button"
                       onClick={onOpenPinChange}
-                      className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer border border-slate-300 dark:border-slate-700"
+                      className="flex-1 px-3.5 py-2.5 rounded-xl bg-white/60 dark:bg-slate-800/60 hover:bg-white/80 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer border border-white/80 dark:border-white/10"
                     >
                       <Key className="w-3.5 h-3.5" />
                       <span>Change PIN</span>
@@ -647,7 +647,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                       id="btn-disable-pin"
                       type="button"
                       onClick={onOpenPinDisable}
-                      className="flex-1 px-3.5 py-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 dark:hover:bg-rose-900 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                      className="flex-1 px-3.5 py-2.5 rounded-xl bg-rose-50/80 dark:bg-rose-950/60 hover:bg-rose-100 dark:hover:bg-rose-900 border border-rose-200/80 dark:border-rose-800/80 text-rose-700 dark:text-rose-300 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <X className="w-3.5 h-3.5" />
                       <span>Remove PIN</span>
@@ -657,7 +657,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               </div>
             ) : (
               <div className="space-y-3">
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-1">
+                <div className="p-3.5 rounded-2xl bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border border-white/80 dark:border-white/10 space-y-1">
                   <span className="font-semibold text-slate-800 dark:text-slate-200 block">
                     No PIN Lock Configured
                   </span>
@@ -670,7 +670,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   id="btn-setup-pin"
                   type="button"
                   onClick={onOpenPinSetup}
-                  className="w-full px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-md shadow-indigo-600/20 transition-colors flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Lock className="w-4 h-4" />
                   <span>Set Up 6-Digit PIN Lock</span>
@@ -681,8 +681,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         </div>
 
         {/* 2. Theme & Customization Card */}
-        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-300 dark:border-slate-700 rounded-3xl p-6 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300 space-y-5">
-          <div className="flex items-center gap-2.5 pb-3 border-b border-slate-200 dark:border-slate-800">
+        <div className="bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl border border-white/80 dark:border-white/10 rounded-3xl p-6 shadow-sm hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300 space-y-5">
+          <div className="flex items-center gap-2.5 pb-3 border-b border-white/60 dark:border-white/10">
             <Sun className="w-4 h-4 text-amber-500" />
             <h3 className="font-serif font-bold text-base text-slate-900 dark:text-white">
               Appearance & Font Styling
@@ -701,8 +701,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   onClick={() => theme !== 'light' && onToggleTheme()}
                   className={`p-3 rounded-2xl border text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
                     theme === 'light'
-                      ? 'bg-indigo-50 border-indigo-500 text-indigo-900 shadow-xs ring-2 ring-indigo-400/30'
-                      : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-400'
+                      ? 'bg-indigo-50/90 border-indigo-500 text-indigo-900 shadow-2xs ring-2 ring-indigo-400/30'
+                      : 'bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border-white/80 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-white/80'
                   }`}
                 >
                   <Sun className="w-4 h-4 text-amber-500" />
@@ -714,8 +714,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   onClick={() => theme !== 'dark' && onToggleTheme()}
                   className={`p-3 rounded-2xl border text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
                     theme === 'dark'
-                      ? 'bg-indigo-950/80 border-indigo-500 text-indigo-200 shadow-xs ring-2 ring-indigo-500/30'
-                      : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-400'
+                      ? 'bg-indigo-950/80 border-indigo-500 text-indigo-200 shadow-2xs ring-2 ring-indigo-500/30'
+                      : 'bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border-white/80 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-white/80'
                   }`}
                 >
                   <Moon className="w-4 h-4 text-indigo-400" />
@@ -741,8 +741,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                     onClick={() => handleFontChange(f.id)}
                     className={`p-2.5 rounded-xl border text-xs text-center transition-all cursor-pointer ${f.class} ${
                       fontPreference === f.id
-                        ? 'bg-indigo-600 text-white border-indigo-600 font-bold shadow-xs'
-                        : 'bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-400'
+                        ? 'bg-indigo-600 text-white border-indigo-600 font-bold shadow-2xs'
+                        : 'bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border-white/80 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-white/80'
                     }`}
                   >
                     {f.label}
@@ -754,21 +754,21 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         </div>
 
         {/* 3. AI Companion & Memory Settings */}
-        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-300 dark:border-slate-700 rounded-3xl p-6 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300 space-y-5">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+        <div className="bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl border border-white/80 dark:border-white/10 rounded-3xl p-6 shadow-sm hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300 space-y-5">
+          <div className="flex items-center justify-between pb-3 border-b border-white/60 dark:border-white/10">
             <div className="flex items-center gap-2.5">
               <Brain className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
               <h3 className="font-serif font-bold text-base text-slate-900 dark:text-white">
                 AI Intelligence & Memory
               </h3>
             </div>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-50/80 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800">
               Gemini 3.5
             </span>
           </div>
 
           <div className="space-y-4 text-xs">
-            <div className="flex items-center justify-between gap-4 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+            <div className="flex items-center justify-between gap-4 p-3 rounded-2xl bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border border-white/80 dark:border-white/10">
               <div>
                 <span className="font-semibold text-slate-800 dark:text-slate-200 block">
                   Automated Sentiment Detection
@@ -792,7 +792,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               </button>
             </div>
 
-            <div className="flex items-center justify-between gap-4 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+            <div className="flex items-center justify-between gap-4 p-3 rounded-2xl bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border border-white/80 dark:border-white/10">
               <div>
                 <span className="font-semibold text-slate-800 dark:text-slate-200 block">
                   Proactive Reflection Nudges
@@ -820,7 +820,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               <button
                 type="button"
                 onClick={onOpenMemory}
-                className="flex-1 px-3.5 py-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-semibold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                className="flex-1 px-3.5 py-2.5 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 border border-indigo-200/80 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-semibold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
               >
                 <Brain className="w-3.5 h-3.5" />
                 <span>Inspect Memory Context</span>
@@ -828,7 +828,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               <button
                 type="button"
                 onClick={onOpenSecurity}
-                className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                className="flex-1 px-3.5 py-2.5 rounded-xl bg-white/60 dark:bg-slate-800/60 hover:bg-white/80 dark:hover:bg-slate-700 border border-white/80 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
               >
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
                 <span>Security Audit</span>
@@ -838,8 +838,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         </div>
 
         {/* 4. Daily Reminders & Notifications */}
-        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-300 dark:border-slate-700 rounded-3xl p-6 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300 space-y-5">
-          <div className="flex items-center gap-2.5 pb-3 border-b border-slate-200 dark:border-slate-800">
+        <div className="bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl border border-white/80 dark:border-white/10 rounded-3xl p-6 shadow-sm hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300 space-y-5">
+          <div className="flex items-center gap-2.5 pb-3 border-b border-white/60 dark:border-white/10">
             <Bell className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
             <h3 className="font-serif font-bold text-base text-slate-900 dark:text-white">
               Mindful Reminders
@@ -848,7 +848,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
           <div className="space-y-4 text-xs">
             {/* Daily Reflection Alert */}
-            <div className="flex items-center justify-between gap-4 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+            <div className="flex items-center justify-between gap-4 p-3 rounded-2xl bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border border-white/80 dark:border-white/10">
               <div>
                 <span className="font-semibold text-slate-800 dark:text-slate-200 block">
                   Daily Reflection Alert
@@ -873,7 +873,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             </div>
 
             {reminderEnabled && (
-              <div className="p-3.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 space-y-2">
+              <div className="p-3.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 backdrop-blur-md border border-indigo-200/80 dark:border-indigo-800 space-y-2">
                 <label className="block text-xs font-semibold text-indigo-950 dark:text-indigo-200">
                   Preferred Reflection Reminder Time
                 </label>
@@ -881,13 +881,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   type="time"
                   value={reminderTime}
                   onChange={(e) => handleReminderTimeChange(e.target.value)}
-                  className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-700 text-slate-800 dark:text-slate-100 font-mono text-xs focus:outline-none focus:border-indigo-500 shadow-xs"
+                  className="px-3 py-1.5 rounded-xl bg-white/80 dark:bg-slate-800 border border-indigo-200 dark:border-indigo-700 text-slate-800 dark:text-slate-100 font-mono text-xs focus:outline-none focus:border-indigo-500 shadow-2xs"
                 />
               </div>
             )}
 
             {/* Daily Gratitude Reminder */}
-            <div className="flex items-center justify-between gap-4 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+            <div className="flex items-center justify-between gap-4 p-3 rounded-2xl bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border border-white/80 dark:border-white/10">
               <div>
                 <span className="font-semibold text-slate-800 dark:text-slate-200 block">
                   Daily Gratitude Reminder
@@ -913,7 +913,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
             </div>
 
             {gratitudeReminderEnabled && (
-              <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 space-y-2">
+              <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 backdrop-blur-md border border-emerald-200/80 dark:border-emerald-800 space-y-2">
                 <label className="block text-xs font-semibold text-emerald-950 dark:text-emerald-200">
                   Preferred Gratitude Reminder Time
                 </label>
@@ -922,7 +922,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                   type="time"
                   value={gratitudeReminderTime}
                   onChange={(e) => handleGratitudeReminderTimeChange(e.target.value)}
-                  className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-700 text-slate-800 dark:text-slate-100 font-mono text-xs focus:outline-none focus:border-emerald-500 shadow-xs"
+                  className="px-3 py-1.5 rounded-xl bg-white/80 dark:bg-slate-800 border border-emerald-200 dark:border-emerald-700 text-slate-800 dark:text-slate-100 font-mono text-xs focus:outline-none focus:border-emerald-500 shadow-2xs"
                 />
               </div>
             )}
@@ -932,8 +932,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       </div>
 
       {/* 5. Data Export & Danger Zone */}
-      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-300 dark:border-slate-700 rounded-3xl p-6 shadow-sm hover:-translate-y-1 hover:shadow-md transition-all duration-300 space-y-5">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+      <div className="bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl border border-white/80 dark:border-white/10 rounded-3xl p-6 shadow-sm hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300 space-y-5">
+        <div className="flex items-center justify-between pb-3 border-b border-white/60 dark:border-white/10">
           <div className="flex items-center gap-2.5">
             <Download className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
             <h3 className="font-serif font-bold text-base text-slate-900 dark:text-white">
@@ -948,7 +948,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           
           {/* Export Box */}
-          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 space-y-3">
+          <div className="p-4 rounded-2xl bg-white/50 dark:bg-slate-800/40 backdrop-blur-md border border-white/80 dark:border-white/10 space-y-3">
             <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
               <Download className="w-3.5 h-3.5 text-indigo-500" />
               <span>Export Journal Records</span>
@@ -961,7 +961,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 id="btn-export-xlsx"
                 type="button"
                 onClick={handleExportXLSX}
-                className="flex-1 px-3 py-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 text-xs font-semibold shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                className="flex-1 px-3 py-2 rounded-xl bg-white/70 dark:bg-slate-800/80 hover:bg-white dark:hover:bg-slate-700 border border-white/80 dark:border-white/10 text-slate-800 dark:text-slate-200 text-xs font-semibold shadow-2xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <FileSpreadsheet className="w-3.5 h-3.5 text-green-600" />
                 <span>Export XLSX</span>
@@ -970,7 +970,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 id="btn-export-markdown"
                 type="button"
                 onClick={handleExportMarkdown}
-                className="flex-1 px-3 py-2 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 text-xs font-semibold shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                className="flex-1 px-3 py-2 rounded-xl bg-white/70 dark:bg-slate-800/80 hover:bg-white dark:hover:bg-slate-700 border border-white/80 dark:border-white/10 text-slate-800 dark:text-slate-200 text-xs font-semibold shadow-2xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
                 <span>Export Markdown</span>
@@ -979,7 +979,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           </div>
 
           {/* Account Danger Actions */}
-          <div className="p-4 rounded-2xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-200/80 dark:border-rose-900/40 space-y-3">
+          <div className="p-4 rounded-2xl bg-rose-50/50 dark:bg-rose-950/20 backdrop-blur-md border border-rose-200/80 dark:border-rose-900/40 space-y-3">
             <h4 className="text-xs font-bold text-rose-800 dark:text-rose-300 flex items-center gap-1.5">
               <AlertCircle className="w-3.5 h-3.5 text-rose-500" />
               <span>Account Danger Zone</span>
@@ -992,7 +992,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 id="btn-settings-deactivate"
                 type="button"
                 onClick={onOpenDeactivateModal}
-                className="flex-1 px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 dark:hover:bg-amber-900 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-300 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                className="flex-1 px-3 py-2 rounded-xl bg-amber-50/80 dark:bg-amber-950/60 hover:bg-amber-100 dark:hover:bg-amber-900 border border-amber-200/80 dark:border-amber-800/80 text-amber-900 dark:text-amber-300 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <UserX className="w-3.5 h-3.5" />
                 <span>Deactivate</span>
@@ -1001,7 +1001,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 id="btn-settings-delete"
                 type="button"
                 onClick={onOpenDeleteModal}
-                className="flex-1 px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                className="flex-1 px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-md shadow-rose-600/20 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Delete Account</span>

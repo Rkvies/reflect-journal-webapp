@@ -33,12 +33,12 @@ export const NudgeBanner: React.FC<NudgeBannerProps> = ({
   }
 
   return (
-    <div className="bg-indigo-50/70 dark:bg-indigo-950/40 border-b border-indigo-100 dark:border-indigo-900/60 text-slate-800 dark:text-slate-200 px-4 py-3 transition-colors">
+    <div className="bg-indigo-50/60 dark:bg-indigo-950/40 backdrop-blur-xl border-b border-indigo-200/50 dark:border-indigo-900/40 text-slate-800 dark:text-slate-200 px-4 py-3 transition-colors shadow-xs">
       <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         
         {/* Left: Nudge Content */}
         <div className="flex items-start gap-3">
-          <div className="w-7 h-7 rounded-xl bg-indigo-100 dark:bg-indigo-900/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400 flex-shrink-0 mt-0.5">
+          <div className="w-7 h-7 rounded-xl bg-indigo-100/80 dark:bg-indigo-900/60 backdrop-blur-md flex items-center justify-center text-indigo-600 dark:text-indigo-400 flex-shrink-0 mt-0.5 border border-indigo-200/60 dark:border-indigo-800/60 shadow-2xs">
             <Sparkles className="w-3.5 h-3.5" />
           </div>
           <div>
@@ -46,7 +46,7 @@ export const NudgeBanner: React.FC<NudgeBannerProps> = ({
               <span className="text-xs font-semibold text-slate-900 dark:text-white font-serif">
                 {nudge.title || 'Check-In'}
               </span>
-              <span className="text-[10px] px-2 py-0.2 rounded-md bg-white/80 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium border border-slate-200/60 dark:border-slate-700">
+              <span className="text-[10px] px-2 py-0.2 rounded-md bg-white/70 dark:bg-slate-800/70 backdrop-blur-xs text-slate-700 dark:text-slate-300 font-medium border border-white/60 dark:border-slate-700">
                 #{nudge.topicTag || 'reflection'}
               </span>
             </div>

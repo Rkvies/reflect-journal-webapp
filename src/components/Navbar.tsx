@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   BookOpen, 
   Brain, 
@@ -16,8 +17,7 @@ import {
   FileText,
   Lock
 } from 'lucide-react';
-import { AppUser, AppNotification } from '../types';
-import { NotificationDropdown } from './NotificationDropdown';
+import { AppUser } from '../types';
 
 interface NavbarProps {
   user: AppUser | null;
@@ -30,10 +30,6 @@ interface NavbarProps {
   onSignOut: () => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
-  notifications: AppNotification[];
-  onMarkAsRead: (id: string) => void;
-  onMarkAllAsRead: () => void;
-  onDeleteNotification: (id: string) => void;
   pinEnabled?: boolean;
   onLockApp?: () => void;
 }
@@ -49,20 +45,35 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSignOut,
   theme,
   onToggleTheme,
-  notifications,
-  onMarkAsRead,
-  onMarkAllAsRead,
-  onDeleteNotification,
   pinEnabled = false,
   onLockApp,
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const profileButtonRef = useRef<HTMLButtonElement>(null);
+  const [profileCoords, setProfileCoords] = useState({ top: 0, right: 0 });
+
+  const handleToggleMenu = () => {
+    if (!isMenuOpen && profileButtonRef.current) {
+      const rect = profileButtonRef.current.getBoundingClientRect();
+      setProfileCoords({
+        top: rect.bottom + 8,
+        right: window.innerWidth - rect.right,
+      });
+    }
+    setIsMenuOpen(!isMenuOpen);
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (
+        menuRef.current && 
+        !menuRef.current.contains(target) &&
+        profileButtonRef.current && 
+        !profileButtonRef.current.contains(target)
+      ) {
         setIsMenuOpen(false);
       }
     };
@@ -72,19 +83,19 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <>
-      <header className="sticky top-0 z-30 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-b border-slate-200/60 dark:border-slate-800/60 text-slate-800 dark:text-slate-100 transition-colors">
+      <header className="sticky top-0 z-50 bg-white/60 dark:bg-slate-950/60 backdrop-blur-2xl border-b border-white/60 dark:border-white/10 text-slate-800 dark:text-slate-100 transition-colors shadow-xs overflow-visible">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         
         {/* Brand */}
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 flex items-center justify-center">
-            <img src="/reflect_logo.png" alt="Reflect Logo" className="w-full h-full object-contain dark:invert" />
+            <img src="/reflect_logo.png" alt="Reflect Logo" className="w-full h-full object-contain dark:invert drop-shadow-xs" />
           </div>
           <div>
             <h1 className="font-serif text-lg font-bold tracking-tight text-slate-900 dark:text-white leading-none">
               Reflect
             </h1>
-            <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 font-sans">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 font-sans">
               Mindful Journal
             </p>
           </div>
@@ -92,14 +103,14 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Primary Navigation Tabs (Desktop & Tablet) */}
         {user && (
-          <nav className="hidden md:flex items-center p-1 bg-slate-100/90 dark:bg-slate-900 rounded-2xl border border-slate-200/50 dark:border-slate-800/60">
+          <nav className="hidden md:flex items-center p-1 bg-white/40 dark:bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-white/60 dark:border-white/10 shadow-xs">
             <button
               id="nav-tab-journal"
               onClick={() => setActiveTab('journal')}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
                 activeTab === 'journal'
-                  ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs font-semibold'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-white/90 dark:bg-slate-800/90 text-indigo-600 dark:text-indigo-400 shadow-xs font-semibold backdrop-blur-md'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/30 dark:hover:bg-slate-800/40'
               }`}
             >
               Daily Reflection
@@ -109,8 +120,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => setActiveTab('history')}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
                 activeTab === 'history'
-                  ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs font-semibold'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-white/90 dark:bg-slate-800/90 text-indigo-600 dark:text-indigo-400 shadow-xs font-semibold backdrop-blur-md'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/30 dark:hover:bg-slate-800/40'
               }`}
             >
               Past Entries
@@ -120,8 +131,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => setActiveTab('insights')}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
                 activeTab === 'insights'
-                  ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs font-semibold'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-white/90 dark:bg-slate-800/90 text-indigo-600 dark:text-indigo-400 shadow-xs font-semibold backdrop-blur-md'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/30 dark:hover:bg-slate-800/40'
               }`}
             >
               Insights
@@ -131,8 +142,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => setActiveTab('gratitude')}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
                 activeTab === 'gratitude'
-                  ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-xs font-semibold'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-white/90 dark:bg-slate-800/90 text-indigo-600 dark:text-indigo-400 shadow-xs font-semibold backdrop-blur-md'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/30 dark:hover:bg-slate-800/40'
               }`}
             >
               Daily Gratitude
@@ -143,19 +154,13 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Settings & Profile Menu Dropdown */}
         <div className="flex items-center gap-2">
           {user ? (
-            <>
-              <NotificationDropdown
-                notifications={notifications}
-                onMarkAsRead={onMarkAsRead}
-                onMarkAllAsRead={onMarkAllAsRead}
-                onDeleteNotification={onDeleteNotification}
-              />
-              <div className="relative" ref={menuRef}>
+            <div className="relative" ref={menuRef}>
               <button
+                ref={profileButtonRef}
                 id="btn-user-settings-menu"
                 type="button"
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="flex items-center gap-2 p-1.5 pr-2.5 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-900 border border-transparent hover:border-slate-200/60 dark:hover:border-slate-800/60 transition-all cursor-pointer"
+                onClick={handleToggleMenu}
+                className="flex items-center gap-2 p-1.5 pr-2.5 rounded-2xl bg-white/40 dark:bg-slate-900/40 backdrop-blur-lg hover:bg-white/70 dark:hover:bg-slate-850 border border-white/60 dark:border-white/10 transition-all cursor-pointer shadow-2xs"
                 title="Account & Settings"
                 aria-expanded={isMenuOpen}
               >
@@ -175,13 +180,18 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
 
               {/* Dropdown Card */}
-              {isMenuOpen && (
+              {isMenuOpen && createPortal(
                 <div 
+                  ref={menuRef}
                   id="user-settings-dropdown"
-                  className="absolute right-0 mt-2 w-64 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-lg p-2 z-50 text-xs animate-fade-in space-y-1"
+                  style={{
+                    top: `${profileCoords.top}px`,
+                    right: `${profileCoords.right}px`,
+                  }}
+                  className="fixed w-64 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl p-2 z-[2147483647] text-xs animate-fade-in space-y-1"
                 >
                   {/* User Profile Header */}
-                  <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800/80 mb-1">
+                  <div className="px-3 py-2 border-b border-slate-200/50 dark:border-slate-800/80 mb-1">
                     <p className="font-semibold text-slate-900 dark:text-white truncate">
                       {user.displayName || 'Journal Author'}
                     </p>
@@ -315,10 +325,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <LogOut className="w-4 h-4" />
                     <span>Sign Out</span>
                   </button>
-                </div>
+                </div>,
+                document.body
               )}
             </div>
-            </>
           ) : (
             <div className="text-xs text-slate-500 font-medium">
               Private Journal
@@ -333,7 +343,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     {user && (
       <nav 
         id="mobile-bottom-nav"
-        className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl border-t border-slate-200/80 dark:border-slate-800/80 px-2 py-1.5 flex items-center justify-around shadow-lg transition-colors"
+        className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white/70 dark:bg-slate-950/70 backdrop-blur-2xl border-t border-white/60 dark:border-white/10 px-2 py-1.5 flex items-center justify-around shadow-2xl transition-colors"
       >
         <button
           id="mobile-nav-tab-journal"

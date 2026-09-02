@@ -34,9 +34,9 @@ export const MilestoneToast: React.FC<MilestoneToastProps> = ({ toast, onDismiss
       aria-live="polite"
       className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-50 max-w-sm sm:max-w-md animate-in fade-in slide-in-from-bottom-4 duration-300 pointer-events-auto"
     >
-      <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-indigo-200/80 dark:border-indigo-800/80 rounded-2xl p-3.5 sm:p-4 shadow-lg shadow-indigo-500/10 dark:shadow-indigo-950/40 flex items-center gap-3.5 transition-all">
+      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-white/80 dark:border-white/10 rounded-2xl p-3.5 sm:p-4 shadow-xl shadow-indigo-500/10 dark:shadow-indigo-950/40 flex items-center gap-3.5 transition-all">
         {/* Subtle Indigo/Sage Spark Badge */}
-        <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/80 border border-indigo-100 dark:border-indigo-800/80 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+        <div className="w-8 h-8 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/80 border border-indigo-100 dark:border-indigo-800/80 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0 shadow-2xs">
           <Sparkles className="w-4 h-4 animate-pulse" />
         </div>
 
@@ -52,7 +52,7 @@ export const MilestoneToast: React.FC<MilestoneToastProps> = ({ toast, onDismiss
           type="button"
           onClick={onDismiss}
           aria-label="Dismiss notification"
-          className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors cursor-pointer shrink-0"
+          className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/60 transition-colors cursor-pointer shrink-0"
         >
           <X className="w-3.5 h-3.5" />
         </button>

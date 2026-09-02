@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { signInWithGoogle } from '../lib/firebase';
+import { BackgroundPattern } from './BackgroundPattern';
 
 interface AuthLandingProps {
   onSignedIn: () => void;
@@ -41,21 +42,23 @@ export const AuthLanding: React.FC<AuthLandingProps> = ({ onSignedIn }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA] dark:bg-[#0A0A0A] text-slate-900 dark:text-white p-4 selection:bg-indigo-500/20">
-      <div className="w-full max-w-[360px] flex flex-col items-center animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
+    <div className="min-h-screen flex items-center justify-center text-slate-900 dark:text-white p-4 selection:bg-indigo-500/20 relative">
+      <BackgroundPattern />
+      <div className="w-full max-w-[380px] flex flex-col items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-8 rounded-3xl border border-white/80 dark:border-slate-800/80 shadow-xl animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out relative z-10">
         {/* Logo */}
-        <div className="mb-6 flex justify-center">
+        <div className="mb-4 flex justify-center">
           <img 
             src="/reflect_logo.png" 
             alt="Reflect Logo" 
-            className="h-36 w-auto object-contain dark:invert" 
+            className="h-28 w-auto object-contain dark:invert drop-shadow-sm" 
           />
         </div>
 
         {/* Text */}
-        <div className="text-center mb-10 space-y-3">
-          <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
-            A private space for thoughts, memories, and personal growth.
+        <div className="text-center mb-8 space-y-2">
+          <h2 className="text-2xl font-serif font-bold text-slate-900 dark:text-white tracking-tight">Reflect</h2>
+          <p className="text-slate-600 dark:text-slate-400 text-xs leading-relaxed">
+            A private mindful space for thoughts, memories, and personal growth.
           </p>
         </div>
 
@@ -65,7 +68,7 @@ export const AuthLanding: React.FC<AuthLandingProps> = ({ onSignedIn }) => {
             id="btn-signin-google"
             onClick={handleGoogleSignIn}
             disabled={isLoadingGoogle}
-            className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl text-sm font-medium bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-100 border border-slate-200 dark:border-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all shadow-sm hover:shadow-md disabled:opacity-50 cursor-pointer"
+            className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-2xl text-xs font-semibold bg-white dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all shadow-sm hover:shadow-md disabled:opacity-50 cursor-pointer"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path

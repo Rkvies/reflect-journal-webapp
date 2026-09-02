@@ -30,6 +30,7 @@ export interface JournalEntry {
   wordCount: number;
   isEdited?: boolean;
   editedAt?: string;
+  isBookmarked?: boolean;
 }
 
 export interface ProfileSummary {

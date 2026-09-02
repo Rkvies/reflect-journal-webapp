@@ -79,11 +79,11 @@ export const GratitudeModule: React.FC<GratitudeModuleProps> = ({
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-8 animate-fade-in">
       
       {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-500/10 via-teal-500/10 to-indigo-500/10 dark:from-amber-950/30 dark:via-teal-950/20 dark:to-indigo-950/30 border border-amber-200/50 dark:border-amber-900/40 p-6 sm:p-8 shadow-sm">
+      <div className="relative overflow-hidden rounded-3xl bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl border border-white/80 dark:border-white/10 p-6 sm:p-8 shadow-lg">
         <div className="absolute top-0 right-0 -mt-6 -mr-6 w-36 h-36 bg-amber-400/10 dark:bg-amber-600/10 rounded-full blur-2xl pointer-events-none" />
         <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 text-xs font-semibold border border-amber-200 dark:border-amber-800">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100/80 dark:bg-amber-950/80 backdrop-blur-xs text-amber-800 dark:text-amber-300 text-xs font-semibold border border-amber-200/80 dark:border-amber-800/80">
               <Sun className="w-3.5 h-3.5 text-amber-500" />
               <span>Daily Practice</span>
             </div>
@@ -95,9 +95,9 @@ export const GratitudeModule: React.FC<GratitudeModuleProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 shadow-xs relative overflow-hidden">
+          <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border border-white/80 dark:border-white/10 shadow-xs relative overflow-hidden">
             <StreakParticles count={streakCount} className="rounded-2xl" variant="teal" />
-            <div className="p-2 rounded-xl bg-teal-50 dark:bg-teal-950/50 text-teal-600 dark:text-teal-400 relative z-10">
+            <div className="p-2 rounded-xl bg-teal-50/80 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400 border border-teal-200/60 dark:border-teal-800/60 relative z-10">
               <Heart className="w-5 h-5 fill-current" />
             </div>
             <div className="relative z-10">
@@ -111,10 +111,10 @@ export const GratitudeModule: React.FC<GratitudeModuleProps> = ({
       </div>
 
       {/* Main Form Card */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8 shadow-xl">
-        <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100 dark:border-slate-800">
+      <div id="gratitude-form" className="bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl rounded-3xl border border-white/80 dark:border-white/10 p-6 sm:p-8 shadow-xl">
+        <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/60 dark:border-white/10">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-2xl bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+            <div className="w-9 h-9 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/70 border border-indigo-200/80 dark:border-indigo-800/80 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-2xs">
               <Sparkles className="w-4 h-4" />
             </div>
             <div>
@@ -128,7 +128,7 @@ export const GratitudeModule: React.FC<GratitudeModuleProps> = ({
           </div>
 
           {existingToday && (
-            <span className="px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-xs font-semibold border border-emerald-200 dark:border-emerald-800 flex items-center gap-1.5">
+            <span className="px-3 py-1 rounded-full bg-emerald-50/80 dark:bg-emerald-950/70 backdrop-blur-xs text-emerald-700 dark:text-emerald-300 text-xs font-semibold border border-emerald-200/80 dark:border-emerald-800/80 flex items-center gap-1.5 shadow-2xs">
               <Check className="w-3.5 h-3.5" />
               Completed for Today
             </span>
@@ -136,14 +136,14 @@ export const GratitudeModule: React.FC<GratitudeModuleProps> = ({
         </div>
 
         {successMessage && (
-          <div className="mb-6 p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs font-medium flex items-center gap-2 animate-fade-in">
+          <div className="mb-6 p-4 rounded-2xl bg-emerald-50/80 dark:bg-emerald-950/60 backdrop-blur-md border border-emerald-200/80 dark:border-emerald-800/80 text-emerald-800 dark:text-emerald-200 text-xs font-medium flex items-center gap-2 animate-fade-in shadow-2xs">
             <Check className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
             <span>{successMessage}</span>
           </div>
         )}
 
         {error && (
-          <div className="mb-6 p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs font-medium flex items-center gap-2 animate-fade-in">
+          <div className="mb-6 p-4 rounded-2xl bg-rose-50/80 dark:bg-rose-950/60 backdrop-blur-md border border-rose-200/80 dark:border-rose-800/80 text-rose-800 dark:text-rose-200 text-xs font-medium flex items-center gap-2 animate-fade-in shadow-2xs">
             <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 dark:text-rose-400" />
             <span>{error}</span>
           </div>
@@ -154,7 +154,7 @@ export const GratitudeModule: React.FC<GratitudeModuleProps> = ({
             {/* Item 1 */}
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-mono uppercase tracking-wider flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 flex items-center justify-center text-[10px] font-bold">1</span>
+                <span className="w-5 h-5 rounded-full bg-amber-100/80 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 flex items-center justify-center text-[10px] font-bold border border-amber-200/80 dark:border-amber-800/80">1</span>
                 First Gratitude
               </label>
               <input
@@ -163,14 +163,14 @@ export const GratitudeModule: React.FC<GratitudeModuleProps> = ({
                 value={item1}
                 onChange={(e) => setItem1(e.target.value)}
                 placeholder="e.g., A warm cup of morning coffee in silence..."
-                className="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-amber-500 shadow-xs transition-all"
+                className="w-full px-4 py-3 rounded-2xl bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border border-white/80 dark:border-white/10 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-amber-500 shadow-2xs transition-all"
               />
             </div>
 
             {/* Item 2 */}
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-mono uppercase tracking-wider flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300 flex items-center justify-center text-[10px] font-bold">2</span>
+                <span className="w-5 h-5 rounded-full bg-teal-100/80 dark:bg-teal-950/80 text-teal-700 dark:text-teal-300 flex items-center justify-center text-[10px] font-bold border border-teal-200/80 dark:border-teal-800/80">2</span>
                 Second Gratitude
               </label>
               <input
@@ -179,14 +179,14 @@ export const GratitudeModule: React.FC<GratitudeModuleProps> = ({
                 value={item2}
                 onChange={(e) => setItem2(e.target.value)}
                 placeholder="e.g., A meaningful conversation with an old friend..."
-                className="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-teal-500 shadow-xs transition-all"
+                className="w-full px-4 py-3 rounded-2xl bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border border-white/80 dark:border-white/10 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-teal-500 shadow-2xs transition-all"
               />
             </div>
 
             {/* Item 3 */}
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 font-mono uppercase tracking-wider flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 flex items-center justify-center text-[10px] font-bold">3</span>
+                <span className="w-5 h-5 rounded-full bg-indigo-100/80 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 flex items-center justify-center text-[10px] font-bold border border-indigo-200/80 dark:border-indigo-800/80">3</span>
                 Third Gratitude
               </label>
               <input
@@ -195,7 +195,7 @@ export const GratitudeModule: React.FC<GratitudeModuleProps> = ({
                 value={item3}
                 onChange={(e) => setItem3(e.target.value)}
                 placeholder="e.g., Progress on a personal project that made me smile..."
-                className="w-full px-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-indigo-500 shadow-xs transition-all"
+                className="w-full px-4 py-3 rounded-2xl bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border border-white/80 dark:border-white/10 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:border-indigo-500 shadow-2xs transition-all"
               />
             </div>
 
@@ -210,7 +210,7 @@ export const GratitudeModule: React.FC<GratitudeModuleProps> = ({
                 value={reflection}
                 onChange={(e) => setReflection(e.target.value)}
                 placeholder="How did noticing these things make you feel today?"
-                className="w-full p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 text-xs sm:text-sm focus:outline-none focus:border-indigo-500 resize-none shadow-xs"
+                className="w-full p-4 rounded-2xl bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border border-white/80 dark:border-white/10 text-slate-900 dark:text-slate-100 text-xs sm:text-sm focus:outline-none focus:border-indigo-500 resize-none shadow-2xs"
               />
             </div>
           </div>
@@ -236,14 +236,14 @@ export const GratitudeModule: React.FC<GratitudeModuleProps> = ({
             <Calendar className="w-5 h-5 text-indigo-500" />
             <span>Gratitude Archive</span>
           </h3>
-          <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+          <span className="text-xs font-medium text-slate-500 dark:text-slate-400 font-mono">
             {gratitudeEntries.length} {gratitudeEntries.length === 1 ? 'entry' : 'entries'} recorded
           </span>
         </div>
 
         {gratitudeEntries.length === 0 ? (
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-300 dark:border-slate-700 p-10 sm:p-12 text-center shadow-xs space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 flex items-center justify-center mx-auto text-indigo-600 dark:text-indigo-400">
+          <div className="bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl rounded-3xl border border-white/80 dark:border-white/10 p-10 sm:p-12 text-center shadow-sm space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 flex items-center justify-center mx-auto text-indigo-600 dark:text-indigo-400">
               <Sparkles className="w-6 h-6 animate-spark-glimmer" />
             </div>
             <div className="space-y-1.5 max-w-md mx-auto">
@@ -279,16 +279,16 @@ export const GratitudeModule: React.FC<GratitudeModuleProps> = ({
             {gratitudeEntries.map((entry) => (
               <div 
                 key={entry.id}
-                className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-xs flex flex-col justify-between space-y-4 hover:border-indigo-300 dark:hover:border-indigo-800 transition-all duration-300 hover:-translate-y-1 hover:shadow-md group"
+                className="bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl rounded-3xl border border-white/80 dark:border-white/10 p-6 shadow-sm flex flex-col justify-between space-y-4 hover:border-indigo-400 dark:hover:border-indigo-500/40 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg group"
               >
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900 font-mono">
+                    <span className="text-xs font-semibold px-3 py-1 rounded-full bg-indigo-50/80 dark:bg-indigo-950/60 backdrop-blur-xs text-indigo-700 dark:text-indigo-300 border border-indigo-100/80 dark:border-indigo-900/80 font-mono">
                       {entry.date}
                     </span>
                     <button
                       onClick={() => onDeleteGratitude(entry.id)}
-                      className="p-1.5 rounded-xl text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                      className="p-1.5 rounded-xl text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50/80 dark:hover:bg-rose-950/60 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
                       title="Delete gratitude entry"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -297,27 +297,27 @@ export const GratitudeModule: React.FC<GratitudeModuleProps> = ({
 
                   <ul className="space-y-2 text-xs sm:text-sm text-slate-700 dark:text-slate-200">
                     <li className="flex items-start gap-2">
-                      <span className="w-4 h-4 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">1</span>
+                      <span className="w-4 h-4 rounded-full bg-amber-100/80 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5 border border-amber-200/80 dark:border-amber-800/80">1</span>
                       <span className="leading-snug">{entry.item1}</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <span className="w-4 h-4 rounded-full bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">2</span>
+                      <span className="w-4 h-4 rounded-full bg-teal-100/80 dark:bg-teal-950/80 text-teal-700 dark:text-teal-300 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5 border border-teal-200/80 dark:border-teal-800/80">2</span>
                       <span className="leading-snug">{entry.item2}</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <span className="w-4 h-4 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">3</span>
+                      <span className="w-4 h-4 rounded-full bg-indigo-100/80 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5 border border-indigo-200/80 dark:border-indigo-800/80">3</span>
                       <span className="leading-snug">{entry.item3}</span>
                     </li>
                   </ul>
 
                   {entry.reflection && (
-                    <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 italic">
+                    <div className="p-3.5 rounded-2xl bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border border-white/80 dark:border-white/10 text-xs text-slate-600 dark:text-slate-300 italic">
                       "{entry.reflection}"
                     </div>
                   )}
                 </div>
 
-                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-400 font-mono flex items-center justify-between">
+                <div className="pt-2 border-t border-white/60 dark:border-white/10 text-[10px] text-slate-400 font-mono flex items-center justify-between">
                   <span>Saved {new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                   <Heart className="w-3.5 h-3.5 text-teal-500 fill-current" />
                 </div>

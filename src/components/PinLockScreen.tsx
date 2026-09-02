@@ -5,6 +5,7 @@ import { verifyPin, savePinSettings, getLocalPinSettings, calculateRotationStatu
 import { signOut } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
 import { signInWithPopup } from 'firebase/auth';
+import { BackgroundPattern } from './BackgroundPattern';
 
 interface PinLockScreenProps {
   user: AppUser;
@@ -167,8 +168,9 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/95 backdrop-blur-2xl flex items-center justify-center p-4 animate-fade-in text-slate-100">
-      <div className="w-full max-w-sm flex flex-col items-center space-y-5 text-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in text-slate-100">
+      <BackgroundPattern intensity="vibrant" />
+      <div className="w-full max-w-sm flex flex-col items-center space-y-5 text-center bg-slate-900/80 backdrop-blur-2xl p-7 rounded-3xl border border-white/10 shadow-2xl relative z-10">
         
         {/* App Logo & Header */}
         <div className="flex flex-col items-center space-y-2.5">

@@ -87,24 +87,24 @@ export const ProfileSummaryModal: React.FC<ProfileSummaryModalProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-md animate-fade-in"
       role="dialog"
       aria-modal="true"
       aria-labelledby="memory-layer-title"
       aria-describedby="memory-layer-desc"
     >
-      <div className="w-full max-w-2xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] transition-colors">
+      <div className="w-full max-w-2xl bg-white/85 dark:bg-slate-900/85 backdrop-blur-2xl border border-white/80 dark:border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] transition-colors">
         
         {/* Header */}
-        <div className="p-5 sm:p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between bg-white/40 dark:bg-slate-950/40">
+        <div className="p-5 sm:p-6 border-b border-white/60 dark:border-white/10 flex items-center justify-between bg-white/40 dark:bg-slate-950/40">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-700 dark:text-indigo-300 shadow-xs" aria-hidden="true">
+            <div className="w-9 h-9 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/70 border border-indigo-200/60 dark:border-indigo-800/60 flex items-center justify-center text-indigo-700 dark:text-indigo-300 shadow-2xs" aria-hidden="true">
               <Brain className="w-4 h-4" />
             </div>
             <div>
               <h3 id="memory-layer-title" className="text-base font-serif font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <span>Agentic Memory Layer</span>
-                <span className="text-[10px] font-sans px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 font-medium">
+                <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-indigo-50/80 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800/80 font-medium">
                   Continuous Context Memory
                 </span>
               </h3>
@@ -118,14 +118,14 @@ export const ProfileSummaryModal: React.FC<ProfileSummaryModalProps> = ({
             type="button"
             onClick={onClose}
             aria-label="Close memory inspector dialog"
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/60 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Status bar */}
-        <div className="px-6 py-2.5 bg-slate-50/80 dark:bg-slate-950/60 border-b border-slate-200/60 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 font-mono">
+        <div className="px-6 py-2.5 bg-white/40 dark:bg-slate-950/50 backdrop-blur-xs border-b border-white/60 dark:border-white/10 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 font-mono">
           <div className="flex items-center gap-3">
             <span>Memory footprint: ~{estimatedTokens} / 2,000 max tokens</span>
             <span>•</span>
@@ -137,7 +137,7 @@ export const ProfileSummaryModal: React.FC<ProfileSummaryModalProps> = ({
             <button
               onClick={handleSynthesizeMemory}
               disabled={isSynthesizing}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 transition-colors shadow-xs cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 transition-colors shadow-2xs cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isSynthesizing ? 'animate-spin' : ''}`} />
               <span>{isSynthesizing ? 'Synthesizing...' : '✨ Synthesize Memory Now'}</span>
@@ -165,12 +165,12 @@ export const ProfileSummaryModal: React.FC<ProfileSummaryModalProps> = ({
                 rows={12}
                 value={editedText}
                 onChange={(e) => setEditedText(e.target.value)}
-                className="w-full p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 text-xs font-mono focus:outline-none focus:border-indigo-400 resize-none leading-relaxed shadow-inner"
+                className="w-full p-4 rounded-2xl bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border border-white/80 dark:border-white/10 text-slate-800 dark:text-slate-100 text-xs font-mono focus:outline-none focus:border-indigo-400 resize-none leading-relaxed shadow-inner"
               />
               <div className="flex justify-end gap-2">
                 <button
                   onClick={() => setIsEditing(false)}
-                  className="px-3.5 py-1.5 rounded-xl text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-medium bg-white/60 dark:bg-slate-800/60 border border-white/70 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-white/80 dark:hover:bg-slate-700 cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -185,7 +185,7 @@ export const ProfileSummaryModal: React.FC<ProfileSummaryModalProps> = ({
               </div>
             </div>
           ) : profileSummary?.summary ? (
-            <div className="prose prose-slate dark:prose-invert max-w-none text-xs sm:text-sm leading-relaxed bg-white/70 dark:bg-slate-800/70 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-700 shadow-xs">
+            <div className="prose prose-slate dark:prose-invert max-w-none text-xs sm:text-sm leading-relaxed bg-white/60 dark:bg-slate-800/60 backdrop-blur-md p-5 rounded-2xl border border-white/80 dark:border-white/10 shadow-2xs">
               <Markdown>{profileSummary.summary}</Markdown>
             </div>
           ) : (
@@ -199,7 +199,7 @@ export const ProfileSummaryModal: React.FC<ProfileSummaryModalProps> = ({
           )}
 
           {/* Technical & Storage Architecture Details (Collapsible) */}
-          <details className="group p-4 rounded-2xl bg-white/50 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-400 transition-all">
+          <details className="group p-4 rounded-2xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-md border border-white/80 dark:border-white/10 text-xs text-slate-600 dark:text-slate-400 transition-all">
             <summary className="font-semibold text-slate-700 dark:text-slate-300 cursor-pointer flex items-center justify-between select-none">
               <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300">
                 <Shield className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
@@ -207,10 +207,10 @@ export const ProfileSummaryModal: React.FC<ProfileSummaryModalProps> = ({
               </span>
               <span className="text-[10px] font-mono text-slate-400 group-open:rotate-180 transition-transform">▼</span>
             </summary>
-            <div className="mt-3 pt-3 border-t border-slate-200/60 dark:border-slate-700/60 space-y-2 text-[11px] font-sans leading-relaxed">
+            <div className="mt-3 pt-3 border-t border-white/60 dark:border-white/10 space-y-2 text-[11px] font-sans leading-relaxed">
               <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
                 <span className="font-semibold text-slate-700 dark:text-slate-200">Storage Partition:</span>
-                <code className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-indigo-600 dark:text-indigo-400">
+                <code className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/70 dark:bg-slate-900/80 border border-white/80 dark:border-slate-700 text-indigo-600 dark:text-indigo-400">
                   users/{'{uid}'}/profile/summary
                 </code>
               </div>
@@ -222,10 +222,10 @@ export const ProfileSummaryModal: React.FC<ProfileSummaryModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-4 sm:p-5 border-t border-slate-200/60 dark:border-slate-800 bg-white/40 dark:bg-slate-950/40 flex justify-end">
+        <div className="p-4 sm:p-5 border-t border-white/60 dark:border-white/10 bg-white/40 dark:bg-slate-950/40 flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer"
+            className="px-4 py-2 rounded-xl text-xs font-semibold bg-white/60 dark:bg-slate-800/60 border border-white/70 dark:border-white/10 hover:bg-white/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer"
           >
             Close Inspector
           </button>

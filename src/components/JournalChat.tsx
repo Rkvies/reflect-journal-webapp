@@ -11,7 +11,12 @@ import {
   Mic,
   MicOff,
   Pencil,
-  X
+  X,
+  Clock,
+  CheckCircle2,
+  Focus,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { 
@@ -20,15 +25,19 @@ import {
   MoodType, 
   ProfileSummary,
   ProactiveNudge,
-  EntrySentiment
+  EntrySentiment,
+  AppUser
 } from '../types';
 import { streamGeminiReflection, triggerMemoryUpdate } from '../lib/api';
 import { saveJournalEntry, saveProfileSummary } from '../lib/firebase';
 import { SparkLoader } from './SparkVisual';
 import { StreakParticles } from './StreakParticles';
+import { ReflectMascot } from './ReflectMascot';
+import { GreetingCard } from './GreetingCard';
 import { motion } from 'motion/react';
 
 interface JournalChatProps {
+  user?: AppUser | null;
   userId: string;
   profileSummary: ProfileSummary | null;
   recentEntries: JournalEntry[];
@@ -36,6 +45,8 @@ interface JournalChatProps {
   prefillPrompt?: { prompt: string; tag: string } | null;
   onClearPrefill?: () => void;
   activeNudge?: ProactiveNudge | null;
+  isDeepFocus?: boolean;
+  onToggleDeepFocus?: () => void;
 }
 
 const MOODS: { type: MoodType; label: string; icon: string }[] = [
@@ -83,6 +94,7 @@ const isPromptMatchingNudge = (starterPrompt: string, nudgePrompt?: string) => {
 };
 
 export const JournalChat: React.FC<JournalChatProps> = ({
+  user,
   userId,
   profileSummary,
   recentEntries,
@@ -90,7 +102,13 @@ export const JournalChat: React.FC<JournalChatProps> = ({
   prefillPrompt,
   onClearPrefill,
   activeNudge,
+  isDeepFocus = false,
+  onToggleDeepFocus,
 }) => {
+  const [localDeepFocus, setLocalDeepFocus] = useState(false);
+  const isFocusMode = isDeepFocus !== undefined ? isDeepFocus : localDeepFocus;
+  const handleToggleFocus = onToggleDeepFocus || (() => setLocalDeepFocus(prev => !prev));
+
   const [title, setTitle] = useState('');
   const [currentInput, setCurrentInput] = useState('');
   const [selectedMood, setSelectedMood] = useState<MoodType>('reflective');
@@ -109,6 +127,53 @@ export const JournalChat: React.FC<JournalChatProps> = ({
   const [isEditingSaving, setIsEditingSaving] = useState(false);
   const [entryCreatedAt, setEntryCreatedAt] = useState<string>(() => new Date().toISOString());
   const [entrySentiment, setEntrySentiment] = useState<EntrySentiment | null>(null);
+
+  // Escape key listener for exiting focus mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFocusMode && !editingTurnId) {
+        handleToggleFocus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFocusMode, editingTurnId, handleToggleFocus]);
+
+  // Real-time word count calculation
+  const currentWordCount = useMemo(() => {
+    const text = currentInput.trim();
+    if (!text) return 0;
+    return text.split(/\s+/).filter(Boolean).length;
+  }, [currentInput]);
+
+  // Personalized greeting calculations
+  const firstName = useMemo(() => {
+    if (user?.displayName) {
+      const trimmed = user.displayName.trim();
+      const first = trimmed.split(/\s+/)[0];
+      return first || trimmed;
+    }
+    if (user?.email) {
+      const emailPrefix = user.email.split('@')[0];
+      if (emailPrefix) {
+        return emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1);
+      }
+    }
+    return 'there';
+  }, [user?.displayName, user?.email]);
+
+  const greetingSubtext = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) {
+      return "What's on your mind this morning?";
+    } else if (hour >= 12 && hour < 17) {
+      return "What's on your mind this afternoon?";
+    } else if (hour >= 17 && hour < 22) {
+      return "What's on your mind this evening?";
+    } else {
+      return "What's on your mind tonight?";
+    }
+  }, []);
 
   // Progressive loading status updates during reflection synthesis
   useEffect(() => {
@@ -175,6 +240,43 @@ export const JournalChat: React.FC<JournalChatProps> = ({
 
     return streak;
   }, [recentEntries]);
+
+  // Compute latest reflection and recency calculations for engagement snapshot
+  const latestEntry = useMemo(() => {
+    if (!recentEntries || recentEntries.length === 0) return null;
+    return [...recentEntries].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+  }, [recentEntries]);
+
+  const hasEntryToday = useMemo(() => {
+    if (!recentEntries || recentEntries.length === 0) return false;
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    return recentEntries.some(e => {
+      if (!e.createdAt) return false;
+      const d = new Date(e.createdAt);
+      const dStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      return dStr === todayStr;
+    });
+  }, [recentEntries]);
+
+  const timeSinceLastEntry = useMemo(() => {
+    if (!latestEntry?.createdAt) return 'No reflections yet';
+    const entryDate = new Date(latestEntry.createdAt);
+    const now = new Date();
+    const diffMs = now.getTime() - entryDate.getTime();
+    if (diffMs < 0) return 'Just now';
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffMinutes < 1) return 'Just now';
+    if (diffMinutes < 60) return `${diffMinutes}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
+    return entryDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }, [latestEntry]);
 
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -492,15 +594,13 @@ export const JournalChat: React.FC<JournalChatProps> = ({
       abortControllerRef.current = null;
       setIsLoading(false);
 
-      const isHighDemand = err?.message?.includes('503') || err?.message?.includes('high demand');
-      const errorMsg = isHighDemand
-        ? "I'm holding space for this reflection. Gemini is momentarily busy, but your reflection has been safely saved."
-        : `*Unable to complete reflection dialogue (${err.message || 'connection error'}). Your entry is safely saved.*`;
+      const reflectiveMessage =
+        "Thank you for sharing your thoughts today. Even in quiet moments when words take time to form, what you've expressed is deeply meaningful. Take a slow, grounding breath and allow yourself space to sit with these feelings.\n\n*Your reflection has been safely saved in your journal.*";
 
       const fallbackTurn: ChatTurn = {
-        id: 'turn_err_' + Date.now(),
+        id: 'turn_fallback_' + Date.now(),
         role: 'assistant',
-        text: errorMsg,
+        text: reflectiveMessage,
         timestamp: new Date().toISOString(),
       };
       const fallbackHistory = [...newHistory, fallbackTurn];
@@ -688,73 +788,83 @@ export const JournalChat: React.FC<JournalChatProps> = ({
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8">
+    <div className={`max-w-3xl mx-auto space-y-8 transition-all duration-500 ${isFocusMode ? 'pt-2 sm:pt-4 max-w-3xl' : ''}`}>
       
       {/* Entry Header & Intention Controls */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <h2 className="text-xl font-serif font-bold text-slate-900 dark:text-white">
-                Daily Reflection
-              </h2>
-              {streakCount > 0 && (
-                <motion.div 
-                  id="streak-counter-badge"
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/20 dark:border-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-sans font-medium select-none animate-fade-in relative"
-                  title="Consecutive daily reflections streak"
-                  key={streakCount}
-                  initial={{ scale: 1, boxShadow: "0px 0px 0px rgba(99, 102, 241, 0)" }}
-                  animate={{ 
-                    scale: [1, 1.05, 1], 
-                    boxShadow: [
-                      "0px 0px 0px rgba(99, 102, 241, 0)", 
-                      "0px 0px 12px rgba(99, 102, 241, 0.5)", 
-                      "0px 0px 0px rgba(99, 102, 241, 0)"
-                    ] 
-                  }}
-                  transition={{ duration: 0.8 }}
-                >
-                  <StreakParticles count={streakCount} />
-                  <Flame className="w-3 h-3 fill-current text-indigo-500 dark:text-indigo-400 relative z-10" />
-                  <span className="relative z-10">{streakCount} {streakCount === 1 ? 'day' : 'days'} streak</span>
-                </motion.div>
-              )}
+        {/* Personalized Greeting Card with Companion Mascot & Engagement Snapshot (Hidden in Deep Focus) */}
+        {!isFocusMode ? (
+          <GreetingCard
+            firstName={firstName}
+            greetingSubtext={greetingSubtext}
+            streakCount={streakCount}
+            timeSinceLastEntry={timeSinceLastEntry}
+            latestEntryTitle={latestEntry?.title}
+            hasEntryToday={hasEntryToday}
+            saveStatus={saveStatus}
+            onNewEntry={handleStartNewEntry}
+          />
+        ) : (
+          /* Deep Focus Tranquil Sanctuary Header */
+          <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl rounded-2xl p-3.5 sm:p-4 shadow-xl border border-indigo-200/60 dark:border-indigo-800/40 flex items-center justify-between gap-3 animate-fade-in">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-indigo-500/10 dark:bg-indigo-400/10 border border-indigo-300/60 dark:border-indigo-700/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0 shadow-2xs">
+                <Focus className="w-4 h-4 animate-pulse" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-serif font-semibold text-slate-800 dark:text-slate-100">Deep Focus Mode</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 font-mono font-medium">
+                    {currentWordCount} {currentWordCount === 1 ? 'word' : 'words'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate hidden sm:block">
+                  Non-essentials hidden & background softened. Focus purely on your thoughts.
+                </p>
+              </div>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Reflect with your personal AI companion
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {saveStatus && (
-              <span className="text-xs text-indigo-600 dark:text-indigo-400 flex items-center gap-1 font-medium animate-fade-in">
-                <Check className="w-3.5 h-3.5" />
-                {saveStatus}
-              </span>
-            )}
-
             <button
-              id="btn-new-entry"
-              onClick={handleStartNewEntry}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer border border-slate-200/50 dark:border-slate-700/50"
+              id="btn-exit-deep-focus-top"
+              type="button"
+              onClick={handleToggleFocus}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/70 dark:bg-slate-800/70 hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-white/80 dark:border-white/10 text-xs font-medium cursor-pointer transition-all shrink-0 shadow-2xs"
+              title="Exit Deep Focus (or press Esc)"
             >
-              <Plus className="w-3.5 h-3.5" />
-              <span>New entry</span>
+              <Minimize2 className="w-3.5 h-3.5" />
+              <span>Exit Focus</span>
+              <kbd className="hidden sm:inline-block px-1.5 py-0.2 bg-slate-200/60 dark:bg-slate-700/60 rounded text-[10px] font-mono text-slate-500 dark:text-slate-300">Esc</kbd>
             </button>
           </div>
-        </div>
+        )}
 
-        {/* Title Input */}
-        <div>
-          <input
-            id="input-entry-title"
-            type="text"
-            placeholder="Reflection title (optional)..."
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="w-full px-0 py-1.5 bg-transparent border-b border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 text-sm font-serif font-medium focus:outline-none focus:border-indigo-500 transition-colors"
-          />
+        {/* Title Input & Deep Focus Button Row */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <input
+              id="input-entry-title"
+              type="text"
+              placeholder="Reflection title (optional)..."
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full px-0 py-1.5 bg-transparent border-b border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-600 dark:placeholder-slate-400 text-sm font-serif font-medium focus:outline-none focus:border-indigo-500 transition-colors"
+            />
+          </div>
+
+          {/* Deep Focus Mode Toggle Button */}
+          <button
+            id="btn-toggle-deep-focus"
+            type="button"
+            onClick={handleToggleFocus}
+            className={`px-3 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs backdrop-blur-md shrink-0 ${
+              isFocusMode
+                ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/25 border border-indigo-500'
+                : 'bg-white/50 dark:bg-slate-800/60 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 hover:text-indigo-600 dark:hover:text-indigo-300 text-slate-600 dark:text-slate-400 border border-white/60 dark:border-white/10'
+            }`}
+            title={isFocusMode ? "Exit Deep Focus mode (Esc)" : "Enter Deep Focus mode (fades background and hides non-essential elements)"}
+          >
+            <Focus className={`w-3.5 h-3.5 ${isFocusMode ? 'text-white' : 'text-indigo-500'}`} />
+            <span className="hidden xs:inline">{isFocusMode ? 'Focus Active' : 'Deep Focus'}</span>
+          </button>
         </div>
 
         {/* Mood & Tags Bar (Clean and Muted) */}
@@ -766,10 +876,10 @@ export const JournalChat: React.FC<JournalChatProps> = ({
                 key={m.type}
                 type="button"
                 onClick={() => setSelectedMood(m.type)}
-                className={`px-2.5 py-1 rounded-xl text-xs font-medium flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 transition-all cursor-pointer ${
+                className={`px-2.5 py-1 rounded-xl text-xs font-medium flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 transition-all cursor-pointer backdrop-blur-md shadow-2xs ${
                   selectedMood === m.type
-                    ? 'bg-indigo-50 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 font-semibold ring-1 ring-indigo-300 dark:ring-indigo-700'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/80'
+                    ? 'bg-indigo-50/90 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 font-semibold border border-indigo-300/80 dark:border-indigo-700'
+                    : 'bg-white/40 dark:bg-slate-900/40 text-slate-600 dark:text-slate-400 border border-white/60 dark:border-white/10 hover:bg-white/70 dark:hover:bg-slate-800/60'
                 }`}
               >
                 <span>{m.icon}</span>
@@ -783,7 +893,7 @@ export const JournalChat: React.FC<JournalChatProps> = ({
             {Array.from(new Set(tags)).map((t, idx) => (
               <span
                 key={`${t}-${idx}`}
-                className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800/90 text-slate-600 dark:text-slate-300 text-[11px] font-sans flex items-center gap-1 whitespace-nowrap"
+                className="px-2 py-0.5 rounded-lg bg-white/60 dark:bg-slate-800/80 backdrop-blur-xs text-slate-700 dark:text-slate-300 text-[11px] font-sans flex items-center gap-1 whitespace-nowrap border border-white/60 dark:border-white/10 shadow-2xs"
               >
                 #{t}
                 <button
@@ -801,7 +911,7 @@ export const JournalChat: React.FC<JournalChatProps> = ({
               value={tagInput}
               onChange={(e) => setTagInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAddTag()}
-              className="w-14 px-1 py-0.5 bg-transparent border-b border-slate-200 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-300 focus:outline-none focus:border-indigo-500 flex-shrink-0"
+              className="w-14 px-1 py-0.5 bg-transparent border-b border-slate-300/60 dark:border-slate-700/60 text-[11px] text-slate-700 dark:text-slate-300 focus:outline-none focus:border-indigo-500 flex-shrink-0"
             />
           </div>
         </div>
@@ -817,10 +927,10 @@ export const JournalChat: React.FC<JournalChatProps> = ({
             return (
               <div
                 key={turn.id}
-                className={`p-5 rounded-2xl transition-all ${
+                className={`p-5 rounded-3xl transition-all backdrop-blur-2xl ${
                   isUser
-                    ? 'bg-slate-100/70 dark:bg-slate-900/60 text-slate-900 dark:text-slate-100 ml-4 sm:ml-8'
-                    : 'bg-white dark:bg-slate-900 shadow-sm border border-slate-200/60 dark:border-slate-800 text-slate-800 dark:text-slate-100 mr-4 sm:mr-8'
+                    ? 'bg-indigo-50/70 dark:bg-indigo-950/45 text-slate-900 dark:text-slate-100 ml-4 sm:ml-8 border border-indigo-200/60 dark:border-indigo-800/40 shadow-sm'
+                    : 'bg-white/75 dark:bg-slate-900/75 shadow-md border border-white/80 dark:border-white/10 text-slate-800 dark:text-slate-100 mr-4 sm:mr-8'
                 }`}
               >
                 <div className="flex items-center justify-between text-xs text-slate-400 dark:text-slate-500 mb-2">
@@ -870,7 +980,7 @@ export const JournalChat: React.FC<JournalChatProps> = ({
                         }
                       }}
                       disabled={isEditingSaving}
-                      className="w-full p-3 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 placeholder-slate-400 text-sm font-sans leading-relaxed border border-indigo-300 dark:border-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 resize-none"
+                      className="w-full p-3 rounded-xl bg-white/90 dark:bg-slate-950/90 text-slate-900 dark:text-slate-100 placeholder-slate-400 text-sm font-sans leading-relaxed border border-indigo-300 dark:border-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 resize-none backdrop-blur-md"
                       autoFocus
                     />
                     <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -912,7 +1022,7 @@ export const JournalChat: React.FC<JournalChatProps> = ({
 
           {/* Progressive Loading state with subtle SparkLoader */}
           {isLoading && (!streamingReply || streamingReply === '') && (
-            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 mr-4 sm:mr-8 shadow-sm animate-fade-in space-y-2.5">
+            <div className="p-5 rounded-3xl bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl border border-white/80 dark:border-white/10 text-slate-800 dark:text-slate-100 mr-4 sm:mr-8 shadow-md animate-fade-in space-y-2.5">
               <div className="flex items-center justify-between text-xs text-slate-400 dark:text-slate-500">
                 <span className="font-semibold text-slate-700 dark:text-slate-300 font-serif">Reflect</span>
                 <span className="text-[11px] font-mono text-indigo-600 dark:text-indigo-400 font-medium">
@@ -934,7 +1044,7 @@ export const JournalChat: React.FC<JournalChatProps> = ({
 
           {/* Live Streaming Token Box with Spark motif */}
           {streamingReply !== null && streamingReply !== '' && (
-            <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-indigo-300 dark:border-indigo-700 text-slate-800 dark:text-slate-100 mr-4 sm:mr-8 shadow-sm">
+            <div className="p-5 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-indigo-400/50 dark:border-indigo-500/40 text-slate-800 dark:text-slate-100 mr-4 sm:mr-8 shadow-lg ring-1 ring-indigo-300/30 space-y-2">
               <div className="flex items-center justify-between text-xs text-slate-400 dark:text-slate-500 mb-2">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-slate-700 dark:text-slate-300 font-serif">Reflect</span>
@@ -959,12 +1069,12 @@ export const JournalChat: React.FC<JournalChatProps> = ({
       )}
 
       {/* Primary Journal Input Box (Hero Focal Point) */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 shadow-md border border-slate-200/70 dark:border-slate-800/80 transition-all space-y-3">
+      <div className="bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl rounded-3xl p-5 sm:p-6 shadow-xl border border-white/80 dark:border-white/10 transition-all space-y-3">
         
         {/* Integrated Quick Writing Starters */}
         <div className="flex items-center justify-between gap-2 overflow-x-auto pb-1 scrollbar-none text-xs">
           <div className="flex items-center gap-1.5 flex-1 min-w-0 overflow-x-auto scrollbar-none py-0.5">
-            <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 flex-shrink-0">
+            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 flex-shrink-0">
               Prompt starters:
             </span>
             {activeStarters.map((starter, idx) => {
@@ -976,10 +1086,10 @@ export const JournalChat: React.FC<JournalChatProps> = ({
                   id={`btn-starter-${idx}`}
                   type="button"
                   onClick={() => handleSelectStarter(starter)}
-                  className={`px-3 py-1 rounded-xl text-[11px] font-medium whitespace-nowrap transition-all flex-shrink-0 cursor-pointer flex items-center gap-1.5 ${
+                  className={`px-3 py-1 rounded-xl text-[11px] font-medium whitespace-nowrap transition-all flex-shrink-0 cursor-pointer flex items-center gap-1.5 backdrop-blur-md shadow-2xs ${
                     isMatching
-                      ? 'bg-indigo-100/90 dark:bg-indigo-950 text-indigo-900 dark:text-indigo-200 ring-1.5 ring-indigo-400/80 dark:ring-indigo-500 shadow-xs'
-                      : 'bg-slate-100/90 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 text-slate-700 dark:text-slate-300 hover:text-indigo-700 dark:hover:text-indigo-300'
+                      ? 'bg-indigo-100/90 dark:bg-indigo-950/90 text-indigo-900 dark:text-indigo-200 border border-indigo-400/80 dark:border-indigo-500 ring-1.5 ring-indigo-400/80 shadow-xs'
+                      : 'bg-white/50 dark:bg-slate-800/60 hover:bg-white/80 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-indigo-700 dark:hover:text-indigo-300 border border-white/60 dark:border-white/10'
                   }`}
                   title={isMatching ? `Matches active check-in above: "${starter.prompt}"` : starter.prompt}
                 >
@@ -999,7 +1109,7 @@ export const JournalChat: React.FC<JournalChatProps> = ({
             id="btn-shuffle-starters"
             type="button"
             onClick={handleShuffleStarters}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex-shrink-0 cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white/60 dark:hover:bg-slate-800/60 transition-colors flex-shrink-0 cursor-pointer"
             title="Rotate starters"
           >
             <Shuffle className="w-3.5 h-3.5" />
@@ -1011,7 +1121,7 @@ export const JournalChat: React.FC<JournalChatProps> = ({
           <textarea
             id="textarea-journal-input"
             ref={textareaRef}
-            rows={5}
+            rows={isFocusMode ? 8 : 5}
             value={currentInput}
             onChange={(e) => setCurrentInput(e.target.value)}
             onKeyDown={(e) => {
@@ -1022,11 +1132,15 @@ export const JournalChat: React.FC<JournalChatProps> = ({
             }}
             placeholder={
               conversation.length === 0
-                ? "Write freely about your day, thoughts, or emotions... (Press Ctrl+Enter to reflect)"
+                ? isFocusMode
+                  ? "Breathe in, and write freely into the quiet space... (Ctrl+Enter to reflect)"
+                  : "Write freely about your day, thoughts, or emotions... (Press Ctrl+Enter to reflect)"
                 : "Continue your reflection..."
             }
             disabled={isLoading}
-            className="w-full p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-950/60 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 text-sm font-sans leading-relaxed focus:outline-none focus:bg-white dark:focus:bg-slate-950 focus:ring-2 focus:ring-indigo-500/20 resize-none transition-all disabled:opacity-50"
+            className={`w-full p-4 sm:p-5 rounded-2xl bg-white/50 dark:bg-slate-950/50 backdrop-blur-md text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 leading-relaxed focus:outline-none focus:bg-white/80 dark:focus:bg-slate-950/80 focus:ring-2 focus:ring-indigo-500/30 border border-white/60 dark:border-white/10 resize-none transition-all disabled:opacity-50 shadow-inner ${
+              isFocusMode ? 'text-base font-serif' : 'text-sm font-sans'
+            }`}
           />
 
           {/* Smart Tag Suggestions based on user typing and previous entries/themes */}
@@ -1045,7 +1159,7 @@ export const JournalChat: React.FC<JournalChatProps> = ({
                       setTags(prev => [...prev, sTag]);
                     }
                   }}
-                  className="px-2.5 py-0.5 rounded-lg bg-indigo-50/80 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 text-[11px] font-sans transition-all cursor-pointer border border-indigo-200/50 dark:border-indigo-800/60 shadow-2xs"
+                  className="px-2.5 py-0.5 rounded-lg bg-indigo-50/80 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 text-[11px] font-sans transition-all cursor-pointer border border-indigo-200/50 dark:border-indigo-800/60 shadow-2xs backdrop-blur-xs"
                   title="Click to add suggested tag"
                 >
                   +{sTag}
@@ -1055,9 +1169,16 @@ export const JournalChat: React.FC<JournalChatProps> = ({
           )}
 
           <div className="flex items-center justify-between pt-1">
-            <span className="text-[11px] text-slate-400 dark:text-slate-500 hidden sm:inline font-sans">
-              Press <kbd className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-mono text-[10px]">Ctrl</kbd> + <kbd className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-mono text-[10px]">Enter</kbd> to reflect
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-slate-400 dark:text-slate-500 hidden sm:inline font-sans">
+                Press <kbd className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-mono text-[10px]">Ctrl</kbd> + <kbd className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-mono text-[10px]">Enter</kbd> to reflect
+              </span>
+              {currentInput.length > 0 && (
+                <span className="text-[11px] font-mono text-slate-400 dark:text-slate-500">
+                  • {currentWordCount} {currentWordCount === 1 ? 'word' : 'words'} ({currentInput.length} chars)
+                </span>
+              )}
+            </div>
 
             <div className="flex items-center gap-2 ml-auto">
               {speechSupported && (
@@ -1066,10 +1187,10 @@ export const JournalChat: React.FC<JournalChatProps> = ({
                   type="button"
                   onClick={toggleListening}
                   disabled={isLoading}
-                  className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold border backdrop-blur-md transition-all cursor-pointer shadow-xs ${
                     isListening
                       ? 'bg-rose-500 hover:bg-rose-600 text-white border-rose-500 animate-pulse'
-                      : 'bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                      : 'bg-white/60 dark:bg-slate-800/60 border-white/80 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-white/90 dark:hover:bg-slate-800/90'
                   }`}
                   title={isListening ? "Stop listening" : "Start speaking to dictate"}
                 >
@@ -1091,7 +1212,7 @@ export const JournalChat: React.FC<JournalChatProps> = ({
                 <button
                   id="btn-stop-streaming"
                   onClick={handleStopStreaming}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 text-rose-700 dark:text-rose-300 transition-colors cursor-pointer"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-rose-50/80 dark:bg-rose-950/60 hover:bg-rose-100/90 text-rose-700 dark:text-rose-300 backdrop-blur-md border border-rose-200/60 dark:border-rose-800/60 transition-colors cursor-pointer"
                 >
                   <Square className="w-3 h-3 fill-current" />
                   <span>Stop</span>
@@ -1101,7 +1222,7 @@ export const JournalChat: React.FC<JournalChatProps> = ({
                   id="btn-send-journal"
                   onClick={handleSendThought}
                   disabled={!currentInput.trim() || isLoading}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm cursor-pointer"
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold bg-indigo-600/90 hover:bg-indigo-600 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md backdrop-blur-md cursor-pointer active:scale-98"
                 >
                   <span>Reflect</span>
                   <Send className="w-3.5 h-3.5" />
@@ -1110,7 +1231,6 @@ export const JournalChat: React.FC<JournalChatProps> = ({
             </div>
           </div>
         </div>
-
       </div>
 
     </div>

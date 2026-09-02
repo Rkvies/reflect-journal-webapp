@@ -37,6 +37,7 @@ import { SettingsPage } from './components/SettingsPage';
 import { AuthLanding } from './components/AuthLanding';
 import { PinLockScreen } from './components/PinLockScreen';
 import { PinSetupModal, PinModalMode } from './components/PinSetupModal';
+import { BackgroundPattern } from './components/BackgroundPattern';
 import { getLocalPinSettings, savePinSettings, PinSettings } from './lib/pinSecurity';
 import { requestAgenticNudge, deactivateAccount, deleteAccount } from './lib/api';
 import { MILESTONES, calculateActiveStreak } from './lib/milestones';
@@ -55,10 +56,14 @@ import {
   subscribeToMilestones
 } from './lib/firebase';
 import { UserX, Trash2, Sparkles } from 'lucide-react';
+import { useSessionTimeout } from './hooks/useSessionTimeout';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  
+  useSessionTimeout(!!currentUser);
+
   const [activeTab, setActiveTab] = useState<'journal' | 'history' | 'insights' | 'gratitude' | 'settings'>('journal');
   
   // Data State
@@ -122,6 +127,7 @@ export default function App() {
   // Cross-component triggers
   const [prefillPrompt, setPrefillPrompt] = useState<{ prompt: string; tag: string } | null>(null);
   const [targetEntryId, setTargetEntryId] = useState<string | null>(null);
+  const [isDeepFocus, setIsDeepFocus] = useState<boolean>(false);
 
   // PIN Security Lock State
   const [pinEnabled, setPinEnabled] = useState<boolean>(false);
@@ -655,8 +661,9 @@ export default function App() {
 
   if (isAuthLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center text-slate-500 font-sans text-xs">
-        <div className="flex flex-col items-center gap-3">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center text-slate-500 font-sans text-xs relative">
+        <BackgroundPattern />
+        <div className="flex flex-col items-center gap-3 relative z-10">
           <div className="w-16 h-16 animate-spark-glimmer flex items-center justify-center">
             <img src="/reflect_logo.png" alt="Loading" className="w-full h-full object-contain dark:invert opacity-80" />
           </div>
@@ -693,42 +700,53 @@ export default function App() {
 
   const fontClass = fontPreference === 'serif' ? 'font-serif' : fontPreference === 'mono' ? 'font-mono' : 'font-sans';
 
-  return (
-    <div className={`min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col selection:bg-indigo-500/20 selection:text-indigo-900 dark:selection:text-indigo-200 transition-colors duration-200 ${fontClass}`}>
-      
-      {/* Top Navigation */}
-      <Navbar
-        user={currentUser}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        theme={theme}
-        onToggleTheme={toggleTheme}
-        onOpenMemory={() => setIsMemoryOpen(true)}
-        onOpenSecurity={() => setIsSecurityOpen(true)}
-        onOpenDeactivateModal={() => setIsDeactivateModalOpen(true)}
-        onOpenDeleteModal={() => setIsDeleteModalOpen(true)}
-        onSignOut={handleSignOut}
-        notifications={notifications}
-        onMarkAsRead={handleMarkAsRead}
-        onMarkAllAsRead={handleMarkAllAsRead}
-        onDeleteNotification={handleDeleteNotification}
-        pinEnabled={pinEnabled}
-        onLockApp={handleLockAppNow}
-      />
+  const isFocusActive = isDeepFocus && activeTab === 'journal';
 
-      {/* Proactive Check-in Nudge Banner */}
-      <NudgeBanner
-        nudge={activeNudge}
-        onDismiss={handleDismissNudge}
-        onReflectOnNudge={handleReflectOnPrompt}
-        onTriggerNewNudge={handleTriggerProactiveNudge}
-      />
+  return (
+    <div className={`min-h-screen text-slate-800 dark:text-slate-100 flex flex-col selection:bg-indigo-500/20 selection:text-indigo-900 dark:selection:text-indigo-200 transition-colors duration-300 ${fontClass} relative`}>
+      {/* Mindful Ambient Sky & Cloud Background */}
+      <BackgroundPattern isDeepFocus={isFocusActive} />
+      
+      <div className="relative z-10 flex flex-col min-h-screen">
+        {/* Top Navigation (Subtly hidden during Deep Focus) */}
+        <div className={`transition-all duration-300 ${isFocusActive ? 'opacity-0 -translate-y-4 pointer-events-none h-0 overflow-hidden' : 'opacity-100 translate-y-0'}`}>
+          <Navbar
+            user={currentUser}
+            activeTab={activeTab}
+            setActiveTab={(tab) => {
+              if (tab !== 'journal') setIsDeepFocus(false);
+              setActiveTab(tab);
+            }}
+            theme={theme}
+            onToggleTheme={toggleTheme}
+            onOpenMemory={() => setIsMemoryOpen(true)}
+            onOpenSecurity={() => setIsSecurityOpen(true)}
+            onOpenDeactivateModal={() => setIsDeactivateModalOpen(true)}
+            onOpenDeleteModal={() => setIsDeleteModalOpen(true)}
+            onSignOut={handleSignOut}
+            pinEnabled={pinEnabled}
+            onLockApp={handleLockAppNow}
+          />
+        </div>
+
+      {/* Proactive Check-in Nudge Banner (Hidden in Deep Focus) */}
+      {!isFocusActive && (
+        <NudgeBanner
+          nudge={activeNudge}
+          onDismiss={handleDismissNudge}
+          onReflectOnNudge={handleReflectOnPrompt}
+          onTriggerNewNudge={handleTriggerProactiveNudge}
+        />
+      )}
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-10 pb-24 md:pb-10 space-y-8 sm:space-y-10">
+      <main className={`flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 pb-24 md:pb-10 transition-all duration-300 ${
+        isFocusActive ? 'py-4 sm:py-6 space-y-4' : 'py-6 sm:py-10 space-y-8 sm:space-y-10'
+      }`}>
         
         <div className={activeTab === 'journal' ? 'block' : 'hidden'}>
           <JournalChat
+            user={currentUser}
             userId={currentUser.uid}
             profileSummary={profileSummary}
             recentEntries={entries}
@@ -740,6 +758,8 @@ export default function App() {
             prefillPrompt={prefillPrompt}
             onClearPrefill={() => setPrefillPrompt(null)}
             activeNudge={activeNudge}
+            isDeepFocus={isFocusActive}
+            onToggleDeepFocus={() => setIsDeepFocus(prev => !prev)}
           />
         </div>
 
@@ -849,7 +869,9 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200/60 dark:border-slate-800/80 bg-white/50 dark:bg-slate-900/50 px-4 sm:px-6 py-4 pb-20 md:pb-4 text-xs text-slate-500 dark:text-slate-400 mt-auto transition-colors">
+      <footer className={`border-t border-slate-200/60 dark:border-slate-800/80 bg-white/50 dark:bg-slate-900/50 px-4 sm:px-6 py-4 pb-20 md:pb-4 text-xs text-slate-500 dark:text-slate-400 mt-auto transition-all duration-300 ${
+        isFocusActive ? 'opacity-0 pointer-events-none h-0 overflow-hidden py-0 border-transparent' : 'opacity-100'
+      }`}>
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <span className="font-serif font-bold text-slate-700 dark:text-slate-300">Reflect</span>
@@ -892,15 +914,15 @@ export default function App() {
       {/* Deactivate Account Confirmation Modal */}
       {isDeactivateModalOpen && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/70 backdrop-blur-md animate-fade-in"
           role="dialog"
           aria-modal="true"
           aria-labelledby="deactivate-modal-title"
           aria-describedby="deactivate-modal-desc"
         >
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full p-6 space-y-5 text-slate-800 dark:text-slate-100">
+          <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl rounded-3xl border border-white/80 dark:border-white/10 shadow-2xl max-w-md w-full p-6 space-y-5 text-slate-800 dark:text-slate-100">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950/60 flex items-center justify-center text-amber-600 dark:text-amber-400" aria-hidden="true">
+              <div className="w-10 h-10 rounded-2xl bg-amber-100/80 dark:bg-amber-950/60 border border-amber-200/80 dark:border-amber-800/80 flex items-center justify-center text-amber-600 dark:text-amber-400 shadow-2xs" aria-hidden="true">
                 <UserX className="w-5 h-5" />
               </div>
               <div>
@@ -914,7 +936,7 @@ export default function App() {
             </p>
 
             {accountActionError && (
-              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 text-xs">
+              <div className="p-3 rounded-xl bg-rose-50/80 dark:bg-rose-950/50 border border-rose-200/80 dark:border-rose-900/50 text-rose-700 dark:text-rose-300 text-xs">
                 {accountActionError}
               </div>
             )}
@@ -927,7 +949,7 @@ export default function App() {
                   setAccountActionError(null);
                 }}
                 disabled={accountActionLoading}
-                className="px-4 py-2 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                className="px-4 py-2 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 border border-white/80 dark:border-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
               >
                 Cancel
               </button>
@@ -935,7 +957,7 @@ export default function App() {
                 type="button"
                 onClick={handleDeactivateAccount}
                 disabled={accountActionLoading}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-600/20 transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
               >
                 {accountActionLoading ? 'Deactivating...' : 'Deactivate Account'}
               </button>
@@ -947,15 +969,15 @@ export default function App() {
       {/* Delete Account Permanently Modal */}
       {isDeleteModalOpen && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/70 backdrop-blur-md animate-fade-in"
           role="dialog"
           aria-modal="true"
           aria-labelledby="delete-account-modal-title"
           aria-describedby="delete-account-modal-desc"
         >
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-rose-200 dark:border-rose-900/50 shadow-2xl max-w-md w-full p-6 space-y-5 text-slate-800 dark:text-slate-100">
+          <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl rounded-3xl border border-rose-200/80 dark:border-rose-900/50 shadow-2xl max-w-md w-full p-6 space-y-5 text-slate-800 dark:text-slate-100">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-950/60 flex items-center justify-center text-rose-600 dark:text-rose-400" aria-hidden="true">
+              <div className="w-10 h-10 rounded-2xl bg-rose-100/80 dark:bg-rose-950/60 border border-rose-200/80 dark:border-rose-900/60 flex items-center justify-center text-rose-600 dark:text-rose-400 shadow-2xs" aria-hidden="true">
                 <Trash2 className="w-5 h-5" />
               </div>
               <div>
@@ -978,12 +1000,12 @@ export default function App() {
                 value={deleteConfirmText}
                 onChange={(e) => setDeleteConfirmText(e.target.value)}
                 placeholder="Type DELETE"
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-white/80 dark:border-white/10 bg-white/60 dark:bg-slate-800/60 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
               />
             </div>
 
             {accountActionError && (
-              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 text-xs">
+              <div className="p-3 rounded-xl bg-rose-50/80 dark:bg-rose-950/50 border border-rose-200/80 dark:border-rose-900/50 text-rose-700 dark:text-rose-300 text-xs">
                 {accountActionError}
               </div>
             )}
@@ -997,7 +1019,7 @@ export default function App() {
                   setAccountActionError(null);
                 }}
                 disabled={accountActionLoading}
-                className="px-4 py-2 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+                className="px-4 py-2 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 border border-white/80 dark:border-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
               >
                 Cancel
               </button>
@@ -1005,7 +1027,7 @@ export default function App() {
                 type="button"
                 onClick={handleDeleteAccount}
                 disabled={accountActionLoading || deleteConfirmText !== 'DELETE'}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-rose-600/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
               >
                 {accountActionLoading ? 'Deleting...' : 'Delete Permanently'}
               </button>
@@ -1037,6 +1059,7 @@ export default function App() {
         onDismiss={handleDismissMilestoneToast}
       />
 
+      </div>
     </div>
   );
 }

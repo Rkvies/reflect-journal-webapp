@@ -1,26 +1,26 @@
 # Reflect — Intelligent Mindful Reflection & Gratitude Workspace
 
-**Reflect** is a security-first, agentic personal journaling and gratitude workspace powered by **Google Gemini AI** (`@google/genai`) and **Google Cloud Firestore**. Rather than functioning as a transient conversational chat wrapper, Reflect serves as a mindful, persistent companion that builds long-term psychological memory over time. By combining an asynchronous memory synthesis layer with on-demand thematic insight extraction, daily gratitude tracking, and proactive check-in nudges, Reflect helps users identify personal growth patterns, track emotional trajectories, and retain total sovereignty over their data.
+**Reflect** is a security-first, agentic personal journaling and gratitude workspace powered by **Google Gemini AI** (`@google/genai`) and **Google Cloud Firestore**. Rather than functioning as a transient conversational chatbot, Reflect serves as a mindful, persistent reflection companion that builds long-term psychological memory over time. By combining an asynchronous memory synthesis layer with on-demand thematic insight extraction, real-time streaming AI reflections, daily gratitude tracking, and proactive agentic check-in nudges, Reflect helps users identify personal growth patterns, track emotional trajectories, and retain complete sovereignty over their data.
 
 ---
 
 ## 🌟 Key Features
 
-### 1. ✍️ Daily Reflection & AI Dialogue Engine
-- **Conversational Reflection**: Engage in introspective dialogue with Gemini AI to explore your thoughts, uncover root emotions, and process daily events.
-- **Automated Sentiment Analysis**: Instant assessment of entry sentiment generating a 0–100 positivity score, mood indicators, and emotional breakdown.
+### 1. ✍️ Daily Reflection & Real-Time AI Streaming Dialogue
+- **Real-Time Streaming Dialogue**: Engage in introspective dialogue with Gemini AI via Server-Sent Events (SSE) streaming (`/api/journal/chat-stream`) for instant token-by-token reflection responses.
+- **Automated Sentiment Analysis**: Instant assessment of entry sentiment generating a 0–100 positivity score, mood indicators, and emotional descriptors (*Grounded*, *Peaceful*, *Reflective*, etc.).
 - **Curated Reflection Starters**: Categorized writing prompts (*Gratitude*, *Mindfulness*, *Self-Growth*, *Productivity*, *Relationships*) to eliminate blank-page friction.
-- **Daily Inspiration Quote**: A clean, single-view daily quote modal displayed once per day to set a mindful intention.
+- **Daily Inspiration Quote**: A clean daily quote modal displayed once per day to set a mindful intention.
 - **Real-Time Writing Metrics**: Live reading duration estimates and word counters as you compose reflections.
 
 ### 2. 💖 Daily Gratitude Tracker
-- **Dedicated 3-Item Gratitude Logging**: Focused daily module to record three things you are grateful for, anchored with an optional deeper reflection note.
+- **Dedicated 3-Item Gratitude Logging**: Focused daily module to record three items you are grateful for, anchored with a deeper reflection note.
 - **Gratitude History & Management**: View past gratitude logs chronologically, edit responses, or delete historic entries.
 
 ### 3. 📚 Past Entries Archive & Intelligent Filtering
 - **Full Entry Lifecycle Management**: Create, edit titles, update tags/content, or permanently delete past reflections.
 - **Multi-Filter Capabilities**: Search entries instantly by text keywords, custom hashtags (`#growth`, `#work`), or emotional mood pills (*Optimistic*, *Calm*, *Reflective*, etc.).
-- **Interactive Conversation History**: View historical multi-turn AI dialogue transcript associated with any entry.
+- **Interactive Conversation History**: View historical multi-turn AI dialogue transcripts associated with any entry.
 
 ### 4. 📊 Insights & Behavioral Analytics
 - **Visual Sentiment Trajectory**: Interactive charts powered by Recharts illustrating sentiment trends and mood distribution over time.
@@ -29,27 +29,27 @@
 - **Memory Context Inspector**: Direct visibility into your running psychological profile synthesized by Gemini.
 
 ### 5. 🔔 Proactive Agentic Nudges & Cloud Scheduler Cron
-- **Autonomous Check-In Prompts**: Intelligent background prompts that detect reflection gaps or milestone patterns, gently inviting you back to log your state of mind.
+- **Autonomous Check-In Prompts**: Intelligent background prompts rendered via an interactive Nudge Banner that detects reflection gaps or milestone patterns, inviting you back to log your state of mind.
 - **Secured Cron Endpoint (`/api/cron/generate-nudges`)**: A protected backend endpoint built for Cloud Scheduler or cron runners that safely generates pending nudges for active users. Authenticated via `CRON_SECRET` using either `x-cron-secret: <secret>` or `Authorization: Bearer <secret>`.
 
 ### 6. ⚙️ Settings, PIN Security & 90-Day Secret Rotation Hub
 - **Profile & Credentials**: Real-time display name synchronization with Firebase Authentication.
 - **Appearance & Typography**: Toggle between Light Atmosphere and Dark Twilight modes, with customizable reading typography (*Sans*, *Serif*, or *Monospace*).
-- **Mindful Reminders**: Active background monitoring system that securely generates in-app notifications at user-defined preferred times for Evening Reflection and Daily Gratitude routines.
+- **Mindful Reminders**: Active notification preference settings for Evening Reflection and Daily Gratitude routines.
 - **Security & Privacy Audit**: Interactive inspector detailing security boundaries, encryption status, and data partitioning guarantees.
 - **90-Day Secret & Password Rotation Policy**: Cryptographic 6-digit PIN and password protection enforcing an automated 90-day secret rotation policy with client-side SHA-256 salted hashing, rotation countdown indicators, and immutable audit history.
 - **Mandatory Expiration Enforcement**: Option to require PIN rotation before journal access is permitted when the 90-day lifecycle expires.
 - **Interactive QA Test Simulator**: Ability to simulate 90-day expiry state to test warning triggers, lock screen enforcement, and rotation flows.
 - **Auto-Lock Inactivity Timer**: Configurable auto-lock mechanism (1-30 minutes) that actively monitors interactions to secure the application when left unattended.
 - **Data Sovereignty & Multi-Format Export**: Export your complete journal archive into structured **XLSX**, formatted **Markdown**, or **JSON** files for offline backup and migration.
-- **Account Controls**: Temporary account deactivation or permanent account purging (recursively deleting all Firestore entries and Firebase Auth identity).
+- **Account Controls**: Temporary account deactivation or permanent account purging (`/api/user/purge`) recursively deleting all Firestore entries and Firebase Auth identity.
 
 ### 7. 📱 Mobile & Tablet Responsive UX & Accessibility
-- **Desktop Top Navigation**: Sleek top header bar with quick-access tabs and profile avatar menu.
+- **Desktop Top Navigation**: Sleek header bar with quick-access tab switches and profile dropdown menu.
 - **Mobile Bottom Navigation Bar**: Fixed, touch-optimized bottom menu bar (`md:hidden`) for phones ensuring single-thumb tab switching across Reflection, History, Insights, Gratitude, and Settings.
-- **Fluid Layouts**: Responsive grids engineered to adapt smoothly across mobile phones, tablets (iPad), and desktop monitors.
+- **Fluid Layouts**: Responsive grids engineered to adapt smoothly across mobile phones, tablets, and desktop monitors.
 - **Cursor-Based Entry Pagination**: High-efficiency batched history streaming with `limit` and `startAfter` cursors in Firestore to conserve bandwidth and guarantee instant page responsiveness.
-- **WCAG 2.1 AA Compliance**: Strict modal focus traps, Escape key listeners, explicit ARIA dialog roles (`role="dialog"`, `aria-modal="true"`, `aria-labelledby`, `aria-describedby`), and high-contrast color pairings.
+- **WCAG 2.1 AA Compliance**: Strict modal focus traps, Escape key listeners, explicit ARIA dialog roles (`role="dialog"`, `aria-modal="true"`, `aria-labelledby`), and high-contrast color pairings.
 
 ---
 
@@ -58,7 +58,7 @@
 ```text
 +-----------------------------------------------------------------------------------+
 |                                 CLIENT (BROWSER)                                  |
-|  - React 18 + TypeScript + Tailwind CSS + Recharts + Motion                       |
+|  - React 18 + TypeScript + Tailwind CSS + Recharts + Framer Motion                |
 |  - Firebase Client SDK (Google Auth & UID-Scoped Firestore Listeners)             |
 |  - Desktop Header & Mobile Bottom Navigation Bar                                  |
 |  - Cursor-Based Paginated Entry History (limit & startAfter)                      |
@@ -70,9 +70,11 @@
 |                               BACKEND (CLOUD RUN)                                 |
 |  - Express.js API Server (Node.js / TypeScript)                                   |
 |  - Google Gemini API Orchestration Layer (@google/genai)                          |
+|  - Real-Time SSE Streaming (/api/journal/chat-stream)                             |
 |  - Multi-Model Resilience Fallback Strategy                                       |
 |  - Asynchronous Memory Context & Insight Synthesizers                             |
 |  - Secured Scheduled Nudge Cron Job (/api/cron/generate-nudges)                   |
+|  - Account Purge Endpoint (/api/user/purge)                                       |
 +-------------------+---------------------------------------+-----------------------+
                     |                                       |
       Secret Manager| (Runtime GEMINI_API_KEY, CRON_SECRET) | Firestore Operations
@@ -89,9 +91,25 @@
 
 ### Stack Overview
 - **Frontend Framework**: React 18, TypeScript, Vite, Tailwind CSS, Lucide Icons, Recharts, Framer Motion.
-- **Backend API Layer**: Express.js server running in Cloud Run container.
-- **Database & Authentication**: Google Cloud Firestore & Firebase Authentication.
+- **Backend API Layer**: Express.js server running in Cloud Run container with Vite dev middleware.
+- **Database & Authentication**: Google Cloud Firestore & Firebase Authentication (with Firebase Admin SDK backend).
 - **AI Engine**: `@google/genai` SDK with multi-tiered fallback architecture (`gemini-3.1-flash-lite` ➔ `gemini-3.7-flash` ➔ `gemini-flash-latest`).
+
+---
+
+## 🔌 API Endpoints Summary
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/api/health` | `GET` | System healthcheck & Gemini API configuration status |
+| `/api/journal/chat-stream` | `POST` | Real-time SSE streaming AI reflection with embedded sentiment analysis |
+| `/api/journal/chat` | `POST` | Non-streaming AI reflection with sentiment metadata |
+| `/api/journal/update-profile` | `POST` | Asynchronous long-term psychological memory summary updater |
+| `/api/journal/generate-insights` | `POST` | On-demand structured thematic JSON insights with citation validation |
+| `/api/journal/weekly-summary` | `POST` | 7-day weekly reflection recap digest generator |
+| `/api/cron/generate-nudges` | `POST` | Secured background endpoint for Cloud Scheduler check-in nudges |
+| `/api/admin/secrets-status` | `GET` | Secrets health and 90-day rotation compliance audit endpoint |
+| `/api/user/purge` | `DELETE` | Recursive deletion of user Firestore data and Firebase Auth identity |
 
 ---
 

@@ -267,7 +267,9 @@ export async function streamGeminiReflection(params: {
 
   const finalAccumulated = accumulated.trim();
   if (!finalAccumulated) {
-    throw new Error('Empty reflection received from server.');
+    const reflectiveFallback = "Thank you for sharing your reflection today. I'm holding space for this thought. Take a mindful breath, notice what feels most present right now, and give yourself space as you reflect.";
+    params.onChunk('', reflectiveFallback);
+    return { fullText: reflectiveFallback, sentiment: finalSentiment, timestamp: new Date().toISOString() };
   }
 
   return { fullText: finalAccumulated, sentiment: finalSentiment, timestamp: new Date().toISOString() };

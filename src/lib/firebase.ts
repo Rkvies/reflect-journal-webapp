@@ -364,6 +364,43 @@ export function subscribeToNotifications(uid: string, callback: (notifications: 
       list.push({ id: docSnap.id, ...docSnap.data() } as AppNotification);
     });
 
+    if (snapshot.empty && uid) {
+      const initialNotifs: AppNotification[] = [
+        {
+          id: 'welcome_notif',
+          userId: uid,
+          title: 'Welcome to Reflect 🌊',
+          message: 'Your mindful journaling space is ready. Start your first reflection or log your daily gratitude.',
+          type: 'system',
+          createdAt: new Date().toISOString(),
+          isRead: false
+        },
+        {
+          id: 'insight_notif',
+          userId: uid,
+          title: 'AI Insight Ready 💡',
+          message: 'Reflect AI is ready to analyze your emotional patterns and provide personalized summaries.',
+          type: 'insight',
+          createdAt: new Date(Date.now() - 3600000).toISOString(),
+          isRead: false
+        },
+        {
+          id: 'reminder_notif',
+          userId: uid,
+          title: 'Evening Reflection Reminder ⏰',
+          message: 'Set up your preferred reminder time in settings to build a consistent daily journaling habit.',
+          type: 'reminder',
+          createdAt: new Date(Date.now() - 7200000).toISOString(),
+          isRead: true
+        }
+      ];
+      initialNotifs.forEach(async (n) => {
+        try {
+          await setDoc(doc(db, 'users', uid, 'notifications', n.id), cleanForFirestore(n));
+        } catch {}
+      });
+    }
+
     callback(list);
   }, (err) => {
     console.error('Notifications subscription error:', err);

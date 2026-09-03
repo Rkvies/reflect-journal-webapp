@@ -141,10 +141,135 @@ export function dispatchGuestDataChanged(type: string, uid: string) {
   }
 }
 
+export function isDemoEntry(e: any): boolean {
+  if (!e) return true;
+  const title = (e.title || '').toLowerCase();
+  const content = (e.content || '').toLowerCase();
+  const id = (e.id || '').toLowerCase();
+  if (id.startsWith('entry_guest_welcome') || id.includes('welcome') || id.includes('demo') || id.includes('sample')) return true;
+  if (title.includes('welcome to reflect') || title.includes('guest mode') || title === 'welcome') return true;
+  if (content.includes('private sanctuary for mindful reflection') || content.includes('in guest mode, all your thoughts') || content.includes('mindful reflection space')) return true;
+  return false;
+}
+
+export function isDemoGratitude(g: any): boolean {
+  if (!g) return true;
+  const id = (g.id || '').toLowerCase();
+  const i1 = (g.item1 || '').toLowerCase();
+  const i2 = (g.item2 || '').toLowerCase();
+  const i3 = (g.item3 || '').toLowerCase();
+  const r = (g.reflection || '').toLowerCase();
+  if (id.includes('welcome') || id.includes('demo') || id.includes('sample')) return true;
+  if (i1.includes('distraction-free') || i2.includes('mindful breath today') || i3.includes('without an account')) return true;
+  if (r.includes('quiet moment of self-connection')) return true;
+  return false;
+}
+
+export function isDemoNotification(n: any): boolean {
+  if (!n) return true;
+  const id = (n.id || '').toLowerCase();
+  const title = (n.title || '').toLowerCase();
+  if (id === 'welcome_notif' || id === 'insight_notif' || id === 'reminder_notif' || id.startsWith('notif_guest') || id.includes('welcome') || id.includes('demo') || id.includes('sample')) return true;
+  if (title.includes('welcome to reflect') || title.includes('welcome to guest mode') || title.includes('ai insight ready') || title.includes('evening reflection reminder')) return true;
+  return false;
+}
+
+export function isDemoSummary(s: any): boolean {
+  if (!s || !s.summary) return true;
+  const text = (s.summary || '').toLowerCase();
+  if (text.includes('guest journaling session initiated') || text.includes('new user journey')) return true;
+  return false;
+}
+
+export function purgeAllGuestDemoData(specificUid?: string) {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+
+    // Scan all keys in localStorage to purge any guest demo data across all keys
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+
+      if (key.startsWith('reflect_guest_entries_')) {
+        try {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const list = JSON.parse(raw);
+            if (Array.isArray(list)) {
+              const cleaned = list.filter(e => !isDemoEntry(e));
+              if (cleaned.length !== list.length) {
+                localStorage.setItem(key, JSON.stringify(cleaned));
+              }
+            }
+          }
+        } catch {}
+      }
+
+      if (key.startsWith('reflect_guest_gratitude_')) {
+        try {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const list = JSON.parse(raw);
+            if (Array.isArray(list)) {
+              const cleaned = list.filter(g => !isDemoGratitude(g));
+              if (cleaned.length !== list.length) {
+                localStorage.setItem(key, JSON.stringify(cleaned));
+              }
+            }
+          }
+        } catch {}
+      }
+
+      if (key.startsWith('reflect_guest_summary_')) {
+        try {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const sum = JSON.parse(raw);
+            if (isDemoSummary(sum)) {
+              localStorage.removeItem(key);
+            }
+          }
+        } catch {}
+      }
+
+      if (key.startsWith('reflect_guest_notifs_')) {
+        try {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const list = JSON.parse(raw);
+            if (Array.isArray(list)) {
+              const cleaned = list.filter(n => !isDemoNotification(n));
+              if (cleaned.length !== list.length) {
+                localStorage.setItem(key, JSON.stringify(cleaned));
+              }
+            }
+          }
+        } catch {}
+      }
+
+      if (key.startsWith('reflect_draft_')) {
+        try {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const draft = JSON.parse(raw);
+            if (draft?.title && draft.title.toLowerCase().includes('welcome')) {
+              localStorage.removeItem(key);
+            }
+          }
+        } catch {}
+      }
+    }
+  } catch (err) {
+    console.warn('Failed during guest demo data purge:', err);
+  }
+}
+
 export function getGuestEntries(uid: string): JournalEntry[] {
   try {
     const raw = localStorage.getItem(`reflect_guest_entries_${uid}`);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    const entries: JournalEntry[] = JSON.parse(raw);
+    return entries.filter(e => !isDemoEntry(e));
   } catch {
     return [];
   }
@@ -152,7 +277,8 @@ export function getGuestEntries(uid: string): JournalEntry[] {
 
 export function saveGuestEntries(uid: string, entries: JournalEntry[]) {
   try {
-    localStorage.setItem(`reflect_guest_entries_${uid}`, JSON.stringify(entries));
+    const cleaned = entries.filter(e => !isDemoEntry(e));
+    localStorage.setItem(`reflect_guest_entries_${uid}`, JSON.stringify(cleaned));
   } catch (err) {
     console.warn('Failed to persist guest entries locally:', err);
   }
@@ -161,7 +287,9 @@ export function saveGuestEntries(uid: string, entries: JournalEntry[]) {
 export function getGuestGratitude(uid: string): GratitudeEntry[] {
   try {
     const raw = localStorage.getItem(`reflect_guest_gratitude_${uid}`);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    const list: GratitudeEntry[] = JSON.parse(raw);
+    return list.filter(g => !isDemoGratitude(g));
   } catch {
     return [];
   }
@@ -169,7 +297,8 @@ export function getGuestGratitude(uid: string): GratitudeEntry[] {
 
 export function saveGuestGratitude(uid: string, list: GratitudeEntry[]) {
   try {
-    localStorage.setItem(`reflect_guest_gratitude_${uid}`, JSON.stringify(list));
+    const cleaned = list.filter(g => !isDemoGratitude(g));
+    localStorage.setItem(`reflect_guest_gratitude_${uid}`, JSON.stringify(cleaned));
   } catch (err) {
     console.warn('Failed to persist guest gratitude locally:', err);
   }
@@ -178,7 +307,12 @@ export function saveGuestGratitude(uid: string, list: GratitudeEntry[]) {
 export function getGuestProfileSummary(uid: string): ProfileSummary | null {
   try {
     const raw = localStorage.getItem(`reflect_guest_summary_${uid}`);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const summary: ProfileSummary = JSON.parse(raw);
+    if (isDemoSummary(summary)) {
+      return null;
+    }
+    return summary;
   } catch {
     return null;
   }
@@ -186,6 +320,7 @@ export function getGuestProfileSummary(uid: string): ProfileSummary | null {
 
 export function saveGuestProfileSummary(uid: string, summary: ProfileSummary) {
   try {
+    if (isDemoSummary(summary)) return;
     localStorage.setItem(`reflect_guest_summary_${uid}`, JSON.stringify(summary));
   } catch (err) {
     console.warn('Failed to persist guest summary locally:', err);
@@ -246,7 +381,9 @@ export function saveGuestWeeklySummary(uid: string, rep: WeeklyReflectionReport)
 export function getGuestNotifications(uid: string): AppNotification[] {
   try {
     const raw = localStorage.getItem(`reflect_guest_notifs_${uid}`);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    const list: AppNotification[] = JSON.parse(raw);
+    return list.filter(n => !isDemoNotification(n));
   } catch {
     return [];
   }
@@ -254,7 +391,8 @@ export function getGuestNotifications(uid: string): AppNotification[] {
 
 export function saveGuestNotifications(uid: string, list: AppNotification[]) {
   try {
-    localStorage.setItem(`reflect_guest_notifs_${uid}`, JSON.stringify(list));
+    const cleaned = list.filter(n => !isDemoNotification(n));
+    localStorage.setItem(`reflect_guest_notifs_${uid}`, JSON.stringify(cleaned));
   } catch (err) {
     console.warn('Failed to persist guest notifications locally:', err);
   }
@@ -278,71 +416,8 @@ export function saveGuestMilestones(uid: string, milestones: UserMilestones) {
 }
 
 export function initializeGuestDataIfEmpty(uid: string) {
-  const existingEntries = getGuestEntries(uid);
-  if (existingEntries.length === 0) {
-    const welcomeEntry: JournalEntry = {
-      id: `entry_guest_welcome_${Date.now()}`,
-      userId: uid,
-      title: 'Welcome to Reflect (Guest Mode)',
-      content: 'Welcome to your private sanctuary for mindful reflection. In Guest Mode, all your thoughts, moods, and gratitude stay securely isolated inside your browser.\n\nExplore AI reflections, search your archive, test audio journaling, and inspect your sentiment patterns. Whenever you are ready to back up your thoughts to the cloud, you can connect a Google Account with one click.',
-      mood: 'peaceful',
-      tags: ['Mindfulness', 'Welcome', 'Guest Mode'],
-      conversation: [],
-      sentiment: {
-        label: 'Tender & Calm',
-        emoji: '🌿',
-        color: 'emerald',
-        score: 88,
-        summary: 'A calm, welcoming start to your private guest journaling journey.'
-      },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      wordCount: 72,
-    };
-    saveGuestEntries(uid, [welcomeEntry]);
-  }
-
-  const existingGratitude = getGuestGratitude(uid);
-  if (existingGratitude.length === 0) {
-    const todayDate = new Date().toISOString().split('T')[0];
-    const welcomeGratitude: GratitudeEntry = {
-      id: `gratitude_guest_welcome_${Date.now()}`,
-      userId: uid,
-      date: todayDate,
-      item1: 'A safe, distraction-free space to reflect',
-      item2: 'Taking a deep mindful breath today',
-      item3: 'The freedom to explore without an account',
-      reflection: 'Grateful for this quiet moment of self-connection.',
-      createdAt: new Date().toISOString(),
-    };
-    saveGuestGratitude(uid, [welcomeGratitude]);
-  }
-
-  if (!getGuestProfileSummary(uid)) {
-    const welcomeSummary: ProfileSummary = {
-      userId: uid,
-      summary: 'Guest journaling session initiated. Focusing on self-discovery, emotional balance, and clarity.',
-      lastUpdated: new Date().toISOString(),
-      keyThemes: ['Mindful Awareness', 'Self-Connection'],
-      totalEntriesAnalyzed: 1,
-      lastQuoteShownDate: new Date().toISOString().split('T')[0],
-    };
-    saveGuestProfileSummary(uid, welcomeSummary);
-  }
-
-  const existingNotifs = getGuestNotifications(uid);
-  if (existingNotifs.length === 0) {
-    const welcomeNotif: AppNotification = {
-      id: `notif_guest_${Date.now()}`,
-      userId: uid,
-      title: 'Welcome to Guest Mode 🌿',
-      message: 'You are exploring Reflect locally. Your reflections remain private on this device. Sign in anytime to sync to Google!',
-      type: 'system',
-      createdAt: new Date().toISOString(),
-      isRead: false,
-    };
-    saveGuestNotifications(uid, [welcomeNotif]);
-  }
+  // Purge any legacy demo data from guest local storage so Guest Mode starts completely clean
+  purgeAllGuestDemoData(uid);
 }
 
 export async function signInAsGuest(): Promise<AppUser> {
@@ -351,22 +426,8 @@ export async function signInAsGuest(): Promise<AppUser> {
   sessionStorage.removeItem('reflect_session_timeout');
   localStorage.removeItem('reflect_force_select_account');
 
-  try {
-    const cred = await signInAnonymously(auth);
-    if (cred?.user) {
-      return {
-        uid: cred.user.uid,
-        email: null,
-        displayName: 'Guest Explorer',
-        photoURL: null,
-        isAnonymous: true,
-      };
-    }
-  } catch (anonErr: any) {
-    console.info('Firebase anonymous auth restricted or disabled; activating secure local guest mode:', anonErr?.message || anonErr);
-  }
-
-  initializeGuestDataIfEmpty(guestUid);
+  // Purge any legacy demo data immediately so Guest Mode is completely clean
+  purgeAllGuestDemoData(guestUid);
   dispatchGuestDataChanged('all', guestUid);
 
   return {
@@ -873,45 +934,14 @@ export function subscribeToNotifications(uid: string, callback: (notifications: 
   return onSnapshot(q, (snapshot) => {
     const list: AppNotification[] = [];
     snapshot.forEach((docSnap) => {
-      list.push({ id: docSnap.id, ...docSnap.data() } as AppNotification);
+      const notif = { id: docSnap.id, ...docSnap.data() } as AppNotification;
+      if (!isDemoNotification(notif)) {
+        list.push(notif);
+      } else {
+        // Silently purge any legacy sample notification doc from Firestore
+        deleteDoc(doc(db, 'users', uid, 'notifications', docSnap.id)).catch(() => {});
+      }
     });
-
-    if (snapshot.empty && uid) {
-      const initialNotifs: AppNotification[] = [
-        {
-          id: 'welcome_notif',
-          userId: uid,
-          title: 'Welcome to Reflect 🌊',
-          message: 'Your mindful journaling space is ready. Start your first reflection or log your daily gratitude.',
-          type: 'system',
-          createdAt: new Date().toISOString(),
-          isRead: false
-        },
-        {
-          id: 'insight_notif',
-          userId: uid,
-          title: 'AI Insight Ready 💡',
-          message: 'Reflect AI is ready to analyze your emotional patterns and provide personalized summaries.',
-          type: 'insight',
-          createdAt: new Date(Date.now() - 3600000).toISOString(),
-          isRead: false
-        },
-        {
-          id: 'reminder_notif',
-          userId: uid,
-          title: 'Evening Reflection Reminder ⏰',
-          message: 'Set up your preferred reminder time in settings to build a consistent daily journaling habit.',
-          type: 'reminder',
-          createdAt: new Date(Date.now() - 7200000).toISOString(),
-          isRead: true
-        }
-      ];
-      initialNotifs.forEach(async (n) => {
-        try {
-          await setDoc(doc(db, 'users', uid, 'notifications', n.id), cleanForFirestore(n));
-        } catch {}
-      });
-    }
 
     callback(list);
   }, (err) => {

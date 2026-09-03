@@ -15,7 +15,6 @@ import { requestInsights } from '../lib/api';
 import { saveInsightReport } from '../lib/firebase';
 import { ConfidenceTooltip } from './ConfidenceTooltip';
 import { SparkLoader, SparkMotif, SparkEncouragement } from './SparkVisual';
-import { SentimentHeatmap } from './SentimentHeatmap';
 import { MonthlySentimentCalendar } from './MonthlySentimentCalendar';
 
 interface InsightsPanelProps {
@@ -80,12 +79,7 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
     const dist = latestInsight?.sentimentDistribution;
     
     if (!dist) {
-      return [
-        { label: 'Uplifting', value: 35, barColor: 'bg-purple-600 dark:bg-purple-400' },
-        { label: 'Reflective', value: 35, barColor: 'bg-purple-500 dark:bg-purple-500' },
-        { label: 'Tension / Challenge', value: 15, barColor: 'bg-purple-400 dark:bg-purple-600' },
-        { label: 'Neutral / Unclassified', value: 15, barColor: 'bg-purple-300 dark:bg-purple-700' },
-      ];
+      return [];
     }
 
     const pos = Math.max(0, Math.round(Number(dist.positive) || 0));
@@ -95,18 +89,13 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
 
     let sum = pos + ref + cha + neu;
 
-    if (sum < 100 && neu === 0) {
+    if (sum < 100 && neu === 0 && (pos + ref + cha) > 0) {
       neu = 100 - (pos + ref + cha);
       sum = 100;
     }
 
     if (sum <= 0) {
-      return [
-        { label: 'Uplifting', value: 35, barColor: 'bg-purple-600 dark:bg-purple-400' },
-        { label: 'Reflective', value: 35, barColor: 'bg-purple-500 dark:bg-purple-500' },
-        { label: 'Tension / Challenge', value: 15, barColor: 'bg-purple-400 dark:bg-purple-600' },
-        { label: 'Neutral / Unclassified', value: 15, barColor: 'bg-purple-300 dark:bg-purple-700' },
-      ];
+      return [];
     }
 
     let posScaled = Math.round((pos / sum) * 100);
@@ -244,13 +233,12 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
       ) : latestInsight ? (
         <div className="space-y-6">
           <MonthlySentimentCalendar entries={entries} onNavigateToEntry={onNavigateToEntry} />
-          <SentimentHeatmap entries={entries} />
           
           {/* Top Mood & Trajectory Card */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
             
             {/* Trajectory */}
-            <div className="md:col-span-8 bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl border border-white/80 dark:border-white/10 rounded-3xl p-6 space-y-3 shadow-sm hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300">
+            <div className={`${sentimentDistributionList.length > 0 ? 'md:col-span-8' : 'md:col-span-12'} bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl border border-white/80 dark:border-white/10 rounded-3xl p-6 space-y-3 shadow-sm hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300`}>
               <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
                 <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-300 font-medium">
                   <TrendingUp className="w-4 h-4" />
@@ -276,31 +264,33 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
             </div>
 
             {/* Sentiment Balance breakdown */}
-            <div className="md:col-span-4 bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl border border-white/80 dark:border-white/10 rounded-3xl p-6 space-y-3 shadow-sm hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300">
-              <div className="text-xs font-semibold flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
-                <BarChart3 className="w-4 h-4 text-indigo-600 dark:text-indigo-300" />
-                <span>Sentiment Balance</span>
-              </div>
+            {sentimentDistributionList.length > 0 && (
+              <div className="md:col-span-4 bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl border border-white/80 dark:border-white/10 rounded-3xl p-6 space-y-3 shadow-sm hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300">
+                <div className="text-xs font-semibold flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
+                  <BarChart3 className="w-4 h-4 text-indigo-600 dark:text-indigo-300" />
+                  <span>Sentiment Balance</span>
+                </div>
 
-              <div className="space-y-2.5 pt-1 text-xs">
-                {sentimentDistributionList.map((item) => (
-                  <div key={item.label}>
-                    <div className="flex justify-between text-slate-700 dark:text-slate-300 mb-1">
-                      <span>{item.label}</span>
-                      <ConfidenceTooltip explanation="Gemini's estimated confidence based on language and sentiment across analyzed reflections.">
-                        <span className="font-mono">{item.value}%</span>
-                      </ConfidenceTooltip>
+                <div className="space-y-2.5 pt-1 text-xs">
+                  {sentimentDistributionList.map((item) => (
+                    <div key={item.label}>
+                      <div className="flex justify-between text-slate-700 dark:text-slate-300 mb-1">
+                        <span>{item.label}</span>
+                        <ConfidenceTooltip explanation="Gemini's estimated confidence based on language and sentiment across analyzed reflections.">
+                          <span className="font-mono">{item.value}%</span>
+                        </ConfidenceTooltip>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-100/80 dark:bg-slate-800/80 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full ${item.barColor} rounded-full`}
+                          style={{ width: `${item.value}%` }}
+                        />
+                      </div>
                     </div>
-                    <div className="w-full h-1.5 bg-slate-100/80 dark:bg-slate-800/80 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full ${item.barColor} rounded-full`}
-                        style={{ width: `${item.value}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
           </div>
 

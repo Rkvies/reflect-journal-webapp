@@ -63,6 +63,7 @@ import {
   getGuestUid,
   isGuestUid,
   initializeGuestDataIfEmpty,
+  purgeAllGuestDemoData,
   migrateGuestDataToUser,
   subscribeToEntries,
   subscribeToProfileSummary,
@@ -299,6 +300,9 @@ export default function App() {
 
   // Firebase Auth State Listener & Guest Mode Setup
   useEffect(() => {
+    // Proactively purge any residual demo/sample data so Guest Mode starts completely clean
+    purgeAllGuestDemoData();
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         isTerminatingAccountRef.current = false;

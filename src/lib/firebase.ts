@@ -3,6 +3,7 @@ import {
   getAuth, 
   GoogleAuthProvider, 
   signInWithPopup, 
+  signInAnonymously,
   signOut as fbSignOut, 
   onAuthStateChanged, 
   User 
@@ -25,7 +26,7 @@ import {
   updateDoc 
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
-import { JournalEntry, ProfileSummary, InsightReport, ProactiveNudge, WeeklyReflectionReport, AppNotification, GratitudeEntry, UserMilestones, MilestoneKey } from '../types';
+import { JournalEntry, ProfileSummary, InsightReport, ProactiveNudge, WeeklyReflectionReport, AppNotification, GratitudeEntry, UserMilestones, MilestoneKey, AppUser, MoodType } from '../types';
 
 // Initialize Firebase App
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
@@ -57,7 +58,7 @@ export function createGoogleProvider(forceSelectAccount = true, loginHint?: stri
   return provider;
 }
 
-export async function signInWithGoogle(options?: GoogleSignInOptions) {
+export async function signInWithGoogle(options?: GoogleSignInOptions): Promise<User | null> {
   try {
     const isTimeout = 
       sessionStorage.getItem('reflect_session_timeout') === 'true' || 
@@ -81,9 +82,16 @@ export async function signInWithGoogle(options?: GoogleSignInOptions) {
 
     return result.user;
   } catch (error: any) {
+    // If the user closed or cancelled the popup window, handle gracefully without logging an error
+    if (
+      error?.code === 'auth/popup-closed-by-user' ||
+      error?.code === 'auth/cancelled-popup-request'
+    ) {
+      return null;
+    }
     console.error('Google Sign In Error:', error);
-    // If popup is blocked by iframe security sandbox, inform user
-    if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
+    // If popup is blocked by browser security/sandbox, inform user
+    if (error?.code === 'auth/popup-blocked') {
       throw new Error('Sign-in popup was blocked by the browser. Please allow popups for this site and try again.');
     }
     throw error;
@@ -95,7 +103,320 @@ export async function logOut(isManual = true) {
     localStorage.setItem('reflect_force_select_account', 'true');
     sessionStorage.removeItem('reflect_session_timeout');
   }
-  return fbSignOut(auth);
+  localStorage.removeItem('reflect_is_guest_mode');
+  if (auth.currentUser) {
+    return fbSignOut(auth);
+  }
+}
+
+// ==========================================
+// Guest Mode Engine (Local ABAC Sandbox & Fallback)
+// ==========================================
+
+export function isGuestModeActive(): boolean {
+  if (typeof window === 'undefined') return false;
+  return localStorage.getItem('reflect_is_guest_mode') === 'true';
+}
+
+export function getGuestUid(): string {
+  if (typeof window === 'undefined') return 'guest_default';
+  let uid = localStorage.getItem('reflect_guest_uid');
+  if (!uid) {
+    uid = `guest_${Math.random().toString(36).substring(2, 10)}_${Date.now()}`;
+    localStorage.setItem('reflect_guest_uid', uid);
+  }
+  return uid;
+}
+
+export function isGuestUid(uid?: string | null): boolean {
+  if (!uid) return false;
+  if (uid.startsWith('guest_')) return true;
+  if (!auth.currentUser && isGuestModeActive()) return true;
+  return false;
+}
+
+export function dispatchGuestDataChanged(type: string, uid: string) {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('reflect_guest_data_changed', { detail: { type, uid } }));
+  }
+}
+
+export function getGuestEntries(uid: string): JournalEntry[] {
+  try {
+    const raw = localStorage.getItem(`reflect_guest_entries_${uid}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveGuestEntries(uid: string, entries: JournalEntry[]) {
+  try {
+    localStorage.setItem(`reflect_guest_entries_${uid}`, JSON.stringify(entries));
+  } catch (err) {
+    console.warn('Failed to persist guest entries locally:', err);
+  }
+}
+
+export function getGuestGratitude(uid: string): GratitudeEntry[] {
+  try {
+    const raw = localStorage.getItem(`reflect_guest_gratitude_${uid}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveGuestGratitude(uid: string, list: GratitudeEntry[]) {
+  try {
+    localStorage.setItem(`reflect_guest_gratitude_${uid}`, JSON.stringify(list));
+  } catch (err) {
+    console.warn('Failed to persist guest gratitude locally:', err);
+  }
+}
+
+export function getGuestProfileSummary(uid: string): ProfileSummary | null {
+  try {
+    const raw = localStorage.getItem(`reflect_guest_summary_${uid}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveGuestProfileSummary(uid: string, summary: ProfileSummary) {
+  try {
+    localStorage.setItem(`reflect_guest_summary_${uid}`, JSON.stringify(summary));
+  } catch (err) {
+    console.warn('Failed to persist guest summary locally:', err);
+  }
+}
+
+export function getGuestInsights(uid: string): InsightReport[] {
+  try {
+    const raw = localStorage.getItem(`reflect_guest_insights_${uid}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveGuestInsights(uid: string, list: InsightReport[]) {
+  try {
+    localStorage.setItem(`reflect_guest_insights_${uid}`, JSON.stringify(list));
+  } catch (err) {
+    console.warn('Failed to persist guest insights locally:', err);
+  }
+}
+
+export function getGuestNudges(uid: string): ProactiveNudge[] {
+  try {
+    const raw = localStorage.getItem(`reflect_guest_nudges_${uid}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveGuestNudges(uid: string, list: ProactiveNudge[]) {
+  try {
+    localStorage.setItem(`reflect_guest_nudges_${uid}`, JSON.stringify(list));
+  } catch (err) {
+    console.warn('Failed to persist guest nudges locally:', err);
+  }
+}
+
+export function getGuestWeeklySummary(uid: string): WeeklyReflectionReport | null {
+  try {
+    const raw = localStorage.getItem(`reflect_guest_weekly_${uid}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveGuestWeeklySummary(uid: string, rep: WeeklyReflectionReport) {
+  try {
+    localStorage.setItem(`reflect_guest_weekly_${uid}`, JSON.stringify(rep));
+  } catch (err) {
+    console.warn('Failed to persist guest weekly summary locally:', err);
+  }
+}
+
+export function getGuestNotifications(uid: string): AppNotification[] {
+  try {
+    const raw = localStorage.getItem(`reflect_guest_notifs_${uid}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveGuestNotifications(uid: string, list: AppNotification[]) {
+  try {
+    localStorage.setItem(`reflect_guest_notifs_${uid}`, JSON.stringify(list));
+  } catch (err) {
+    console.warn('Failed to persist guest notifications locally:', err);
+  }
+}
+
+export function getGuestMilestones(uid: string): UserMilestones {
+  try {
+    const raw = localStorage.getItem(`reflect_guest_milestones_${uid}`);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveGuestMilestones(uid: string, milestones: UserMilestones) {
+  try {
+    localStorage.setItem(`reflect_guest_milestones_${uid}`, JSON.stringify(milestones));
+  } catch (err) {
+    console.warn('Failed to persist guest milestones locally:', err);
+  }
+}
+
+export function initializeGuestDataIfEmpty(uid: string) {
+  const existingEntries = getGuestEntries(uid);
+  if (existingEntries.length === 0) {
+    const welcomeEntry: JournalEntry = {
+      id: `entry_guest_welcome_${Date.now()}`,
+      userId: uid,
+      title: 'Welcome to Reflect (Guest Mode)',
+      content: 'Welcome to your private sanctuary for mindful reflection. In Guest Mode, all your thoughts, moods, and gratitude stay securely isolated inside your browser.\n\nExplore AI reflections, search your archive, test audio journaling, and inspect your sentiment patterns. Whenever you are ready to back up your thoughts to the cloud, you can connect a Google Account with one click.',
+      mood: 'peaceful',
+      tags: ['Mindfulness', 'Welcome', 'Guest Mode'],
+      conversation: [],
+      sentiment: {
+        label: 'Tender & Calm',
+        emoji: '🌿',
+        color: 'emerald',
+        score: 88,
+        summary: 'A calm, welcoming start to your private guest journaling journey.'
+      },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      wordCount: 72,
+    };
+    saveGuestEntries(uid, [welcomeEntry]);
+  }
+
+  const existingGratitude = getGuestGratitude(uid);
+  if (existingGratitude.length === 0) {
+    const todayDate = new Date().toISOString().split('T')[0];
+    const welcomeGratitude: GratitudeEntry = {
+      id: `gratitude_guest_welcome_${Date.now()}`,
+      userId: uid,
+      date: todayDate,
+      item1: 'A safe, distraction-free space to reflect',
+      item2: 'Taking a deep mindful breath today',
+      item3: 'The freedom to explore without an account',
+      reflection: 'Grateful for this quiet moment of self-connection.',
+      createdAt: new Date().toISOString(),
+    };
+    saveGuestGratitude(uid, [welcomeGratitude]);
+  }
+
+  if (!getGuestProfileSummary(uid)) {
+    const welcomeSummary: ProfileSummary = {
+      userId: uid,
+      summary: 'Guest journaling session initiated. Focusing on self-discovery, emotional balance, and clarity.',
+      lastUpdated: new Date().toISOString(),
+      keyThemes: ['Mindful Awareness', 'Self-Connection'],
+      totalEntriesAnalyzed: 1,
+      lastQuoteShownDate: new Date().toISOString().split('T')[0],
+    };
+    saveGuestProfileSummary(uid, welcomeSummary);
+  }
+
+  const existingNotifs = getGuestNotifications(uid);
+  if (existingNotifs.length === 0) {
+    const welcomeNotif: AppNotification = {
+      id: `notif_guest_${Date.now()}`,
+      userId: uid,
+      title: 'Welcome to Guest Mode 🌿',
+      message: 'You are exploring Reflect locally. Your reflections remain private on this device. Sign in anytime to sync to Google!',
+      type: 'system',
+      createdAt: new Date().toISOString(),
+      isRead: false,
+    };
+    saveGuestNotifications(uid, [welcomeNotif]);
+  }
+}
+
+export async function signInAsGuest(): Promise<AppUser> {
+  localStorage.setItem('reflect_is_guest_mode', 'true');
+  const guestUid = getGuestUid();
+  sessionStorage.removeItem('reflect_session_timeout');
+  localStorage.removeItem('reflect_force_select_account');
+
+  try {
+    const cred = await signInAnonymously(auth);
+    if (cred?.user) {
+      return {
+        uid: cred.user.uid,
+        email: null,
+        displayName: 'Guest Explorer',
+        photoURL: null,
+        isAnonymous: true,
+      };
+    }
+  } catch (anonErr: any) {
+    console.info('Firebase anonymous auth restricted or disabled; activating secure local guest mode:', anonErr?.message || anonErr);
+  }
+
+  initializeGuestDataIfEmpty(guestUid);
+  dispatchGuestDataChanged('all', guestUid);
+
+  return {
+    uid: guestUid,
+    email: null,
+    displayName: 'Guest Explorer',
+    photoURL: null,
+    isAnonymous: true,
+  };
+}
+
+export async function migrateGuestDataToUser(targetUid: string, guestUid?: string): Promise<{ migratedEntriesCount: number; migratedGratitudeCount: number }> {
+  const gUid = guestUid || localStorage.getItem('reflect_guest_uid');
+  if (!gUid || !targetUid || gUid === targetUid) return { migratedEntriesCount: 0, migratedGratitudeCount: 0 };
+
+  const entries = getGuestEntries(gUid);
+  const gratitude = getGuestGratitude(gUid);
+  let migratedEntriesCount = 0;
+  let migratedGratitudeCount = 0;
+
+  for (const entry of entries) {
+    try {
+      const entryRef = doc(db, 'users', targetUid, 'entries', entry.id);
+      await setDoc(entryRef, cleanForFirestore({ ...entry, userId: targetUid }), { merge: true });
+      migratedEntriesCount++;
+    } catch (err) {
+      console.warn('Failed to migrate guest entry:', err);
+    }
+  }
+
+  for (const item of gratitude) {
+    try {
+      const gRef = doc(db, 'users', targetUid, 'gratitudeEntries', item.id);
+      await setDoc(gRef, cleanForFirestore({ ...item, userId: targetUid }), { merge: true });
+      migratedGratitudeCount++;
+    } catch (err) {
+      console.warn('Failed to migrate guest gratitude:', err);
+    }
+  }
+
+  localStorage.removeItem('reflect_is_guest_mode');
+  localStorage.removeItem('reflect_guest_uid');
+  localStorage.removeItem(`reflect_guest_entries_${gUid}`);
+  localStorage.removeItem(`reflect_guest_gratitude_${gUid}`);
+  localStorage.removeItem(`reflect_guest_summary_${gUid}`);
+  localStorage.removeItem(`reflect_guest_insights_${gUid}`);
+  localStorage.removeItem(`reflect_guest_nudges_${gUid}`);
+  localStorage.removeItem(`reflect_guest_notifs_${gUid}`);
+
+  return { migratedEntriesCount, migratedGratitudeCount };
 }
 
 // --- Firestore Helpers strictly scoped to users/{uid} ---
@@ -123,6 +444,18 @@ export function cleanForFirestore<T>(data: T): T {
  */
 export async function saveJournalEntry(uid: string, entry: JournalEntry): Promise<void> {
   if (!uid) throw new Error('Unauthenticated write rejected');
+  if (isGuestUid(uid)) {
+    const list = getGuestEntries(uid);
+    const existingIndex = list.findIndex(e => e.id === entry.id);
+    if (existingIndex >= 0) {
+      list[existingIndex] = { ...list[existingIndex], ...entry };
+    } else {
+      list.unshift(entry);
+    }
+    saveGuestEntries(uid, list);
+    dispatchGuestDataChanged('entries', uid);
+    return;
+  }
   const entryRef = doc(db, 'users', uid, 'entries', entry.id);
   const cleanData = cleanForFirestore(entry);
   await setDoc(entryRef, cleanData, { merge: true });
@@ -138,15 +471,36 @@ export async function updateJournalEntryContent(
   updates: {
     title: string;
     content: string;
-    mood?: string;
+    mood?: MoodType;
     tags?: string[];
   }
 ): Promise<void> {
   if (!uid) throw new Error('Unauthenticated write rejected');
-  const entryRef = doc(db, 'users', uid, 'entries', entryId);
   const now = new Date().toISOString();
   const wordCount = updates.content.trim().split(/\s+/).filter(Boolean).length;
-  
+
+  if (isGuestUid(uid)) {
+    const list = getGuestEntries(uid);
+    const idx = list.findIndex(e => e.id === entryId);
+    if (idx >= 0) {
+      list[idx] = {
+        ...list[idx],
+        title: updates.title.trim(),
+        content: updates.content.trim(),
+        wordCount,
+        updatedAt: now,
+        editedAt: now,
+        isEdited: true,
+        ...(updates.mood ? { mood: updates.mood } : {}),
+        ...(updates.tags ? { tags: updates.tags } : {}),
+      };
+      saveGuestEntries(uid, list);
+      dispatchGuestDataChanged('entries', uid);
+    }
+    return;
+  }
+
+  const entryRef = doc(db, 'users', uid, 'entries', entryId);
   const updatePayload: Record<string, any> = {
     title: updates.title.trim(),
     content: updates.content.trim(),
@@ -172,6 +526,12 @@ export async function updateJournalEntryContent(
  */
 export async function deleteJournalEntry(uid: string, entryId: string): Promise<void> {
   if (!uid) throw new Error('Unauthenticated delete rejected');
+  if (isGuestUid(uid)) {
+    const list = getGuestEntries(uid).filter(e => e.id !== entryId);
+    saveGuestEntries(uid, list);
+    dispatchGuestDataChanged('entries', uid);
+    return;
+  }
   const entryRef = doc(db, 'users', uid, 'entries', entryId);
   await deleteDoc(entryRef);
 }
@@ -181,6 +541,17 @@ export async function deleteJournalEntry(uid: string, entryId: string): Promise<
  */
 export function subscribeToEntries(uid: string, callback: (entries: JournalEntry[]) => void) {
   if (!uid) return () => {};
+  if (isGuestUid(uid)) {
+    callback(getGuestEntries(uid));
+    const handler = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (!customEvent.detail || customEvent.detail.type === 'entries' || customEvent.detail.type === 'all') {
+        callback(getGuestEntries(uid));
+      }
+    };
+    window.addEventListener('reflect_guest_data_changed', handler);
+    return () => window.removeEventListener('reflect_guest_data_changed', handler);
+  }
   const entriesCol = collection(db, 'users', uid, 'entries');
   const q = query(entriesCol, orderBy('createdAt', 'desc'), limit(100));
   
@@ -210,6 +581,10 @@ export async function fetchEntriesPaginated(
   startAfterDoc?: QueryDocumentSnapshot<DocumentData> | null
 ): Promise<PaginatedEntriesResult> {
   if (!uid) return { entries: [], lastDoc: null, hasMore: false };
+  if (isGuestUid(uid)) {
+    const all = getGuestEntries(uid);
+    return { entries: all.slice(0, pageSize), lastDoc: null, hasMore: all.length > pageSize };
+  }
   const entriesCol = collection(db, 'users', uid, 'entries');
   let q = query(entriesCol, orderBy('createdAt', 'desc'), limit(pageSize + 1));
   if (startAfterDoc) {
@@ -230,6 +605,9 @@ export async function fetchEntriesPaginated(
  */
 export async function getProfileSummary(uid: string): Promise<ProfileSummary | null> {
   if (!uid) return null;
+  if (isGuestUid(uid)) {
+    return getGuestProfileSummary(uid);
+  }
   const summaryRef = doc(db, 'users', uid, 'profile', 'summary');
   const snap = await getDoc(summaryRef);
   if (snap.exists()) {
@@ -243,6 +621,11 @@ export async function getProfileSummary(uid: string): Promise<ProfileSummary | n
  */
 export async function saveProfileSummary(uid: string, summary: ProfileSummary): Promise<void> {
   if (!uid) throw new Error('Unauthenticated summary save rejected');
+  if (isGuestUid(uid)) {
+    saveGuestProfileSummary(uid, summary);
+    dispatchGuestDataChanged('profile', uid);
+    return;
+  }
   const summaryRef = doc(db, 'users', uid, 'profile', 'summary');
   const cleanData = cleanForFirestore(summary);
   await setDoc(summaryRef, cleanData, { merge: true });
@@ -253,6 +636,17 @@ export async function saveProfileSummary(uid: string, summary: ProfileSummary): 
  */
 export function subscribeToProfileSummary(uid: string, callback: (summary: ProfileSummary | null) => void) {
   if (!uid) return () => {};
+  if (isGuestUid(uid)) {
+    callback(getGuestProfileSummary(uid));
+    const handler = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (!customEvent.detail || customEvent.detail.type === 'profile' || customEvent.detail.type === 'all') {
+        callback(getGuestProfileSummary(uid));
+      }
+    };
+    window.addEventListener('reflect_guest_data_changed', handler);
+    return () => window.removeEventListener('reflect_guest_data_changed', handler);
+  }
   const summaryRef = doc(db, 'users', uid, 'profile', 'summary');
   return onSnapshot(summaryRef, (snap) => {
     if (snap.exists()) {
@@ -270,6 +664,13 @@ export function subscribeToProfileSummary(uid: string, callback: (summary: Profi
  */
 export async function saveInsightReport(uid: string, insight: InsightReport): Promise<void> {
   if (!uid) throw new Error('Unauthenticated insight save rejected');
+  if (isGuestUid(uid)) {
+    const list = getGuestInsights(uid);
+    list.unshift(insight);
+    saveGuestInsights(uid, list);
+    dispatchGuestDataChanged('insights', uid);
+    return;
+  }
   const insightRef = doc(db, 'users', uid, 'insights', insight.id);
   const cleanData = cleanForFirestore(insight);
   await setDoc(insightRef, cleanData, { merge: true });
@@ -280,6 +681,17 @@ export async function saveInsightReport(uid: string, insight: InsightReport): Pr
  */
 export function subscribeToInsights(uid: string, callback: (insights: InsightReport[]) => void) {
   if (!uid) return () => {};
+  if (isGuestUid(uid)) {
+    callback(getGuestInsights(uid));
+    const handler = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (!customEvent.detail || customEvent.detail.type === 'insights' || customEvent.detail.type === 'all') {
+        callback(getGuestInsights(uid));
+      }
+    };
+    window.addEventListener('reflect_guest_data_changed', handler);
+    return () => window.removeEventListener('reflect_guest_data_changed', handler);
+  }
   const insightsCol = collection(db, 'users', uid, 'insights');
   const q = query(insightsCol, orderBy('generatedAt', 'desc'), limit(10));
   return onSnapshot(q, (snap) => {
@@ -300,6 +712,13 @@ export function subscribeToInsights(uid: string, callback: (insights: InsightRep
  */
 export async function saveNudge(uid: string, nudge: ProactiveNudge): Promise<void> {
   if (!uid) throw new Error('Unauthenticated nudge save rejected');
+  if (isGuestUid(uid)) {
+    const list = getGuestNudges(uid);
+    list.unshift(nudge);
+    saveGuestNudges(uid, list);
+    dispatchGuestDataChanged('nudges', uid);
+    return;
+  }
   const nudgeRef = doc(db, 'users', uid, 'nudges', nudge.id);
   const cleanData = cleanForFirestore(nudge);
   await setDoc(nudgeRef, cleanData, { merge: true });
@@ -310,6 +729,17 @@ export async function saveNudge(uid: string, nudge: ProactiveNudge): Promise<voi
  */
 export function subscribeToNudges(uid: string, callback: (nudges: ProactiveNudge[]) => void) {
   if (!uid) return () => {};
+  if (isGuestUid(uid)) {
+    callback(getGuestNudges(uid).filter(n => !n.isDismissed && !n.dismissed));
+    const handler = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (!customEvent.detail || customEvent.detail.type === 'nudges' || customEvent.detail.type === 'all') {
+        callback(getGuestNudges(uid).filter(n => !n.isDismissed && !n.dismissed));
+      }
+    };
+    window.addEventListener('reflect_guest_data_changed', handler);
+    return () => window.removeEventListener('reflect_guest_data_changed', handler);
+  }
   const nudgesCol = collection(db, 'users', uid, 'nudges');
   const q = query(nudgesCol, orderBy('createdAt', 'desc'), limit(5));
   return onSnapshot(q, (snap) => {
@@ -331,6 +761,12 @@ export function subscribeToNudges(uid: string, callback: (nudges: ProactiveNudge
  */
 export async function dismissNudge(uid: string, nudgeId: string): Promise<void> {
   if (!uid) return;
+  if (isGuestUid(uid)) {
+    const list = getGuestNudges(uid).map(n => n.id === nudgeId ? { ...n, isDismissed: true, dismissed: true, dismissedAt: new Date().toISOString() } : n);
+    saveGuestNudges(uid, list);
+    dispatchGuestDataChanged('nudges', uid);
+    return;
+  }
   const nudgeRef = doc(db, 'users', uid, 'nudges', nudgeId);
   await updateDoc(nudgeRef, {
     isDismissed: true,
@@ -344,6 +780,11 @@ export async function dismissNudge(uid: string, nudgeId: string): Promise<void> 
  */
 export async function saveWeeklySummary(uid: string, report: WeeklyReflectionReport): Promise<void> {
   if (!uid) throw new Error('Unauthenticated weekly summary save rejected');
+  if (isGuestUid(uid)) {
+    saveGuestWeeklySummary(uid, report);
+    dispatchGuestDataChanged('weekly', uid);
+    return;
+  }
   const summaryRef = doc(db, 'users', uid, 'insights', 'weeklySummary');
   const cleanData = cleanForFirestore(report);
   await setDoc(summaryRef, cleanData, { merge: true });
@@ -354,6 +795,9 @@ export async function saveWeeklySummary(uid: string, report: WeeklyReflectionRep
  */
 export async function getWeeklySummary(uid: string): Promise<WeeklyReflectionReport | null> {
   if (!uid) return null;
+  if (isGuestUid(uid)) {
+    return getGuestWeeklySummary(uid);
+  }
   const summaryRef = doc(db, 'users', uid, 'insights', 'weeklySummary');
   const snap = await getDoc(summaryRef);
   if (snap.exists()) {
@@ -367,6 +811,17 @@ export async function getWeeklySummary(uid: string): Promise<WeeklyReflectionRep
  */
 export function subscribeToWeeklySummary(uid: string, callback: (report: WeeklyReflectionReport | null) => void) {
   if (!uid) return () => {};
+  if (isGuestUid(uid)) {
+    callback(getGuestWeeklySummary(uid));
+    const handler = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (!customEvent.detail || customEvent.detail.type === 'weekly' || customEvent.detail.type === 'all') {
+        callback(getGuestWeeklySummary(uid));
+      }
+    };
+    window.addEventListener('reflect_guest_data_changed', handler);
+    return () => window.removeEventListener('reflect_guest_data_changed', handler);
+  }
   const summaryRef = doc(db, 'users', uid, 'insights', 'weeklySummary');
   return onSnapshot(summaryRef, (snap) => {
     if (snap.exists()) {
@@ -384,6 +839,13 @@ export function subscribeToWeeklySummary(uid: string, callback: (report: WeeklyR
  */
 export async function saveNotification(uid: string, notification: AppNotification): Promise<void> {
   if (!uid) throw new Error('Unauthenticated notification save rejected');
+  if (isGuestUid(uid)) {
+    const list = getGuestNotifications(uid);
+    list.unshift(notification);
+    saveGuestNotifications(uid, list);
+    dispatchGuestDataChanged('notifications', uid);
+    return;
+  }
   const notifRef = doc(db, 'users', uid, 'notifications', notification.id);
   const cleanData = cleanForFirestore(notification);
   await setDoc(notifRef, cleanData, { merge: true });
@@ -394,6 +856,17 @@ export async function saveNotification(uid: string, notification: AppNotificatio
  */
 export function subscribeToNotifications(uid: string, callback: (notifications: AppNotification[]) => void) {
   if (!uid) return () => {};
+  if (isGuestUid(uid)) {
+    callback(getGuestNotifications(uid));
+    const handler = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (!customEvent.detail || customEvent.detail.type === 'notifications' || customEvent.detail.type === 'all') {
+        callback(getGuestNotifications(uid));
+      }
+    };
+    window.addEventListener('reflect_guest_data_changed', handler);
+    return () => window.removeEventListener('reflect_guest_data_changed', handler);
+  }
   const notifsCol = collection(db, 'users', uid, 'notifications');
   const q = query(notifsCol, orderBy('createdAt', 'desc'), limit(50));
   
@@ -451,6 +924,12 @@ export function subscribeToNotifications(uid: string, callback: (notifications: 
  */
 export async function markNotificationAsRead(uid: string, notificationId: string): Promise<void> {
   if (!uid) return;
+  if (isGuestUid(uid)) {
+    const list = getGuestNotifications(uid).map(n => n.id === notificationId ? { ...n, isRead: true, readAt: new Date().toISOString() } : n);
+    saveGuestNotifications(uid, list);
+    dispatchGuestDataChanged('notifications', uid);
+    return;
+  }
   const notifRef = doc(db, 'users', uid, 'notifications', notificationId);
   await updateDoc(notifRef, {
     isRead: true,
@@ -463,6 +942,12 @@ export async function markNotificationAsRead(uid: string, notificationId: string
  */
 export async function markAllNotificationsAsRead(uid: string, notifications: AppNotification[]): Promise<void> {
   if (!uid) return;
+  if (isGuestUid(uid)) {
+    const list = getGuestNotifications(uid).map(n => ({ ...n, isRead: true, readAt: new Date().toISOString() }));
+    saveGuestNotifications(uid, list);
+    dispatchGuestDataChanged('notifications', uid);
+    return;
+  }
   for (const notif of notifications) {
     if (!notif.isRead) {
       await markNotificationAsRead(uid, notif.id);
@@ -475,6 +960,12 @@ export async function markAllNotificationsAsRead(uid: string, notifications: App
  */
 export async function deleteNotification(uid: string, notificationId: string): Promise<void> {
   if (!uid) return;
+  if (isGuestUid(uid)) {
+    const list = getGuestNotifications(uid).filter(n => n.id !== notificationId);
+    saveGuestNotifications(uid, list);
+    dispatchGuestDataChanged('notifications', uid);
+    return;
+  }
   const notifRef = doc(db, 'users', uid, 'notifications', notificationId);
   await deleteDoc(notifRef);
 }
@@ -484,6 +975,18 @@ export async function deleteNotification(uid: string, notificationId: string): P
  */
 export async function saveGratitudeEntry(uid: string, entry: GratitudeEntry): Promise<void> {
   if (!uid) throw new Error('Unauthenticated gratitude save rejected');
+  if (isGuestUid(uid)) {
+    const list = getGuestGratitude(uid);
+    const idx = list.findIndex(g => g.id === entry.id);
+    if (idx >= 0) {
+      list[idx] = { ...list[idx], ...entry };
+    } else {
+      list.unshift(entry);
+    }
+    saveGuestGratitude(uid, list);
+    dispatchGuestDataChanged('gratitude', uid);
+    return;
+  }
   const entryRef = doc(db, 'users', uid, 'gratitudeEntries', entry.id);
   const cleanData = cleanForFirestore(entry);
   await setDoc(entryRef, cleanData, { merge: true });
@@ -494,6 +997,17 @@ export async function saveGratitudeEntry(uid: string, entry: GratitudeEntry): Pr
  */
 export function subscribeToGratitudeEntries(uid: string, callback: (entries: GratitudeEntry[]) => void) {
   if (!uid) return () => {};
+  if (isGuestUid(uid)) {
+    callback(getGuestGratitude(uid));
+    const handler = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (!customEvent.detail || customEvent.detail.type === 'gratitude' || customEvent.detail.type === 'all') {
+        callback(getGuestGratitude(uid));
+      }
+    };
+    window.addEventListener('reflect_guest_data_changed', handler);
+    return () => window.removeEventListener('reflect_guest_data_changed', handler);
+  }
   const colRef = collection(db, 'users', uid, 'gratitudeEntries');
   const q = query(colRef, orderBy('date', 'desc'), limit(100));
 
@@ -513,6 +1027,12 @@ export function subscribeToGratitudeEntries(uid: string, callback: (entries: Gra
  */
 export async function deleteGratitudeEntry(uid: string, entryId: string): Promise<void> {
   if (!uid) return;
+  if (isGuestUid(uid)) {
+    const list = getGuestGratitude(uid).filter(g => g.id !== entryId);
+    saveGuestGratitude(uid, list);
+    dispatchGuestDataChanged('gratitude', uid);
+    return;
+  }
   const entryRef = doc(db, 'users', uid, 'gratitudeEntries', entryId);
   await deleteDoc(entryRef);
 }
@@ -523,6 +1043,13 @@ export async function deleteGratitudeEntry(uid: string, entryId: string): Promis
  */
 export async function saveMilestone(uid: string, milestoneKey: MilestoneKey): Promise<void> {
   if (!uid) throw new Error('Unauthenticated milestone save rejected');
+  if (isGuestUid(uid)) {
+    const m = getGuestMilestones(uid);
+    m[milestoneKey] = new Date().toISOString();
+    saveGuestMilestones(uid, m);
+    dispatchGuestDataChanged('milestones', uid);
+    return;
+  }
   const milestonesRef = doc(db, 'users', uid, 'profile', 'milestones');
   await setDoc(milestonesRef, {
     [milestoneKey]: new Date().toISOString()
@@ -534,6 +1061,9 @@ export async function saveMilestone(uid: string, milestoneKey: MilestoneKey): Pr
  */
 export async function getMilestones(uid: string): Promise<UserMilestones | null> {
   if (!uid) return null;
+  if (isGuestUid(uid)) {
+    return getGuestMilestones(uid);
+  }
   const milestonesRef = doc(db, 'users', uid, 'profile', 'milestones');
   const snap = await getDoc(milestonesRef);
   if (snap.exists()) {
@@ -547,6 +1077,17 @@ export async function getMilestones(uid: string): Promise<UserMilestones | null>
  */
 export function subscribeToMilestones(uid: string, callback: (milestones: UserMilestones) => void) {
   if (!uid) return () => {};
+  if (isGuestUid(uid)) {
+    callback(getGuestMilestones(uid));
+    const handler = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (!customEvent.detail || customEvent.detail.type === 'milestones' || customEvent.detail.type === 'all') {
+        callback(getGuestMilestones(uid));
+      }
+    };
+    window.addEventListener('reflect_guest_data_changed', handler);
+    return () => window.removeEventListener('reflect_guest_data_changed', handler);
+  }
   const milestonesRef = doc(db, 'users', uid, 'profile', 'milestones');
   return onSnapshot(milestonesRef, (snap) => {
     if (snap.exists()) {
@@ -565,6 +1106,20 @@ export function subscribeToMilestones(uid: string, callback: (milestones: UserMi
  */
 export async function deactivateAccountDirect(uid: string): Promise<void> {
   if (!uid) throw new Error('Unauthenticated user cannot be deactivated.');
+  if (isGuestUid(uid)) {
+    const summary = getGuestProfileSummary(uid) || {
+      userId: uid,
+      summary: '',
+      lastUpdated: new Date().toISOString(),
+      keyThemes: [],
+      totalEntriesAnalyzed: 0,
+    };
+    summary.deactivated = true;
+    summary.deactivatedAt = new Date().toISOString();
+    saveGuestProfileSummary(uid, summary);
+    dispatchGuestDataChanged('profile', uid);
+    return;
+  }
   const summaryRef = doc(db, 'users', uid, 'profile', 'summary');
   const now = new Date().toISOString();
   await setDoc(summaryRef, {
@@ -578,7 +1133,19 @@ export async function deactivateAccountDirect(uid: string): Promise<void> {
  */
 export async function purgeUserAccountData(uid: string): Promise<void> {
   if (!uid) throw new Error('Unauthenticated user cannot purge account.');
-  
+  if (isGuestUid(uid)) {
+    localStorage.removeItem(`reflect_guest_entries_${uid}`);
+    localStorage.removeItem(`reflect_guest_gratitude_${uid}`);
+    localStorage.removeItem(`reflect_guest_summary_${uid}`);
+    localStorage.removeItem(`reflect_guest_insights_${uid}`);
+    localStorage.removeItem(`reflect_guest_nudges_${uid}`);
+    localStorage.removeItem(`reflect_guest_notifs_${uid}`);
+    localStorage.removeItem(`reflect_guest_milestones_${uid}`);
+    localStorage.removeItem(`reflect_is_guest_mode`);
+    localStorage.removeItem(`reflect_guest_uid`);
+    dispatchGuestDataChanged('all', uid);
+    return;
+  }
   const subcollectionNames = ['entries', 'gratitude', 'insights', 'nudges', 'notifications'];
   for (const name of subcollectionNames) {
     try {

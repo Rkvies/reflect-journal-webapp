@@ -33,6 +33,7 @@ interface NavbarProps {
   onToggleTheme: () => void;
   pinEnabled?: boolean;
   onLockApp?: () => void;
+  onConnectGoogle?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -48,11 +49,14 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleTheme,
   pinEnabled = false,
   onLockApp,
+  onConnectGoogle,
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const profileButtonRef = useRef<HTMLButtonElement>(null);
   const [profileCoords, setProfileCoords] = useState({ top: 0, right: 0 });
+
+  const isGuest = Boolean(user?.isAnonymous || !user?.email);
 
   const handleToggleMenu = () => {
     if (!isMenuOpen && profileButtonRef.current) {
@@ -182,6 +186,19 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Settings & Profile Menu Dropdown */}
         <div className="flex items-center gap-2">
+          {isGuest && onConnectGoogle && (
+            <button
+              id="btn-guest-sync-badge"
+              type="button"
+              onClick={onConnectGoogle}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 text-xs font-medium transition-all cursor-pointer shadow-2xs"
+              title="Guest Mode active. Click to connect Google and sync."
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Guest Mode (Sync)</span>
+            </button>
+          )}
+
           {user ? (
             <div className="relative" ref={menuRef}>
               <button
@@ -222,12 +239,35 @@ export const Navbar: React.FC<NavbarProps> = ({
                   {/* User Profile Header */}
                   <div className="px-3 py-2 border-b border-slate-200/50 dark:border-slate-800/80 mb-1">
                     <p className="font-semibold text-slate-900 dark:text-white truncate">
-                      {user.displayName || 'Journal Author'}
+                      {isGuest ? 'Guest Explorer' : (user.displayName || 'Journal Author')}
                     </p>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                      {user.email || 'Authenticated with Google'}
+                      {isGuest ? 'Local Sandbox (No Google Account)' : (user.email || 'Authenticated with Google')}
                     </p>
                   </div>
+
+                  {/* Connect Google CTA for Guests */}
+                  {isGuest && onConnectGoogle && (
+                    <div className="p-2.5 mx-1 mb-2 rounded-xl bg-indigo-50/90 dark:bg-indigo-950/50 border border-indigo-200/80 dark:border-indigo-800/60">
+                      <p className="font-semibold text-indigo-950 dark:text-indigo-200 text-[11px] mb-1">
+                        Connect Account
+                      </p>
+                      <p className="text-[10px] text-indigo-800/80 dark:text-indigo-300/90 leading-snug mb-2">
+                        Back up your local guest entries and access them across all devices.
+                      </p>
+                      <button
+                        id="btn-guest-connect-google"
+                        type="button"
+                        onClick={() => {
+                          setIsMenuOpen(false);
+                          onConnectGoogle();
+                        }}
+                        className="w-full py-1.5 px-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-[11px] text-center transition-all cursor-pointer shadow-xs"
+                      >
+                        Sign in with Google
+                      </button>
+                    </div>
+                  )}
 
                   {/* Settings Page Link */}
                   <button
@@ -309,39 +349,43 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </button>
                   )}
 
+                  {!isGuest && (
+                    <>
+                      <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
+
+                      {/* Deactivate Account */}
+                      <button
+                        id="btn-dropdown-deactivate"
+                        type="button"
+                        onClick={() => {
+                          setIsMenuOpen(false);
+                          onOpenDeactivateModal();
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-amber-600 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors cursor-pointer"
+                      >
+                        <UserX className="w-4 h-4" />
+                        <span>Deactivate Account</span>
+                      </button>
+
+                      {/* Delete Account Permanently */}
+                      <button
+                        id="btn-dropdown-delete-account"
+                        type="button"
+                        onClick={() => {
+                          setIsMenuOpen(false);
+                          onOpenDeleteModal();
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-rose-600 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        <span>Delete Account Permanently</span>
+                      </button>
+                    </>
+                  )}
+
                   <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
 
-                  {/* Deactivate Account */}
-                  <button
-                    id="btn-dropdown-deactivate"
-                    type="button"
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      onOpenDeactivateModal();
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-amber-600 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors cursor-pointer"
-                  >
-                    <UserX className="w-4 h-4" />
-                    <span>Deactivate Account</span>
-                  </button>
-
-                  {/* Delete Account Permanently */}
-                  <button
-                    id="btn-dropdown-delete-account"
-                    type="button"
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      onOpenDeleteModal();
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-rose-600 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                    <span>Delete Account Permanently</span>
-                  </button>
-
-                  <div className="border-t border-slate-100 dark:border-slate-800/80 my-1" />
-
-                  {/* Sign Out */}
+                  {/* Sign Out / Exit Guest Mode */}
                   <button
                     id="btn-dropdown-signout"
                     type="button"
@@ -352,7 +396,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-rose-600 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
                   >
                     <LogOut className="w-4 h-4" />
-                    <span>Sign Out</span>
+                    <span>{isGuest ? 'Exit Guest Mode' : 'Sign Out'}</span>
                   </button>
                 </div>,
                 document.body

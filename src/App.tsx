@@ -58,7 +58,18 @@ import {
   saveMilestone,
   subscribeToMilestones,
   deactivateAccountDirect,
-  purgeUserAccountData
+  purgeUserAccountData,
+  isGuestModeActive,
+  getGuestUid,
+  isGuestUid,
+  initializeGuestDataIfEmpty,
+  migrateGuestDataToUser,
+  subscribeToEntries,
+  subscribeToProfileSummary,
+  subscribeToInsights,
+  subscribeToNudges,
+  subscribeToWeeklySummary,
+  signInWithGoogle
 } from './lib/firebase';
 import { UserX, Trash2, Sparkles } from 'lucide-react';
 import { useSessionTimeout } from './hooks/useSessionTimeout';
@@ -286,9 +297,9 @@ export default function App() {
     setThemeMode(mode);
   };
 
-  // Firebase Auth State Listener
+  // Firebase Auth State Listener & Guest Mode Setup
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         isTerminatingAccountRef.current = false;
         if (user.email) {
@@ -297,6 +308,20 @@ export default function App() {
         localStorage.setItem('reflect_last_user_id', user.uid);
         sessionStorage.removeItem('reflect_session_timeout');
         localStorage.removeItem('reflect_force_select_account');
+
+        // Check if there was guest data to migrate to this newly signed-in account
+        const prevGuestUid = localStorage.getItem('reflect_guest_uid');
+        if (prevGuestUid && prevGuestUid !== user.uid) {
+          try {
+            const { migratedEntriesCount, migratedGratitudeCount } = await migrateGuestDataToUser(user.uid, prevGuestUid);
+            if (migratedEntriesCount > 0 || migratedGratitudeCount > 0) {
+              console.log(`[Guest Migration] Transferred ${migratedEntriesCount} entries and ${migratedGratitudeCount} gratitude items.`);
+            }
+          } catch (mErr) {
+            console.warn('[Guest Migration Notice]:', mErr);
+          }
+        }
+        localStorage.removeItem('reflect_is_guest_mode');
 
         setCurrentUser({
           uid: user.uid,
@@ -322,11 +347,32 @@ export default function App() {
         isTerminatingAccountRef.current = false;
         setIsDailyQuoteOpen(false);
         setIsDailyAffirmationOpen(false);
-        setCurrentUser(null);
-        setPinEnabled(false);
-        setPinHash('');
-        setHasPromptedPinSetup(false);
-        setIsPinUnlocked(false);
+
+        // Check if Guest Mode is active
+        if (isGuestModeActive()) {
+          const gUid = getGuestUid();
+          initializeGuestDataIfEmpty(gUid);
+          setCurrentUser({
+            uid: gUid,
+            email: null,
+            displayName: 'Guest Explorer',
+            photoURL: null,
+            isAnonymous: true,
+          });
+
+          const localPin = getLocalPinSettings(gUid);
+          setPinEnabled(localPin.pinEnabled);
+          setPinHash(localPin.pinHash);
+          setHasPromptedPinSetup(localPin.hasPromptedSetup);
+          setAutoLockMinutes(localPin.autoLockMinutes || 0);
+          setIsPinUnlocked(!localPin.pinEnabled);
+        } else {
+          setCurrentUser(null);
+          setPinEnabled(false);
+          setPinHash('');
+          setHasPromptedPinSetup(false);
+          setIsPinUnlocked(false);
+        }
       }
       setIsAuthLoading(false);
     });
@@ -334,7 +380,7 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Real-time Firestore Subscriptions for authenticated user
+  // Real-time Subscriptions (Firestore for Cloud users, Local Storage for Guest users)
   useEffect(() => {
     if (!currentUser?.uid) {
       setEntries([]);
@@ -346,6 +392,46 @@ export default function App() {
     }
 
     const uid = currentUser.uid;
+
+    // Handle Guest Mode subscriptions
+    if (isGuestUid(uid)) {
+      const unsubEntries = subscribeToEntries(uid, (list) => {
+        setEntries(list);
+      });
+      const unsubSummary = subscribeToProfileSummary(uid, (sum) => {
+        setProfileSummary(sum);
+      });
+      const unsubInsights = subscribeToInsights(uid, (list) => {
+        setInsights(list);
+      });
+      const unsubNudges = subscribeToNudges(uid, (list) => {
+        setNudges(list);
+      });
+      const unsubWeekly = subscribeToWeeklySummary(uid, (rep) => {
+        setWeeklySummary(rep);
+      });
+      const unsubNotifications = subscribeToNotifications(uid, (notifs) => {
+        setNotifications(notifs);
+      });
+      const unsubGratitude = subscribeToGratitudeEntries(uid, (entries) => {
+        setGratitudeEntries(entries);
+      });
+      const unsubMilestones = subscribeToMilestones(uid, (data) => {
+        setMilestones(data || {});
+        milestonesRef.current = data || {};
+      });
+
+      return () => {
+        unsubEntries();
+        unsubSummary();
+        unsubInsights();
+        unsubNudges();
+        unsubWeekly();
+        unsubNotifications();
+        unsubGratitude();
+        unsubMilestones();
+      };
+    }
 
     // 1. users/{uid}/entries listener
     const entriesQuery = query(
@@ -715,11 +801,59 @@ export default function App() {
     }
   };
 
+  const refreshUser = useCallback(() => {
+    if (auth.currentUser) {
+      const user = auth.currentUser;
+      setCurrentUser({
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+      });
+    } else if (isGuestModeActive()) {
+      const gUid = getGuestUid();
+      initializeGuestDataIfEmpty(gUid);
+      setCurrentUser({
+        uid: gUid,
+        email: null,
+        displayName: 'Guest Explorer',
+        photoURL: null,
+        isAnonymous: true,
+      });
+      const localPin = getLocalPinSettings(gUid);
+      setPinEnabled(localPin.pinEnabled);
+      setPinHash(localPin.pinHash);
+      setHasPromptedPinSetup(localPin.hasPromptedSetup);
+      setAutoLockMinutes(localPin.autoLockMinutes || 0);
+      setIsPinUnlocked(!localPin.pinEnabled);
+    }
+  }, []);
+
+  const handleConnectGoogle = async () => {
+    try {
+      const user = await signInWithGoogle();
+      if (user) {
+        refreshUser();
+      }
+    } catch (err: any) {
+      if (err?.code === 'auth/popup-closed-by-user' || err?.code === 'auth/cancelled-popup-request') {
+        return;
+      }
+      console.error('Failed to connect Google account:', err);
+    }
+  };
+
   const handleSignOut = async () => {
     try {
       localStorage.setItem('reflect_force_select_account', 'true');
       sessionStorage.removeItem('reflect_session_timeout');
-      await signOut(auth);
+      localStorage.removeItem('reflect_is_guest_mode');
+      if (auth.currentUser) {
+        await signOut(auth);
+      } else {
+        setCurrentUser(null);
+        setIsPinUnlocked(false);
+      }
     } catch (error) {
       console.error('Sign out error:', error);
     }
@@ -828,7 +962,7 @@ export default function App() {
   }
 
   if (!currentUser) {
-    return <AuthLanding onSignedIn={() => {}} />;
+    return <AuthLanding onSignedIn={refreshUser} />;
   }
 
   // Active PIN Lock Screen Gatekeeper
@@ -877,6 +1011,7 @@ export default function App() {
             onSignOut={handleSignOut}
             pinEnabled={pinEnabled}
             onLockApp={handleLockAppNow}
+            onConnectGoogle={handleConnectGoogle}
           />
         </div>
 

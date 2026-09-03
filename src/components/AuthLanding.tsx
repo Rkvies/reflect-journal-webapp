@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { signInWithGoogle, GoogleSignInOptions } from '../lib/firebase';
+import { signInWithGoogle, GoogleSignInOptions, signInAsGuest } from '../lib/firebase';
 import { BackgroundPattern } from './BackgroundPattern';
-import { Clock } from 'lucide-react';
+import { Clock, Compass } from 'lucide-react';
 
 interface AuthLandingProps {
   onSignedIn: () => void;
@@ -9,6 +9,7 @@ interface AuthLandingProps {
 
 export const AuthLanding: React.FC<AuthLandingProps> = ({ onSignedIn }) => {
   const [isLoadingGoogle, setIsLoadingGoogle] = useState(false);
+  const [isLoadingGuest, setIsLoadingGuest] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const isSessionTimeout = 
@@ -23,16 +24,19 @@ export const AuthLanding: React.FC<AuthLandingProps> = ({ onSignedIn }) => {
       // If options are provided (e.g. forced account selection), use them.
       // Otherwise, signInWithGoogle automatically detects session timeout
       // to sign in automatically with the already logged-in account.
-      await signInWithGoogle(options);
-      onSignedIn();
+      const user = await signInWithGoogle(options);
+      if (user) {
+        onSignedIn();
+      }
     } catch (err: any) {
+      if (err?.code === 'auth/popup-closed-by-user' || err?.code === 'auth/cancelled-popup-request') {
+        return;
+      }
       console.error('Sign-in failed:', err);
       
       let friendlyError = 'Failed to sign in with Google. Please try again.';
       
-      if (err?.code === 'auth/popup-closed-by-user') {
-        friendlyError = 'Sign-in was cancelled. Please try again.';
-      } else if (err?.code === 'auth/popup-blocked') {
+      if (err?.code === 'auth/popup-blocked') {
         friendlyError = 'Sign-in popup was blocked by your browser. Please allow popups for this site.';
       } else if (err?.code === 'auth/network-request-failed') {
         friendlyError = 'Network error. Please check your internet connection and try again.';
@@ -47,6 +51,20 @@ export const AuthLanding: React.FC<AuthLandingProps> = ({ onSignedIn }) => {
       setErrorMessage(friendlyError);
     } finally {
       setIsLoadingGoogle(false);
+    }
+  };
+
+  const handleGuestSignIn = async () => {
+    setIsLoadingGuest(true);
+    setErrorMessage(null);
+    try {
+      await signInAsGuest();
+      onSignedIn();
+    } catch (err: any) {
+      console.error('Guest mode failed:', err);
+      setErrorMessage('Could not initiate guest mode. Please try again.');
+    } finally {
+      setIsLoadingGuest(false);
     }
   };
 
@@ -92,7 +110,7 @@ export const AuthLanding: React.FC<AuthLandingProps> = ({ onSignedIn }) => {
           <button
             id="btn-signin-google"
             onClick={() => handleGoogleSignIn()}
-            disabled={isLoadingGoogle}
+            disabled={isLoadingGoogle || isLoadingGuest}
             className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-2xl text-xs font-semibold bg-white dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all shadow-sm hover:shadow-md disabled:opacity-50 cursor-pointer"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -129,13 +147,38 @@ export const AuthLanding: React.FC<AuthLandingProps> = ({ onSignedIn }) => {
                 id="btn-switch-account"
                 type="button"
                 onClick={() => handleGoogleSignIn({ forceSelectAccount: true })}
-                disabled={isLoadingGoogle}
+                disabled={isLoadingGoogle || isLoadingGuest}
                 className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium hover:underline cursor-pointer focus-visible:outline-none"
               >
                 Sign in with a different account
               </button>
             </div>
           )}
+
+          {/* Divider */}
+          <div className="flex items-center gap-3 py-1 w-full">
+            <div className="flex-1 border-t border-slate-200/80 dark:border-slate-800/80" />
+            <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider shrink-0 select-none">
+              or
+            </span>
+            <div className="flex-1 border-t border-slate-200/80 dark:border-slate-800/80" />
+          </div>
+
+          {/* Continue as Guest */}
+          <button
+            id="btn-continue-guest"
+            type="button"
+            onClick={handleGuestSignIn}
+            disabled={isLoadingGoogle || isLoadingGuest}
+            className="w-full flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-2xl text-xs font-medium text-slate-700 dark:text-slate-200 bg-slate-100/90 dark:bg-slate-800/80 hover:bg-slate-200/90 dark:hover:bg-slate-750 border border-slate-200/80 dark:border-slate-700 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+          >
+            <Compass className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span>{isLoadingGuest ? 'Opening Guest Sandbox...' : 'Continue as Guest'}</span>
+          </button>
+
+          <p className="text-[11px] text-center text-slate-500 dark:text-slate-400">
+            No sign-in required. Data stays private in your browser.
+          </p>
 
           {errorMessage && (
             <div className="p-3 text-center rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-900/50 text-xs text-rose-600 dark:text-rose-300">
@@ -145,8 +188,8 @@ export const AuthLanding: React.FC<AuthLandingProps> = ({ onSignedIn }) => {
         </div>
         
         {/* Footer info */}
-        <div className="mt-10 text-center text-xs text-slate-500 dark:text-slate-400 max-w-[280px]">
-          By continuing, you agree to Reflect's strictly private data model. All entries are secured to your account.
+        <div className="mt-8 text-center text-[11px] text-slate-500 dark:text-slate-400 max-w-[280px] leading-relaxed">
+          Reflect provides privacy-first journaling. When you sign in with Google, your entries sync seamlessly across devices.
         </div>
       </div>
     </div>

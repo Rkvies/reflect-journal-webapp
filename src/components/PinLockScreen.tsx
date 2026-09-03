@@ -128,10 +128,10 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
       setShowForgotModal(false);
       onResetPinSuccess();
     } catch (err: any) {
-      console.error('Reset PIN with Google failed:', err);
-      if (err.code === 'auth/popup-closed-by-user') {
+      if (err?.code === 'auth/popup-closed-by-user' || err?.code === 'auth/cancelled-popup-request') {
         setResetError('Google sign-in was cancelled.');
       } else {
+        console.error('Reset PIN with Google failed:', err);
         setResetError('Failed to verify identity with Google. Please try again or sign out.');
       }
     } finally {

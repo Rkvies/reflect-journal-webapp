@@ -27,6 +27,8 @@
 - **In-Line Multilingual Translation**: Seamlessly translate historical entries into multiple languages natively via the Gemini API (`/api/journal/translate`).
 
 ### 4. 📊 Insights & Behavioral Analytics
+- **Monthly Sentiment Calendar View**: Interactive monthly calendar with color-coded day cells based on daily average sentiment scores (from *Tender* to *Radiant*), mood emojis, reflection count indicators, month navigation controls, and an expandable daily reflection drawer.
+- **Yearly Sentiment Heatmap**: GitHub-style calendar heatmap visualizer displaying emotional trajectory and reflection density across all 365 days of the calendar year.
 - **Visual Sentiment Trajectory**: Interactive charts powered by Recharts illustrating sentiment trends and mood distribution over time.
 - **Thematic Reports with Entry Citations**: AI-generated structured synthesis identifying core psychological themes, emotional shifts, and growth recommendations — explicitly citing the specific entries that informed each insight.
 - **Independent Weekly Recap Modal**: A dedicated 7-day chronological digest offering narrative summaries and forward-looking horizon prompts.
@@ -39,7 +41,7 @@
 
 ### 6. ⚙️ Settings, PIN Security & 90-Day Secret Rotation Hub
 - **Profile & Credentials**: Real-time display name synchronization with Firebase Authentication.
-- **Appearance & Typography**: Toggle between Light Atmosphere and Dark Twilight modes, with customizable reading typography (*Sans*, *Serif*, or *Monospace*).
+- **Appearance & Typography**: Toggle between Light Atmosphere, Dark Twilight, and System Auto theme modes (with dynamic `prefers-color-scheme` OS listener), alongside customizable reading typography (*Sans*, *Serif*, or *Monospace*).
 - **Mindful Reminders**: Active notification preference settings for Evening Reflection and Daily Gratitude routines.
 - **Security & Privacy Audit**: Interactive inspector detailing security boundaries, encryption status, and data partitioning guarantees.
 - **90-Day Secret & Password Rotation Policy**: Cryptographic 6-digit PIN and password protection enforcing an automated 90-day secret rotation policy with client-side SHA-256 salted hashing, rotation countdown indicators, and immutable audit history.
@@ -55,6 +57,12 @@
 - **Fluid Layouts**: Responsive grids engineered to adapt smoothly across mobile phones, tablets, and desktop monitors.
 - **Paginated Entry Feed**: High-efficiency paginated history feed with clear Next/Previous boundaries and smooth top-scrolling.
 - **WCAG 2.1 AA Compliance**: Strict modal focus traps, Escape key listeners, explicit ARIA dialog roles (`role="dialog"`, `aria-modal="true"`, `aria-labelledby`), and high-contrast color pairings.
+
+### 8. 👤 Guest Mode (Zero-Account Sandbox & Seamless Cloud Migration)
+- **Instant Exploration Without Sign-In**: "Continue as Guest" option on the landing page allows immediate journal creation, gratitude tracking, AI streaming reflections, and insight analytics without signing in with a Google account.
+- **Client-Side Isolated Sandbox**: Guest entries, gratitude items, PIN preferences, and metrics are isolated inside browser `localStorage` using unique deterministic namespaces (`guest_...`).
+- **One-Click Cloud Sync & Migration**: When a guest user decides to connect their Google account, Reflect automatically invokes `migrateGuestDataToUser` to batch-write local entries and gratitude logs into Cloud Firestore under their newly authenticated `users/{uid}/*` path before safely purging local sandbox caches.
+- **Uncompromised Feature Parity**: Guest users have full access to interactive writing prompts, real-time sentiment scoring, monthly sentiment calendars, yearly heatmaps, and local PIN security.
 
 ---
 
@@ -154,6 +162,11 @@ Reflect implements defense-in-depth security with strict 90-day credential and s
   - `CRON_SECRET`: Active primary ingress secret token.
   - `CRON_SECRET_SECONDARY` / `PREVIOUS_CRON_SECRET`: Grace-period secret token allowing seamless, zero-downtime rotation between Cloud Scheduler and Cloud Run deployments.
 - **Auditing Endpoint**: `GET /api/admin/secrets-status` provides an automated health and rotation compliance audit.
+
+### 3. Guest Mode Sandbox Isolation & Migration Security
+- **Strict Firestore Rules Preserved**: Unauthenticated guests do not have read or write access to Cloud Firestore (`request.auth != null`). The client bypasses Firestore network calls entirely when in guest mode, preventing permission errors or cross-tenant exposure.
+- **Local Namespace Partitioning**: Guest data resides purely in the client browser's `localStorage` scoped to unique `reflect_guest_<key>` partitions.
+- **Safe Migration Boundary**: Upon signing in with Google, `migrateGuestDataToUser` transfers journal entries and gratitude items to the authenticated user's `users/{uid}/*` path in Firestore, after which local temporary keys are safely cleared.
 
 ---
 

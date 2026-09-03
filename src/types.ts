@@ -41,6 +41,8 @@ export interface ProfileSummary {
   totalEntriesAnalyzed: number;
   coreValues?: string[];
   lastQuoteShownDate?: string;
+  deactivated?: boolean;
+  deactivatedAt?: string;
 }
 
 export interface ThemeMetric {

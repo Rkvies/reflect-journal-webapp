@@ -4,6 +4,7 @@ import {
   Settings, 
   Sun, 
   Moon, 
+  Laptop,
   Download, 
   ShieldCheck, 
   Brain, 
@@ -49,6 +50,8 @@ interface SettingsPageProps {
   gratitudeEntries: GratitudeEntry[];
   profileSummary: ProfileSummary | null;
   theme: 'light' | 'dark';
+  themeMode?: 'light' | 'dark' | 'system';
+  onThemeModeChange?: (mode: 'light' | 'dark' | 'system') => void;
   pinEnabled?: boolean;
   autoLockMinutes?: number;
   onOpenPinSetup?: () => void;
@@ -71,6 +74,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   gratitudeEntries,
   profileSummary,
   theme,
+  themeMode = 'system',
+  onThemeModeChange,
   pinEnabled = false,
   autoLockMinutes = 0,
   onOpenPinSetup,
@@ -691,37 +696,82 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
 
           <div className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-2">
-                Color Mode
-              </label>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200">
+                  Color Mode & Theme Preference
+                </label>
+                <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 capitalize">
+                  {themeMode === 'system' ? `Auto (${theme} mode)` : `${theme} mode`}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 <button
                   id="btn-settings-theme-light"
                   type="button"
-                  onClick={() => theme !== 'light' && onToggleTheme()}
+                  onClick={() => {
+                    if (onThemeModeChange) {
+                      onThemeModeChange('light');
+                    } else if (theme !== 'light') {
+                      onToggleTheme();
+                    }
+                  }}
                   className={`p-3 rounded-2xl border text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                    theme === 'light'
-                      ? 'bg-indigo-50/90 border-indigo-500 text-indigo-900 shadow-2xs ring-2 ring-indigo-400/30'
-                      : 'bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border-white/80 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-white/80'
+                    themeMode === 'light'
+                      ? 'bg-indigo-50/90 border-indigo-500 text-indigo-900 shadow-2xs ring-2 ring-indigo-400/30 dark:bg-indigo-950/80 dark:text-indigo-200'
+                      : 'bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border-white/80 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-white/80 dark:hover:bg-slate-800/90'
                   }`}
                 >
                   <Sun className="w-4 h-4 text-amber-600" />
                   <span>Light Atmosphere</span>
                 </button>
+
                 <button
                   id="btn-settings-theme-dark"
                   type="button"
-                  onClick={() => theme !== 'dark' && onToggleTheme()}
+                  onClick={() => {
+                    if (onThemeModeChange) {
+                      onThemeModeChange('dark');
+                    } else if (theme !== 'dark') {
+                      onToggleTheme();
+                    }
+                  }}
                   className={`p-3 rounded-2xl border text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                    theme === 'dark'
-                      ? 'bg-indigo-950/80 border-indigo-500 text-indigo-200 shadow-2xs ring-2 ring-indigo-500/30'
-                      : 'bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border-white/80 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-white/80'
+                    themeMode === 'dark'
+                      ? 'bg-indigo-950/80 border-indigo-500 text-indigo-200 shadow-2xs ring-2 ring-indigo-500/30 dark:bg-indigo-950/90'
+                      : 'bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border-white/80 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-white/80 dark:hover:bg-slate-800/90'
                   }`}
                 >
-                  <Moon className="w-4 h-4 text-indigo-600" />
+                  <Moon className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                   <span>Dark Twilight</span>
                 </button>
+
+                <button
+                  id="btn-settings-theme-system"
+                  type="button"
+                  onClick={() => {
+                    if (onThemeModeChange) {
+                      onThemeModeChange('system');
+                    }
+                  }}
+                  className={`p-3 rounded-2xl border text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                    themeMode === 'system'
+                      ? 'bg-indigo-50/90 border-indigo-500 text-indigo-900 shadow-2xs ring-2 ring-indigo-400/30 dark:bg-indigo-950/80 dark:text-indigo-200 dark:border-indigo-500'
+                      : 'bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border-white/80 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-white/80 dark:hover:bg-slate-800/90'
+                  }`}
+                >
+                  <Laptop className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <span>System Auto</span>
+                </button>
               </div>
+
+              {themeMode === 'system' && (
+                <div className="mt-2.5 p-2.5 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/50 border border-indigo-200/60 dark:border-indigo-800/60 text-xs text-indigo-900 dark:text-indigo-200 flex items-center gap-2 animate-fade-in">
+                  <Laptop className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                  <span>
+                    Automatically syncing with device preferences (Active: <strong className="capitalize">{theme}</strong> theme).
+                  </span>
+                </div>
+              )}
             </div>
 
             <div>

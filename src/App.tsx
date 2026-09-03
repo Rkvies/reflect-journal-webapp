@@ -212,11 +212,46 @@ export default function App() {
   const [pinModalMode, setPinModalMode] = useState<PinModalMode>('prompt');
 
   // Theme Management
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    const saved = localStorage.getItem('reflect_theme');
-    if (saved === 'dark' || saved === 'light') return saved;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  const [themeMode, setThemeMode] = useState<'light' | 'dark' | 'system'>(() => {
+    const savedMode = localStorage.getItem('reflect_theme_mode');
+    if (savedMode === 'light' || savedMode === 'dark' || savedMode === 'system') {
+      return savedMode;
+    }
+    const legacySaved = localStorage.getItem('reflect_theme');
+    if (legacySaved === 'light' || legacySaved === 'dark') {
+      return legacySaved;
+    }
+    return 'system';
   });
+
+  const [systemPrefersDark, setSystemPrefersDark] = useState<boolean>(() => {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e: MediaQueryListEvent) => {
+      setSystemPrefersDark(e.matches);
+    };
+
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', handleChange);
+    } else {
+      mediaQuery.addListener(handleChange);
+    }
+
+    return () => {
+      if (mediaQuery.removeEventListener) {
+        mediaQuery.removeEventListener('change', handleChange);
+      } else {
+        mediaQuery.removeListener(handleChange);
+      }
+    };
+  }, []);
+
+  const theme: 'light' | 'dark' = themeMode === 'system'
+    ? (systemPrefersDark ? 'dark' : 'light')
+    : themeMode;
 
   const [fontPreference, setFontPreference] = useState<'sans' | 'serif' | 'mono'>('sans');
 
@@ -235,10 +270,20 @@ export default function App() {
       root.classList.remove('dark');
     }
     localStorage.setItem('reflect_theme', theme);
-  }, [theme]);
+    localStorage.setItem('reflect_theme_mode', themeMode);
+  }, [theme, themeMode]);
 
   const toggleTheme = () => {
-    setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
+    setThemeMode(prev => {
+      if (prev === 'system') {
+        return theme === 'light' ? 'dark' : 'light';
+      }
+      return prev === 'light' ? 'dark' : 'light';
+    });
+  };
+
+  const handleThemeModeChange = (mode: 'light' | 'dark' | 'system') => {
+    setThemeMode(mode);
   };
 
   // Firebase Auth State Listener
@@ -997,6 +1042,8 @@ export default function App() {
                 gratitudeEntries={gratitudeEntries}
                 profileSummary={profileSummary}
                 theme={theme}
+                themeMode={themeMode}
+                onThemeModeChange={handleThemeModeChange}
                 pinEnabled={pinEnabled}
                 autoLockMinutes={autoLockMinutes}
                 onOpenPinSetup={() => {

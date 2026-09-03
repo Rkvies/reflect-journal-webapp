@@ -16,6 +16,7 @@ import { saveInsightReport } from '../lib/firebase';
 import { ConfidenceTooltip } from './ConfidenceTooltip';
 import { SparkLoader, SparkMotif, SparkEncouragement } from './SparkVisual';
 import { SentimentHeatmap } from './SentimentHeatmap';
+import { MonthlySentimentCalendar } from './MonthlySentimentCalendar';
 
 interface InsightsPanelProps {
   userId: string;
@@ -242,6 +243,7 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
         </div>
       ) : latestInsight ? (
         <div className="space-y-6">
+          <MonthlySentimentCalendar entries={entries} onNavigateToEntry={onNavigateToEntry} />
           <SentimentHeatmap entries={entries} />
           
           {/* Top Mood & Trajectory Card */}
@@ -471,18 +473,23 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
 
         </div>
       ) : (
-        <div className="bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl border border-white/80 dark:border-white/10 rounded-3xl p-10 sm:p-12 text-center text-slate-600 dark:text-slate-300 space-y-4 shadow-sm">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 flex items-center justify-center text-indigo-600 dark:text-indigo-300 mx-auto">
-            <Sparkles className="w-6 h-6 animate-spark-glimmer" />
-          </div>
-          <div className="space-y-1.5 max-w-md mx-auto">
-            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200 font-serif">No insights generated yet</h3>
-            <div className="inline-flex items-center justify-center pt-1">
-              <SparkEncouragement
-                message="Your reflections hold patterns waiting to be discovered."
-                subtext="Click Generate above to synthesize recurring themes and emotional trajectories."
-                variant="indigo"
-              />
+        <div className="space-y-6">
+          {entries.length > 0 && (
+            <MonthlySentimentCalendar entries={entries} onNavigateToEntry={onNavigateToEntry} />
+          )}
+          <div className="bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl border border-white/80 dark:border-white/10 rounded-3xl p-10 sm:p-12 text-center text-slate-600 dark:text-slate-300 space-y-4 shadow-sm">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 flex items-center justify-center text-indigo-600 dark:text-indigo-300 mx-auto">
+              <Sparkles className="w-6 h-6 animate-spark-glimmer" />
+            </div>
+            <div className="space-y-1.5 max-w-md mx-auto">
+              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200 font-serif">No insights generated yet</h3>
+              <div className="inline-flex items-center justify-center pt-1">
+                <SparkEncouragement
+                  message="Your reflections hold patterns waiting to be discovered."
+                  subtext="Click Generate above to synthesize recurring themes and emotional trajectories."
+                  variant="indigo"
+                />
+              </div>
             </div>
           </div>
         </div>

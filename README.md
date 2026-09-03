@@ -8,8 +8,10 @@
 
 ### 1. ✍️ Daily Reflection & Real-Time AI Streaming Dialogue
 - **Real-Time Streaming Dialogue**: Engage in introspective dialogue with Gemini AI via Server-Sent Events (SSE) streaming (`/api/journal/chat-stream`) for instant token-by-token reflection responses.
+- **Optimized Typography & Spacing**: Employs `@tailwindcss/typography` for beautifully spaced, conversational, and highly readable AI responses.
 - **Automated Sentiment Analysis**: Instant assessment of entry sentiment generating a 0–100 positivity score, mood indicators, and emotional descriptors (*Grounded*, *Peaceful*, *Reflective*, etc.).
 - **Curated Reflection Starters**: Categorized writing prompts (*Gratitude*, *Mindfulness*, *Self-Growth*, *Productivity*, *Relationships*) to eliminate blank-page friction.
+- **Personalized AI Affirmations**: Dynamically generated daily affirmations (`/api/journal/daily-affirmation`) tailored to your running psychological context and recent entries.
 - **Daily Inspiration Quote**: A clean daily quote modal displayed once per day to set a mindful intention.
 - **Real-Time Writing Metrics**: Live reading duration estimates and word counters as you compose reflections.
 
@@ -18,9 +20,11 @@
 - **Gratitude History & Management**: View past gratitude logs chronologically, edit responses, or delete historic entries.
 
 ### 3. 📚 Past Entries Archive & Intelligent Filtering
+- **Paginated History Feed**: Seamless numbered pagination with "Next" and "Previous" controls and smooth auto-scrolling to navigate long journal histories securely.
 - **Full Entry Lifecycle Management**: Create, edit titles, update tags/content, or permanently delete past reflections.
 - **Multi-Filter Capabilities**: Search entries instantly by text keywords, custom hashtags (`#growth`, `#work`), or emotional mood pills (*Optimistic*, *Calm*, *Reflective*, etc.).
 - **Interactive Conversation History**: View historical multi-turn AI dialogue transcripts associated with any entry.
+- **In-Line Multilingual Translation**: Seamlessly translate historical entries into multiple languages natively via the Gemini API (`/api/journal/translate`).
 
 ### 4. 📊 Insights & Behavioral Analytics
 - **Visual Sentiment Trajectory**: Interactive charts powered by Recharts illustrating sentiment trends and mood distribution over time.
@@ -31,6 +35,7 @@
 ### 5. 🔔 Proactive Agentic Nudges & Cloud Scheduler Cron
 - **Autonomous Check-In Prompts**: Intelligent background prompts rendered via an interactive Nudge Banner that detects reflection gaps or milestone patterns, inviting you back to log your state of mind.
 - **Secured Cron Endpoint (`/api/cron/generate-nudges`)**: A protected backend endpoint built for Cloud Scheduler or cron runners that safely generates pending nudges for active users. Authenticated via `CRON_SECRET` using either `x-cron-secret: <secret>` or `Authorization: Bearer <secret>`.
+- **Milestone Celebrations**: Interactive toasts to celebrate journaling streaks and entry milestones.
 
 ### 6. ⚙️ Settings, PIN Security & 90-Day Secret Rotation Hub
 - **Profile & Credentials**: Real-time display name synchronization with Firebase Authentication.
@@ -48,7 +53,7 @@
 - **Desktop Top Navigation**: Sleek header bar with quick-access tab switches and profile dropdown menu.
 - **Mobile Bottom Navigation Bar**: Fixed, touch-optimized bottom menu bar (`md:hidden`) for phones ensuring single-thumb tab switching across Reflection, History, Insights, Gratitude, and Settings.
 - **Fluid Layouts**: Responsive grids engineered to adapt smoothly across mobile phones, tablets, and desktop monitors.
-- **Cursor-Based Entry Pagination**: High-efficiency batched history streaming with `limit` and `startAfter` cursors in Firestore to conserve bandwidth and guarantee instant page responsiveness.
+- **Paginated Entry Feed**: High-efficiency paginated history feed with clear Next/Previous boundaries and smooth top-scrolling.
 - **WCAG 2.1 AA Compliance**: Strict modal focus traps, Escape key listeners, explicit ARIA dialog roles (`role="dialog"`, `aria-modal="true"`, `aria-labelledby`), and high-contrast color pairings.
 
 ---
@@ -61,7 +66,7 @@
 |  - React 18 + TypeScript + Tailwind CSS + Recharts + Framer Motion                |
 |  - Firebase Client SDK (Google Auth & UID-Scoped Firestore Listeners)             |
 |  - Desktop Header & Mobile Bottom Navigation Bar                                  |
-|  - Cursor-Based Paginated Entry History (limit & startAfter)                      |
+|  - Paginated Entry History (Next / Previous Feed)                                 |
 +-----------------------------------------+-----------------------------------------+
                                           |
                                           | HTTP / API Proxy Routes (/api/*)
@@ -90,7 +95,7 @@
 ```
 
 ### Stack Overview
-- **Frontend Framework**: React 18, TypeScript, Vite, Tailwind CSS, Lucide Icons, Recharts, Framer Motion.
+- **Frontend Framework**: React 18, TypeScript, Vite, Tailwind CSS, `@tailwindcss/typography`, Lucide Icons, Recharts, Framer Motion.
 - **Backend API Layer**: Express.js server running in Cloud Run container with Vite dev middleware.
 - **Database & Authentication**: Google Cloud Firestore & Firebase Authentication (with Firebase Admin SDK backend).
 - **AI Engine**: `@google/genai` SDK with multi-tiered fallback architecture (`gemini-3.1-flash-lite` ➔ `gemini-3.7-flash` ➔ `gemini-flash-latest`).
@@ -107,9 +112,14 @@
 | `/api/journal/update-profile` | `POST` | Asynchronous long-term psychological memory summary updater |
 | `/api/journal/generate-insights` | `POST` | On-demand structured thematic JSON insights with citation validation |
 | `/api/journal/weekly-summary` | `POST` | 7-day weekly reflection recap digest generator |
+| `/api/journal/analyze-sentiment` | `POST` | On-demand sentiment analytics extractor |
+| `/api/journal/translate` | `POST` | Natively translates historical journal entries into user-selected languages |
+| `/api/journal/daily-affirmation` | `POST` | Generates context-aware, personalized daily affirmations |
+| `/api/journal/generate-nudge` | `POST` | Manual trigger for generating an intelligent check-in nudge |
 | `/api/cron/generate-nudges` | `POST` | Secured background endpoint for Cloud Scheduler check-in nudges |
 | `/api/admin/secrets-status` | `GET` | Secrets health and 90-day rotation compliance audit endpoint |
-| `/api/user/purge` | `DELETE` | Recursive deletion of user Firestore data and Firebase Auth identity |
+| `/api/account/deactivate` | `POST` | Temporary account deactivation with data preservation |
+| `/api/account/delete` | `POST` | Permanent, recursive deletion of user Firestore data and Firebase Auth identity |
 
 ---
 

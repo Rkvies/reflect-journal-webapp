@@ -97,7 +97,7 @@ export const ConfidenceTooltip: React.FC<ConfidenceTooltipProps> = ({
         <button
           type="button"
           aria-label="Confidence score info"
-          className="inline-flex items-center justify-center p-0.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-300 focus:outline-none focus:text-indigo-600 cursor-pointer transition-colors"
+          className="inline-flex items-center justify-center p-0.5 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-600 focus:outline-none focus:text-indigo-600 cursor-pointer transition-colors"
         >
           <Info className="w-3 h-3 flex-shrink-0 opacity-80 hover:opacity-100" />
         </button>

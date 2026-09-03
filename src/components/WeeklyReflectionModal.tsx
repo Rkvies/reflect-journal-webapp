@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Sparkles, ArrowRight, BrainCircuit } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { WeeklyReflectionReport } from '../types';
 
 interface WeeklyReflectionModalProps {
@@ -32,29 +33,39 @@ export const WeeklyReflectionModal: React.FC<WeeklyReflectionModalProps> = ({
     };
   }, [isOpen, onClose]);
 
-  if (!isOpen || !summary) return null;
+  if (!summary) return null;
 
   return createPortal(
-    <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/50 backdrop-blur-md animate-in fade-in duration-200"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="weekly-reflection-title"
-      aria-describedby="weekly-reflection-desc"
-    >
-      <div 
-        ref={modalRef}
-        className="w-full max-w-2xl bg-white/85 dark:bg-slate-900/85 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/80 dark:border-white/10 flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200"
-      >
-        {/* Header */}
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.25 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-900/50 backdrop-blur-md"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="weekly-reflection-title"
+          aria-describedby="weekly-reflection-desc"
+        >
+          <motion.div 
+            ref={modalRef}
+            initial={{ opacity: 0, scale: 0.95, y: 12 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 12 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            className="w-full max-w-2xl bg-white/85 dark:bg-slate-900/85 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/80 dark:border-white/10 flex flex-col max-h-[90vh] overflow-hidden"
+          >
+            {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/60 dark:border-white/10">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-indigo-50/80 dark:bg-indigo-900/50 border border-indigo-200/60 dark:border-indigo-800/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-2xs" aria-hidden="true">
+            <div className="w-8 h-8 rounded-xl bg-indigo-50/80 dark:bg-indigo-900/50 border border-indigo-200/60 dark:border-indigo-800/60 flex items-center justify-center text-indigo-600 dark:text-indigo-300 shadow-2xs" aria-hidden="true">
               <Sparkles className="w-4 h-4" />
             </div>
             <div>
               <h2 id="weekly-reflection-title" className="text-sm font-bold font-serif text-slate-800 dark:text-slate-100">Your Week in Reflection</h2>
-              <p id="weekly-reflection-desc" className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+              <p id="weekly-reflection-desc" className="text-[11px] font-mono text-slate-600 dark:text-slate-300">
                 {summary.weekRange} • {summary.entryCount} {summary.entryCount === 1 ? 'reflection' : 'reflections'}
               </p>
             </div>
@@ -63,7 +74,7 @@ export const WeeklyReflectionModal: React.FC<WeeklyReflectionModalProps> = ({
             type="button"
             onClick={onClose}
             aria-label="Close weekly reflection dialog"
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/60 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+            className="p-2 rounded-xl text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/60 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
           >
             <X className="w-4 h-4" />
           </button>
@@ -75,20 +86,20 @@ export const WeeklyReflectionModal: React.FC<WeeklyReflectionModalProps> = ({
           {/* Highlights bar */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div className="p-4 rounded-2xl bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border border-white/80 dark:border-white/10 shadow-2xs">
-              <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Dominant Mood & Trend</span>
+              <span className="text-xs text-slate-600 dark:text-slate-300 font-medium">Dominant Mood & Trend</span>
               <p className="font-semibold text-slate-800 dark:text-slate-200 mt-1">
                 {summary.dominantMood}
               </p>
-              <p className="text-slate-600 dark:text-slate-400 text-xs italic mt-0.5">"{summary.moodTrend}"</p>
+              <p className="text-slate-700 dark:text-slate-300 text-xs italic mt-0.5">"{summary.moodTrend}"</p>
             </div>
             
             <div className="p-4 rounded-2xl bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border border-white/80 dark:border-white/10 shadow-2xs">
-              <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Weekly Themes</span>
+              <span className="text-xs text-slate-600 dark:text-slate-300 font-medium">Weekly Themes</span>
               <div className="flex flex-wrap items-center gap-2 mt-1.5">
                 {summary.topThemes.map((themeName, idx) => (
                   <span
                     key={idx}
-                    className="text-xs px-2.5 py-1 rounded-md bg-white/80 dark:bg-slate-900/80 backdrop-blur-xs border border-white/80 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-medium shadow-2xs"
+                    className="text-xs px-2.5 py-1 rounded-md bg-white/80 dark:bg-slate-900/80 backdrop-blur-xs border border-white/80 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-medium shadow-2xs"
                   >
                     #{themeName}
                   </span>
@@ -100,7 +111,7 @@ export const WeeklyReflectionModal: React.FC<WeeklyReflectionModalProps> = ({
           {/* Narrative Summary */}
           <div className="space-y-2">
             <h3 className="text-xs font-semibold text-slate-800 dark:text-slate-200 font-serif flex items-center gap-1.5">
-              <BrainCircuit className="w-3.5 h-3.5 text-indigo-500" />
+              <BrainCircuit className="w-3.5 h-3.5 text-indigo-600" />
               <span>Weekly Synthesis</span>
             </h3>
             <div className="p-5 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/30 backdrop-blur-md border border-indigo-100/60 dark:border-indigo-900/40 text-slate-700 dark:text-slate-200 leading-relaxed font-serif text-sm shadow-2xs">
@@ -114,10 +125,10 @@ export const WeeklyReflectionModal: React.FC<WeeklyReflectionModalProps> = ({
               <div className="space-y-2">
                 <h3 className="text-xs font-semibold text-slate-800 dark:text-slate-200 font-serif">Key Moments & Wins</h3>
                 <div className="p-4 rounded-2xl bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border border-white/80 dark:border-white/10 shadow-2xs h-full">
-                  <ul className="space-y-2.5 text-xs text-slate-600 dark:text-slate-300">
+                  <ul className="space-y-2.5 text-xs text-slate-700 dark:text-slate-200">
                     {summary.highlights.map((h, i) => (
                       <li key={i} className="flex items-start gap-2">
-                        <span className="text-indigo-500 dark:text-indigo-400 mt-0.5">•</span>
+                        <span className="text-indigo-600 dark:text-indigo-300 mt-0.5">•</span>
                         <span className="leading-relaxed">{h}</span>
                       </li>
                     ))}
@@ -130,7 +141,7 @@ export const WeeklyReflectionModal: React.FC<WeeklyReflectionModalProps> = ({
             <div className="space-y-2">
                <h3 className="text-xs font-semibold text-slate-800 dark:text-slate-200 font-serif">Horizon Takeaway</h3>
                <div className="p-4 rounded-2xl bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border border-white/80 dark:border-white/10 shadow-2xs flex flex-col justify-between h-full gap-3">
-                 <p className="text-slate-700 dark:text-slate-300 text-sm italic leading-relaxed font-serif">
+                 <p className="text-slate-700 dark:text-slate-200 text-sm italic leading-relaxed font-serif">
                    "{summary.keyTakeaway}"
                  </p>
                  {onReflectOnPrompt && (
@@ -141,7 +152,7 @@ export const WeeklyReflectionModal: React.FC<WeeklyReflectionModalProps> = ({
                        onClose();
                        onReflectOnPrompt(`Reflecting on my weekly takeaway: "${summary.keyTakeaway}"`, 'weekly_takeaway');
                      }}
-                     className="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:underline flex items-center gap-1.5 self-start cursor-pointer transition-colors"
+                     className="text-xs font-medium text-indigo-600 dark:text-indigo-300 hover:text-indigo-700 dark:hover:text-indigo-600 hover:underline flex items-center gap-1.5 self-start cursor-pointer transition-colors"
                    >
                      <span>Reflect on this takeaway</span>
                      <ArrowRight className="w-3.5 h-3.5" />
@@ -152,8 +163,10 @@ export const WeeklyReflectionModal: React.FC<WeeklyReflectionModalProps> = ({
           </div>
           
         </div>
-      </div>
-    </div>,
+        </motion.div>
+      </motion.div>
+      )}
+    </AnimatePresence>,
     document.body
   );
 };

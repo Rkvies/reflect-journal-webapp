@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { 
   collection, 
@@ -27,12 +28,14 @@ import { NudgeBanner } from './components/NudgeBanner';
 import { JournalChat } from './components/JournalChat';
 import { EntryHistory } from './components/EntryHistory';
 import { InsightsPanel } from './components/InsightsPanel';
+import { SentimentTrendChart } from './components/SentimentTrendChart';
 import { WeeklyReflectionCard } from './components/WeeklyReflectionCard';
 import { GratitudeModule } from './components/GratitudeModule';
 import { MilestoneToast, MilestoneToastData } from './components/MilestoneToast';
 import { ProfileSummaryModal } from './components/ProfileSummaryModal';
 import { SecurityReviewModal } from './components/SecurityReviewModal';
 import { DailyQuoteModal } from './components/DailyQuoteModal';
+import { DailyAffirmationModal } from './components/DailyAffirmationModal';
 import { SettingsPage } from './components/SettingsPage';
 import { AuthLanding } from './components/AuthLanding';
 import { PinLockScreen } from './components/PinLockScreen';
@@ -53,7 +56,9 @@ import {
   subscribeToGratitudeEntries,
   deleteGratitudeEntry,
   saveMilestone,
-  subscribeToMilestones
+  subscribeToMilestones,
+  deactivateAccountDirect,
+  purgeUserAccountData
 } from './lib/firebase';
 import { UserX, Trash2, Sparkles } from 'lucide-react';
 import { useSessionTimeout } from './hooks/useSessionTimeout';
@@ -84,6 +89,7 @@ export default function App() {
   const [isMemoryOpen, setIsMemoryOpen] = useState(false);
   const [isSecurityOpen, setIsSecurityOpen] = useState(false);
   const [isDailyQuoteOpen, setIsDailyQuoteOpen] = useState(false);
+  const [isDailyAffirmationOpen, setIsDailyAffirmationOpen] = useState(false);
 
   // Account Management Modals
   const [isDeactivateModalOpen, setIsDeactivateModalOpen] = useState(false);
@@ -91,18 +97,40 @@ export default function App() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [accountActionLoading, setAccountActionLoading] = useState(false);
   const [accountActionError, setAccountActionError] = useState<string | null>(null);
+  const isTerminatingAccountRef = useRef<boolean>(false);
 
   const handleDeactivateAccount = async () => {
     if (!auth.currentUser) return;
+    const user = auth.currentUser;
+    const uid = user.uid;
+    isTerminatingAccountRef.current = true;
+    setIsDailyQuoteOpen(false);
+    setIsDailyAffirmationOpen(false);
     setAccountActionLoading(true);
     setAccountActionError(null);
     try {
-      const token = await auth.currentUser.getIdToken(true);
-      await deactivateAccount(token);
+      // 1. Direct authenticated update to users/{uid}/profile/summary
+      await deactivateAccountDirect(uid);
+
+      // 2. Best-effort server notification
+      try {
+        const token = await user.getIdToken(true);
+        await deactivateAccount(token);
+      } catch (backendErr) {
+        console.warn('Backend deactivation sync note:', backendErr);
+      }
+
+      // 3. Clear auth and session state
+      localStorage.setItem('reflect_force_select_account', 'true');
+      sessionStorage.removeItem('reflect_session_timeout');
+      localStorage.removeItem('reflect_last_user_email');
+      localStorage.removeItem('reflect_cached_summary');
       await signOut(auth);
       setIsDeactivateModalOpen(false);
     } catch (err: any) {
-      setAccountActionError(err.message || 'Deactivation failed.');
+      console.error('Account deactivation error:', err);
+      isTerminatingAccountRef.current = false;
+      setAccountActionError(err.message || 'Deactivation failed. Please try again.');
     } finally {
       setAccountActionLoading(false);
     }
@@ -110,22 +138,67 @@ export default function App() {
 
   const handleDeleteAccount = async () => {
     if (!auth.currentUser) return;
+    const user = auth.currentUser;
+    const uid = user.uid;
+    isTerminatingAccountRef.current = true;
+    setIsDailyQuoteOpen(false);
+    setIsDailyAffirmationOpen(false);
     setAccountActionLoading(true);
     setAccountActionError(null);
     try {
-      const token = await auth.currentUser.getIdToken(true);
-      await deleteAccount(token);
+      // 1. Purge all user subcollections and documents directly with authenticated client
+      await purgeUserAccountData(uid);
+
+      // 2. Best-effort server notification
+      try {
+        const token = await user.getIdToken(true);
+        await deleteAccount(token);
+      } catch (backendErr) {
+        console.warn('Backend account purge sync note:', backendErr);
+      }
+
+      // 3. Delete Firebase Auth user if supported
+      try {
+        await user.delete();
+      } catch (authDelErr) {
+        console.warn('Notice: Firebase Auth user deletion requires recent re-auth:', authDelErr);
+      }
+
+      // 4. Clear auth, quote tracking, and session state
+      localStorage.removeItem(`reflect_last_quote_${uid}`);
+      localStorage.setItem('reflect_force_select_account', 'true');
+      sessionStorage.removeItem('reflect_session_timeout');
+      localStorage.removeItem('reflect_last_user_email');
+      localStorage.removeItem('reflect_cached_summary');
       await signOut(auth);
       setIsDeleteModalOpen(false);
     } catch (err: any) {
-      setAccountActionError(err.message || 'Account deletion failed.');
+      console.error('Account deletion error:', err);
+      isTerminatingAccountRef.current = false;
+      setAccountActionError(err.message || 'Account deletion failed. Please try again.');
     } finally {
       setAccountActionLoading(false);
     }
   };
 
+  const openDeactivateModal = () => {
+    setIsDailyQuoteOpen(false);
+    setIsDailyAffirmationOpen(false);
+    setAccountActionError(null);
+    setIsDeactivateModalOpen(true);
+  };
+
+  const openDeleteModal = () => {
+    setIsDailyQuoteOpen(false);
+    setIsDailyAffirmationOpen(false);
+    setAccountActionError(null);
+    setDeleteConfirmText('');
+    setIsDeleteModalOpen(true);
+  };
+
   // Cross-component triggers
   const [prefillPrompt, setPrefillPrompt] = useState<{ prompt: string; tag: string } | null>(null);
+  const [existingEntry, setExistingEntry] = useState<JournalEntry | null>(null);
   const [targetEntryId, setTargetEntryId] = useState<string | null>(null);
   const [isDeepFocus, setIsDeepFocus] = useState<boolean>(false);
 
@@ -172,6 +245,14 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
+        isTerminatingAccountRef.current = false;
+        if (user.email) {
+          localStorage.setItem('reflect_last_user_email', user.email);
+        }
+        localStorage.setItem('reflect_last_user_id', user.uid);
+        sessionStorage.removeItem('reflect_session_timeout');
+        localStorage.removeItem('reflect_force_select_account');
+
         setCurrentUser({
           uid: user.uid,
           email: user.email,
@@ -193,6 +274,9 @@ export default function App() {
           setIsPinUnlocked(true);
         }
       } else {
+        isTerminatingAccountRef.current = false;
+        setIsDailyQuoteOpen(false);
+        setIsDailyAffirmationOpen(false);
         setCurrentUser(null);
         setPinEnabled(false);
         setPinHash('');
@@ -236,7 +320,14 @@ export default function App() {
     // 2. users/{uid}/profile/summary listener
     const summaryDocRef = doc(db, 'users', uid, 'profile', 'summary');
     const unsubSummary = onSnapshot(summaryDocRef, async (docSnap) => {
+      // Guard: never process or open daily reflections during account deactivation/deletion
+      if (isTerminatingAccountRef.current) return;
+      if (!auth.currentUser || auth.currentUser.uid !== uid) return;
+
       const todayStr = new Date().toISOString().split('T')[0];
+      const localQuoteKey = `reflect_last_quote_${uid}`;
+      const hasShownTodayLocally = localStorage.getItem(localQuoteKey) === todayStr;
+
       if (docSnap.exists()) {
         const data = docSnap.data();
         if (data.deactivated) {
@@ -250,17 +341,30 @@ export default function App() {
             console.warn('Auto-reactivation write notice:', rErr);
           }
         }
-        if (!data.lastQuoteShownDate || data.lastQuoteShownDate !== todayStr) {
+
+        const remoteQuoteShown = data.lastQuoteShownDate === todayStr;
+        if (!remoteQuoteShown && !hasShownTodayLocally && !isTerminatingAccountRef.current) {
+          localStorage.setItem(localQuoteKey, todayStr);
           setIsDailyQuoteOpen(true);
           try {
             await setDoc(summaryDocRef, { lastQuoteShownDate: todayStr }, { merge: true });
           } catch (qErr) {
             console.warn('Failed to update lastQuoteShownDate:', qErr);
           }
+        } else if (remoteQuoteShown && !hasShownTodayLocally) {
+          // Sync local storage so subsequent snapshot events don't re-trigger
+          localStorage.setItem(localQuoteKey, todayStr);
         }
+
         setProfileSummary({ id: docSnap.id, ...data } as unknown as ProfileSummary);
       } else {
-        setIsDailyQuoteOpen(true);
+        // Document does not exist (e.g. purged during account delete, or new user)
+        if (isTerminatingAccountRef.current) return;
+
+        if (!hasShownTodayLocally && !isTerminatingAccountRef.current) {
+          localStorage.setItem(localQuoteKey, todayStr);
+          setIsDailyQuoteOpen(true);
+        }
         try {
           await setDoc(summaryDocRef, {
             userId: uid,
@@ -568,6 +672,8 @@ export default function App() {
 
   const handleSignOut = async () => {
     try {
+      localStorage.setItem('reflect_force_select_account', 'true');
+      sessionStorage.removeItem('reflect_session_timeout');
       await signOut(auth);
     } catch (error) {
       console.error('Sign out error:', error);
@@ -661,14 +767,14 @@ export default function App() {
 
   if (isAuthLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center text-slate-500 font-sans text-xs relative">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center text-slate-600 font-sans text-xs relative">
         <BackgroundPattern />
         <div className="flex flex-col items-center gap-3 relative z-10">
           <div className="w-16 h-16 animate-spark-glimmer flex items-center justify-center">
             <img src="/reflect_logo.png" alt="Loading" className="w-full h-full object-contain dark:invert opacity-80" />
           </div>
-          <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-medium">
-            <Sparkles className="w-3.5 h-3.5 text-indigo-500 animate-spark-glimmer" />
+          <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 font-medium">
+            <Sparkles className="w-3.5 h-3.5 text-indigo-600 animate-spark-glimmer" />
             <span>Loading Reflect...</span>
           </div>
         </div>
@@ -721,8 +827,8 @@ export default function App() {
             onToggleTheme={toggleTheme}
             onOpenMemory={() => setIsMemoryOpen(true)}
             onOpenSecurity={() => setIsSecurityOpen(true)}
-            onOpenDeactivateModal={() => setIsDeactivateModalOpen(true)}
-            onOpenDeleteModal={() => setIsDeleteModalOpen(true)}
+            onOpenDeactivateModal={openDeactivateModal}
+            onOpenDeleteModal={openDeleteModal}
             onSignOut={handleSignOut}
             pinEnabled={pinEnabled}
             onLockApp={handleLockAppNow}
@@ -739,157 +845,217 @@ export default function App() {
         />
       )}
 
-      {/* Main Content Area */}
-      <main className={`flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 pb-24 md:pb-10 transition-all duration-300 ${
-        isFocusActive ? 'py-4 sm:py-6 space-y-4' : 'py-6 sm:py-10 space-y-8 sm:space-y-10'
+      {/* Main Content Area with Framer Motion Page Transitions */}
+      <main className={`flex-1 max-w-5xl w-full mx-auto px-3 sm:px-6 pb-24 md:pb-10 transition-all duration-300 ${
+        isFocusActive ? 'py-3 sm:py-6 space-y-3 sm:space-y-4' : 'py-3.5 sm:py-10 space-y-4 sm:space-y-10'
       }`}>
-        
-        <div className={activeTab === 'journal' ? 'block' : 'hidden'}>
-          <JournalChat
-            user={currentUser}
-            userId={currentUser.uid}
-            profileSummary={profileSummary}
-            recentEntries={entries}
-            onEntrySaved={(savedEntry) => {
-              triggerMilestone('first_entry');
-              const updatedEntries = [savedEntry, ...entries.filter(e => e.id !== savedEntry.id)];
-              checkStreakMilestones(updatedEntries, gratitudeEntries);
-            }}
-            prefillPrompt={prefillPrompt}
-            onClearPrefill={() => setPrefillPrompt(null)}
-            activeNudge={activeNudge}
-            isDeepFocus={isFocusActive}
-            onToggleDeepFocus={() => setIsDeepFocus(prev => !prev)}
-          />
-        </div>
+        <AnimatePresence mode="wait" initial={false}>
+          {activeTab === 'journal' && (
+            <motion.div
+              key="journal"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
+              className="w-full"
+            >
+              <JournalChat
+                user={currentUser}
+                userId={currentUser.uid}
+                profileSummary={profileSummary}
+                recentEntries={entries}
+                onEntrySaved={(savedEntry) => {
+                  triggerMilestone('first_entry');
+                  const updatedEntries = [savedEntry, ...entries.filter(e => e.id !== savedEntry.id)];
+                  checkStreakMilestones(updatedEntries, gratitudeEntries);
+                }}
+                prefillPrompt={prefillPrompt}
+                onClearPrefill={() => setPrefillPrompt(null)}
+                existingEntry={existingEntry}
+                onClearExistingEntry={() => setExistingEntry(null)}
+                activeNudge={activeNudge}
+                isDeepFocus={isFocusActive}
+                onToggleDeepFocus={() => setIsDeepFocus(prev => !prev)}
+              />
+            </motion.div>
+          )}
 
-        {activeTab === 'history' && (
-          <EntryHistory
-            userId={currentUser.uid}
-            entries={entries}
-            targetEntryId={targetEntryId}
-            onClearTargetEntry={() => setTargetEntryId(null)}
-            onStartWriting={() => setActiveTab('journal')}
-            onSelectEntryForReflection={(entry) => {
-              setPrefillPrompt({
-                prompt: `Continuing reflection on "${entry.title}": `,
-                tag: entry.tags?.[0] || 'reflection',
-              });
-              setActiveTab('journal');
-            }}
-          />
-        )}
+          {activeTab === 'history' && (
+            <motion.div
+              key="history"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
+              className="w-full"
+            >
+              <EntryHistory
+                userId={currentUser.uid}
+                entries={entries}
+                targetEntryId={targetEntryId}
+                onClearTargetEntry={() => setTargetEntryId(null)}
+                onStartWriting={() => setActiveTab('journal')}
+                onSelectEntryForReflection={(entry) => {
+                  setPrefillPrompt({
+                    prompt: `Continuing reflection on "${entry.title}": `,
+                    tag: entry.tags?.[0] || 'reflection',
+                  });
+                  setActiveTab('journal');
+                }}
+                onContinueEntry={(entry) => {
+                  setExistingEntry(entry);
+                  setActiveTab('journal');
+                }}
+              />
+            </motion.div>
+          )}
 
-        {activeTab === 'insights' && (
-          <div className="space-y-10">
-            {/* Weekly Reflection Summary */}
-            <WeeklyReflectionCard
-              userId={currentUser.uid}
-              entries={entries}
-              profileSummary={profileSummary}
-              cachedWeeklySummary={weeklySummary}
-              onStartEntry={() => setActiveTab('journal')}
-              onReflectOnPrompt={(prompt, tag) => {
-                handleReflectOnPrompt(prompt, tag);
-              }}
-              onWeeklySummaryGenerated={() => {
-                triggerMilestone('first_weekly_recap');
-              }}
-            />
+          {activeTab === 'insights' && (
+            <motion.div
+              key="insights"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
+              className="w-full space-y-10"
+            >
+              {/* Weekly Reflection Summary */}
+              <WeeklyReflectionCard
+                userId={currentUser.uid}
+                entries={entries}
+                profileSummary={profileSummary}
+                cachedWeeklySummary={weeklySummary}
+                onStartEntry={() => setActiveTab('journal')}
+                onReflectOnPrompt={(prompt, tag) => {
+                  handleReflectOnPrompt(prompt, tag);
+                }}
+                onWeeklySummaryGenerated={() => {
+                  triggerMilestone('first_weekly_recap');
+                }}
+              />
 
-            {/* Pattern & Themes Analysis Panel */}
-            <InsightsPanel
-              userId={currentUser.uid}
-              entries={entries}
-              profileSummary={profileSummary}
-              insightsHistory={insights}
-              onReflectOnSuggestion={(prompt, tag) => {
-                handleReflectOnPrompt(prompt, tag);
-              }}
-              onNavigateToEntry={(entryId) => {
-                setTargetEntryId(entryId);
-                setActiveTab('history');
-              }}
-              onInsightGenerated={() => {
-                triggerMilestone('first_insights');
-              }}
-            />
-          </div>
-        )}
+              {/* 30-Day Sentiment Trend Line Chart (Recharts) */}
+              <SentimentTrendChart
+                entries={entries}
+                onNavigateToEntry={(entryId) => {
+                  setTargetEntryId(entryId);
+                  setActiveTab('history');
+                }}
+                onStartWriting={() => setActiveTab('journal')}
+              />
 
-        {activeTab === 'gratitude' && (
-          <GratitudeModule
-            userId={currentUser.uid}
-            gratitudeEntries={gratitudeEntries}
-            onSaveGratitude={handleSaveGratitude}
-            onDeleteGratitude={handleDeleteGratitude}
-          />
-        )}
+              {/* Pattern & Themes Analysis Panel */}
+              <InsightsPanel
+                userId={currentUser.uid}
+                entries={entries}
+                profileSummary={profileSummary}
+                insightsHistory={insights}
+                onReflectOnSuggestion={(prompt, tag) => {
+                  handleReflectOnPrompt(prompt, tag);
+                }}
+                onNavigateToEntry={(entryId) => {
+                  setTargetEntryId(entryId);
+                  setActiveTab('history');
+                }}
+                onInsightGenerated={() => {
+                  triggerMilestone('first_insights');
+                }}
+              />
+            </motion.div>
+          )}
 
-        {activeTab === 'settings' && (
-          <SettingsPage
-            user={currentUser}
-            entries={entries}
-            gratitudeEntries={gratitudeEntries}
-            profileSummary={profileSummary}
-            theme={theme}
-            pinEnabled={pinEnabled}
-            autoLockMinutes={autoLockMinutes}
-            onOpenPinSetup={() => {
-              setPinModalMode('create');
-              setIsPinModalOpen(true);
-            }}
-            onOpenPinChange={() => {
-              setPinModalMode('change');
-              setIsPinModalOpen(true);
-            }}
-            onOpenPinRotate={() => {
-              setPinModalMode('rotate');
-              setIsPinModalOpen(true);
-            }}
-            onOpenPinDisable={() => {
-              setPinModalMode('disable');
-              setIsPinModalOpen(true);
-            }}
-            onChangeAutoLock={async (mins) => {
-              setAutoLockMinutes(mins);
-              await savePinSettings(currentUser.uid, { autoLockMinutes: mins });
-            }}
-            onToggleTheme={toggleTheme}
-            onOpenMemory={() => setIsMemoryOpen(true)}
-            onOpenSecurity={() => setIsSecurityOpen(true)}
-            onOpenDeactivateModal={() => setIsDeactivateModalOpen(true)}
-            onOpenDeleteModal={() => setIsDeleteModalOpen(true)}
-            onUpdateDisplayName={(newName) => {
-              setCurrentUser(prev => prev ? { ...prev, displayName: newName } : null);
-            }}
-            onFontChange={(font) => setFontPreference(font as any)}
-          />
-        )}
+          {activeTab === 'gratitude' && (
+            <motion.div
+              key="gratitude"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
+              className="w-full"
+            >
+              <GratitudeModule
+                userId={currentUser.uid}
+                gratitudeEntries={gratitudeEntries}
+                onSaveGratitude={handleSaveGratitude}
+                onDeleteGratitude={handleDeleteGratitude}
+              />
+            </motion.div>
+          )}
+
+          {activeTab === 'settings' && (
+            <motion.div
+              key="settings"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
+              className="w-full"
+            >
+              <SettingsPage
+                user={currentUser}
+                entries={entries}
+                gratitudeEntries={gratitudeEntries}
+                profileSummary={profileSummary}
+                theme={theme}
+                pinEnabled={pinEnabled}
+                autoLockMinutes={autoLockMinutes}
+                onOpenPinSetup={() => {
+                  setPinModalMode('create');
+                  setIsPinModalOpen(true);
+                }}
+                onOpenPinChange={() => {
+                  setPinModalMode('change');
+                  setIsPinModalOpen(true);
+                }}
+                onOpenPinRotate={() => {
+                  setPinModalMode('rotate');
+                  setIsPinModalOpen(true);
+                }}
+                onOpenPinDisable={() => {
+                  setPinModalMode('disable');
+                  setIsPinModalOpen(true);
+                }}
+                onChangeAutoLock={async (mins) => {
+                  setAutoLockMinutes(mins);
+                  await savePinSettings(currentUser.uid, { autoLockMinutes: mins });
+                }}
+                onToggleTheme={toggleTheme}
+                onOpenMemory={() => setIsMemoryOpen(true)}
+                onOpenSecurity={() => setIsSecurityOpen(true)}
+                onOpenDeactivateModal={openDeactivateModal}
+                onOpenDeleteModal={openDeleteModal}
+                onUpdateDisplayName={(newName) => {
+                  setCurrentUser(prev => prev ? { ...prev, displayName: newName } : null);
+                }}
+                onFontChange={(font) => setFontPreference(font as any)}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
 
       {/* Footer */}
-      <footer className={`border-t border-slate-200/60 dark:border-slate-800/80 bg-white/50 dark:bg-slate-900/50 px-4 sm:px-6 py-4 pb-20 md:pb-4 text-xs text-slate-500 dark:text-slate-400 mt-auto transition-all duration-300 ${
+      <footer className={`border-t border-slate-200/60 dark:border-slate-800/80 bg-white/50 dark:bg-slate-900/50 px-4 sm:px-6 py-4 pb-20 md:pb-4 text-xs text-slate-600 dark:text-slate-300 mt-auto transition-all duration-300 ${
         isFocusActive ? 'opacity-0 pointer-events-none h-0 overflow-hidden py-0 border-transparent' : 'opacity-100'
       }`}>
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="font-serif font-bold text-slate-700 dark:text-slate-300">Reflect</span>
+            <span className="font-serif font-bold text-slate-700 dark:text-slate-200">Reflect</span>
             <span>—</span>
-            <span className="text-slate-500 dark:text-slate-400">Mindful journaling with persistent context memory</span>
+            <span className="text-slate-600 dark:text-slate-300">Mindful journaling with persistent context memory</span>
           </div>
 
-          <div className="flex items-center gap-4 text-slate-500 dark:text-slate-400">
+          <div className="flex items-center gap-4 text-slate-600 dark:text-slate-300">
             <button
               onClick={() => setIsSecurityOpen(true)}
-              className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+              className="hover:text-indigo-600 dark:hover:text-indigo-600 transition-colors cursor-pointer"
             >
               Security & Transparency
             </button>
             <span>•</span>
             <button
               onClick={() => setIsMemoryOpen(true)}
-              className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+              className="hover:text-indigo-600 dark:hover:text-indigo-600 transition-colors cursor-pointer"
             >
               Memory Summary
             </button>
@@ -912,26 +1078,37 @@ export default function App() {
       />
 
       {/* Deactivate Account Confirmation Modal */}
+      <AnimatePresence>
       {isDeactivateModalOpen && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/70 backdrop-blur-md animate-fade-in"
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.25 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/70 backdrop-blur-md"
           role="dialog"
           aria-modal="true"
           aria-labelledby="deactivate-modal-title"
           aria-describedby="deactivate-modal-desc"
         >
-          <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl rounded-3xl border border-white/80 dark:border-white/10 shadow-2xl max-w-md w-full p-6 space-y-5 text-slate-800 dark:text-slate-100">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 12 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 12 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl rounded-3xl border border-white/80 dark:border-white/10 shadow-2xl max-w-md w-full p-6 space-y-5 text-slate-800 dark:text-slate-100"
+          >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-amber-100/80 dark:bg-amber-950/60 border border-amber-200/80 dark:border-amber-800/80 flex items-center justify-center text-amber-600 dark:text-amber-400 shadow-2xs" aria-hidden="true">
+              <div className="w-10 h-10 rounded-2xl bg-amber-100/80 dark:bg-amber-950/60 border border-amber-200/80 dark:border-amber-800/80 flex items-center justify-center text-amber-600 dark:text-amber-300 shadow-2xs" aria-hidden="true">
                 <UserX className="w-5 h-5" />
               </div>
               <div>
                 <h3 id="deactivate-modal-title" className="font-serif text-lg font-bold">Deactivate Account</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Preserve all data with temporary sign-out</p>
+                <p className="text-xs text-slate-600 dark:text-slate-300">Preserve all data with temporary sign-out</p>
               </div>
             </div>
 
-            <p id="deactivate-modal-desc" className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+            <p id="deactivate-modal-desc" className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">
               Your account will be temporarily deactivated, and you will be signed out. All your journal entries, AI memory summaries, insights, and nudges will be securely preserved. You can return and reactivate your account anytime simply by signing back in.
             </p>
 
@@ -949,7 +1126,7 @@ export default function App() {
                   setAccountActionError(null);
                 }}
                 disabled={accountActionLoading}
-                className="px-4 py-2 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 border border-white/80 dark:border-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                className="px-4 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/60 border border-white/80 dark:border-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
               >
                 Cancel
               </button>
@@ -962,37 +1139,49 @@ export default function App() {
                 {accountActionLoading ? 'Deactivating...' : 'Deactivate Account'}
               </button>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
       {/* Delete Account Permanently Modal */}
+      <AnimatePresence>
       {isDeleteModalOpen && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/70 backdrop-blur-md animate-fade-in"
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.25 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 dark:bg-black/70 backdrop-blur-md"
           role="dialog"
           aria-modal="true"
           aria-labelledby="delete-account-modal-title"
           aria-describedby="delete-account-modal-desc"
         >
-          <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl rounded-3xl border border-rose-200/80 dark:border-rose-900/50 shadow-2xl max-w-md w-full p-6 space-y-5 text-slate-800 dark:text-slate-100">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 12 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 12 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl rounded-3xl border border-rose-200/80 dark:border-rose-900/50 shadow-2xl max-w-md w-full p-6 space-y-5 text-slate-800 dark:text-slate-100"
+          >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-rose-100/80 dark:bg-rose-950/60 border border-rose-200/80 dark:border-rose-900/60 flex items-center justify-center text-rose-600 dark:text-rose-400 shadow-2xs" aria-hidden="true">
+              <div className="w-10 h-10 rounded-2xl bg-rose-100/80 dark:bg-rose-950/60 border border-rose-200/80 dark:border-rose-900/60 flex items-center justify-center text-rose-600 dark:text-rose-300 shadow-2xs" aria-hidden="true">
                 <Trash2 className="w-5 h-5" />
               </div>
               <div>
-                <h3 id="delete-account-modal-title" className="font-serif text-lg font-bold text-rose-600 dark:text-rose-400">Delete Account Permanently</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">This action is irreversible</p>
+                <h3 id="delete-account-modal-title" className="font-serif text-lg font-bold text-rose-600 dark:text-rose-300">Delete Account Permanently</h3>
+                <p className="text-xs text-slate-600 dark:text-slate-300">This action is irreversible</p>
               </div>
             </div>
 
-            <p id="delete-account-modal-desc" className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+            <p id="delete-account-modal-desc" className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">
               Warning: All your journal entries, AI memory summaries, insights, nudges, and account authentication records will be <strong>permanently purged</strong> from the database immediately. You will not be able to recover this data.
             </p>
 
             <div className="space-y-1.5">
-              <label htmlFor="input-delete-confirm-text" className="block text-xs font-medium text-slate-700 dark:text-slate-300">
-                To confirm, please type <span className="font-mono font-bold text-rose-600 dark:text-rose-400">DELETE</span> below:
+              <label htmlFor="input-delete-confirm-text" className="block text-xs font-medium text-slate-700 dark:text-slate-200">
+                To confirm, please type <span className="font-mono font-bold text-rose-600 dark:text-rose-300">DELETE</span> below:
               </label>
               <input
                 id="input-delete-confirm-text"
@@ -1019,7 +1208,7 @@ export default function App() {
                   setAccountActionError(null);
                 }}
                 disabled={accountActionLoading}
-                className="px-4 py-2 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 border border-white/80 dark:border-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+                className="px-4 py-2 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/60 border border-white/80 dark:border-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
               >
                 Cancel
               </button>
@@ -1032,14 +1221,49 @@ export default function App() {
                 {accountActionLoading ? 'Deleting...' : 'Delete Permanently'}
               </button>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
       {/* Daily Quote Modal */}
       <DailyQuoteModal
-        isOpen={isDailyQuoteOpen}
-        onClose={() => setIsDailyQuoteOpen(false)}
+        isOpen={
+          isDailyQuoteOpen &&
+          !isDeleteModalOpen &&
+          !isDeactivateModalOpen &&
+          !accountActionLoading &&
+          !isTerminatingAccountRef.current
+        }
+        onClose={() => {
+          setIsDailyQuoteOpen(false);
+          if (
+            !isTerminatingAccountRef.current &&
+            !isDeleteModalOpen &&
+            !isDeactivateModalOpen &&
+            !accountActionLoading
+          ) {
+            setIsDailyAffirmationOpen(true);
+          }
+        }}
+      />
+
+      {/* Daily Affirmation Modal */}
+      <DailyAffirmationModal
+        isOpen={
+          isDailyAffirmationOpen &&
+          !isDeleteModalOpen &&
+          !isDeactivateModalOpen &&
+          !accountActionLoading &&
+          !isTerminatingAccountRef.current
+        }
+        onClose={() => setIsDailyAffirmationOpen(false)}
+        entries={entries}
+        profileSummary={profileSummary}
+        onUseAsPrompt={(promptText, topicTag) => {
+          handleReflectOnPrompt(promptText, topicTag);
+          setIsDailyAffirmationOpen(false);
+        }}
       />
 
       {/* PIN Security Setup / Management Modal */}

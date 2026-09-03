@@ -96,11 +96,11 @@ export const WeeklyReflectionCard: React.FC<WeeklyReflectionCardProps> = ({
               <h3 className="text-base font-serif font-semibold text-slate-900 dark:text-white">
                 Your Week in Reflection
               </h3>
-              <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-white/60 dark:bg-slate-800/60 backdrop-blur-xs text-slate-600 dark:text-slate-400 font-medium border border-white/70 dark:border-white/10">
+              <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-white/60 dark:bg-slate-800/60 backdrop-blur-xs text-slate-700 dark:text-slate-300 font-medium border border-white/70 dark:border-white/10">
                 {recent7DayEntries.length} {recent7DayEntries.length === 1 ? 'entry' : 'entries'} • {activeDaysCount} {activeDaysCount === 1 ? 'active day' : 'active days'}
               </span>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xl leading-relaxed">
+            <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 max-w-xl leading-relaxed">
               Synthesize your reflections over the past 7 days to uncover personal breakthroughs and weekly emotional trends.
             </p>
           </div>

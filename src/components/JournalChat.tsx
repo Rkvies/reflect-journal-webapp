@@ -16,7 +16,12 @@ import {
   CheckCircle2,
   Focus,
   Maximize2,
-  Minimize2
+  Minimize2,
+  Languages,
+  Globe,
+  RotateCcw,
+  Loader2,
+  ChevronDown
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { 
@@ -28,13 +33,14 @@ import {
   EntrySentiment,
   AppUser
 } from '../types';
-import { streamGeminiReflection, triggerMemoryUpdate } from '../lib/api';
+import { streamGeminiReflection, triggerMemoryUpdate, translateText } from '../lib/api';
 import { saveJournalEntry, saveProfileSummary } from '../lib/firebase';
+import { SUPPORTED_LANGUAGES, getLanguageByCode, LanguageOption } from '../lib/languages';
 import { SparkLoader } from './SparkVisual';
 import { StreakParticles } from './StreakParticles';
 import { ReflectMascot } from './ReflectMascot';
 import { GreetingCard } from './GreetingCard';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface JournalChatProps {
   user?: AppUser | null;
@@ -43,6 +49,8 @@ interface JournalChatProps {
   recentEntries: JournalEntry[];
   onEntrySaved: (entry: JournalEntry) => void;
   prefillPrompt?: { prompt: string; tag: string } | null;
+  existingEntry?: JournalEntry | null;
+  onClearExistingEntry?: () => void;
   onClearPrefill?: () => void;
   activeNudge?: ProactiveNudge | null;
   isDeepFocus?: boolean;
@@ -100,6 +108,8 @@ export const JournalChat: React.FC<JournalChatProps> = ({
   recentEntries,
   onEntrySaved,
   prefillPrompt,
+  existingEntry,
+  onClearExistingEntry,
   onClearPrefill,
   activeNudge,
   isDeepFocus = false,
@@ -107,26 +117,121 @@ export const JournalChat: React.FC<JournalChatProps> = ({
 }) => {
   const [localDeepFocus, setLocalDeepFocus] = useState(false);
   const isFocusMode = isDeepFocus !== undefined ? isDeepFocus : localDeepFocus;
-  const handleToggleFocus = onToggleDeepFocus || (() => setLocalDeepFocus(prev => !prev));
+  const rawToggleFocus = onToggleDeepFocus || (() => setLocalDeepFocus(prev => !prev));
 
-  const [title, setTitle] = useState('');
-  const [currentInput, setCurrentInput] = useState('');
-  const [selectedMood, setSelectedMood] = useState<MoodType>('reflective');
-  const [tags, setTags] = useState<string[]>(['daily-reflection']);
+  const [isRippling, setIsRippling] = useState(false);
+
+  const handleToggleFocus = () => {
+    setIsRippling(true);
+    setTimeout(() => setIsRippling(false), 700);
+    rawToggleFocus();
+  };
+
+  const [title, setTitle] = useState(() => {
+    try {
+      const draft = JSON.parse(localStorage.getItem(`reflect_draft_${userId}`) || '{}');
+      return draft.title || '';
+    } catch {
+      return '';
+    }
+  });
+  const [currentInput, setCurrentInput] = useState(() => {
+    try {
+      const draft = JSON.parse(localStorage.getItem(`reflect_draft_${userId}`) || '{}');
+      return draft.currentInput || '';
+    } catch {
+      return '';
+    }
+  });
+  const [selectedMood, setSelectedMood] = useState<MoodType>(() => {
+    try {
+      const draft = JSON.parse(localStorage.getItem(`reflect_draft_${userId}`) || '{}');
+      return draft.selectedMood || 'reflective';
+    } catch {
+      return 'reflective';
+    }
+  });
+  const [tags, setTags] = useState<string[]>(() => {
+    try {
+      const draft = JSON.parse(localStorage.getItem(`reflect_draft_${userId}`) || '{}');
+      return draft.tags && draft.tags.length > 0 ? draft.tags : ['daily-reflection'];
+    } catch {
+      return ['daily-reflection'];
+    }
+  });
   const [tagInput, setTagInput] = useState('');
-  const [conversation, setConversation] = useState<ChatTurn[]>([]);
+  const [conversation, setConversation] = useState<ChatTurn[]>(() => {
+    try {
+      const draft = JSON.parse(localStorage.getItem(`reflect_draft_${userId}`) || '{}');
+      return Array.isArray(draft.conversation) ? draft.conversation : [];
+    } catch {
+      return [];
+    }
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [streamingReply, setStreamingReply] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [currentEntryId, setCurrentEntryId] = useState<string>(() => 'entry_' + Date.now());
+  const [currentEntryId, setCurrentEntryId] = useState<string>(() => {
+    try {
+      const draft = JSON.parse(localStorage.getItem(`reflect_draft_${userId}`) || '{}');
+      return draft.currentEntryId || ('entry_' + Date.now());
+    } catch {
+      return 'entry_' + Date.now();
+    }
+  });
   const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const [activeStarters, setActiveStarters] = useState<WritingStarter[]>(() => getRandomStarters(3));
   const [loadingStage, setLoadingStage] = useState<number>(0);
   const [editingTurnId, setEditingTurnId] = useState<string | null>(null);
   const [editingTurnText, setEditingTurnText] = useState<string>('');
   const [isEditingSaving, setIsEditingSaving] = useState(false);
-  const [entryCreatedAt, setEntryCreatedAt] = useState<string>(() => new Date().toISOString());
-  const [entrySentiment, setEntrySentiment] = useState<EntrySentiment | null>(null);
+  const [entryCreatedAt, setEntryCreatedAt] = useState<string>(() => {
+    try {
+      const draft = JSON.parse(localStorage.getItem(`reflect_draft_${userId}`) || '{}');
+      return draft.entryCreatedAt || new Date().toISOString();
+    } catch {
+      return new Date().toISOString();
+    }
+  });
+  const [entrySentiment, setEntrySentiment] = useState<EntrySentiment | null>(() => {
+    try {
+      const draft = JSON.parse(localStorage.getItem(`reflect_draft_${userId}`) || '{}');
+      return draft.entrySentiment || null;
+    } catch {
+      return null;
+    }
+  });
+  const [isContinuing, setIsContinuing] = useState(() => {
+    try {
+      const draft = JSON.parse(localStorage.getItem(`reflect_draft_${userId}`) || '{}');
+      return !!draft.isContinuing;
+    } catch {
+      return false;
+    }
+  });
+
+  // Automatically save in-progress reflection draft so tab navigation doesn't discard progress
+  useEffect(() => {
+    try {
+      if (currentInput || title || conversation.length > 0) {
+        localStorage.setItem(`reflect_draft_${userId}`, JSON.stringify({
+          title,
+          currentInput,
+          selectedMood,
+          tags,
+          conversation,
+          currentEntryId,
+          entryCreatedAt,
+          entrySentiment,
+          isContinuing,
+        }));
+      } else {
+        localStorage.removeItem(`reflect_draft_${userId}`);
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, [title, currentInput, selectedMood, tags, conversation, currentEntryId, entryCreatedAt, entrySentiment, isContinuing, userId]);
 
   // Escape key listener for exiting focus mode
   useEffect(() => {
@@ -285,7 +390,20 @@ export const JournalChat: React.FC<JournalChatProps> = ({
   // Web Speech API Voice Dictation State & Ref
   const [isListening, setIsListening] = useState(false);
   const [speechSupported, setSpeechSupported] = useState(true);
+  const [dictateLangCode, setDictateLangCode] = useState<string>('en-US');
+  const [showDictateLangMenu, setShowDictateLangMenu] = useState(false);
+  const [interimSpeech, setInterimSpeech] = useState<string>('');
   const recognitionRef = useRef<any>(null);
+
+  // Language Translation State
+  const [isTranslatingInput, setIsTranslatingInput] = useState(false);
+  const [showInputTransMenu, setShowInputTransMenu] = useState(false);
+  const [originalInputBackup, setOriginalInputBackup] = useState<string | null>(null);
+  const [translatedTurns, setTranslatedTurns] = useState<Record<string, { text: string; lang: string; isTranslating?: boolean }>>({});
+  const [showTurnTransMenu, setShowTurnTransMenu] = useState<string | null>(null);
+  const [activeTurnView, setActiveTurnView] = useState<Record<string, 'original' | 'translated'>>({});
+
+  const activeDictateLang = useMemo(() => getLanguageByCode(dictateLangCode), [dictateLangCode]);
 
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -294,59 +412,149 @@ export const JournalChat: React.FC<JournalChatProps> = ({
     }
   }, []);
 
+  const stopListening = () => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        // ignore if already stopped
+      }
+      recognitionRef.current = null;
+    }
+    setIsListening(false);
+    setInterimSpeech('');
+  };
+
+  const startListeningWithLang = (langCode: string) => {
+    stopListening();
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Voice dictation is not supported by your browser. Please try Chrome, Safari, or Edge.");
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = langCode;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        stopListening();
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+        setInterimSpeech('');
+      };
+
+      recognition.onresult = (event: any) => {
+        let finalTranscript = '';
+        let currentInterim = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          } else {
+            currentInterim += event.results[i][0].transcript;
+          }
+        }
+        setInterimSpeech(currentInterim);
+        if (finalTranscript) {
+          setInterimSpeech('');
+          setCurrentInput(prev => {
+            const trimmed = prev.trim();
+            return trimmed ? trimmed + ' ' + finalTranscript.trim() : finalTranscript.trim();
+          });
+        }
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (err) {
+      console.error('Failed to start speech recognition:', err);
+      stopListening();
+    }
+  };
+
   const toggleListening = () => {
     if (isListening) {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
-      setIsListening(false);
+      stopListening();
     } else {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        alert("Voice dictation is not supported by your browser. Please try Chrome, Safari, or Edge.");
-        return;
+      startListeningWithLang(dictateLangCode);
+    }
+  };
+
+  const handleSelectDictateLang = (code: string) => {
+    setDictateLangCode(code);
+    setShowDictateLangMenu(false);
+    if (isListening) {
+      startListeningWithLang(code);
+    }
+  };
+
+  const handleTranslateInput = async (targetLang: LanguageOption) => {
+    if (!currentInput.trim() || isTranslatingInput) return;
+    setShowInputTransMenu(false);
+    setIsTranslatingInput(true);
+    if (originalInputBackup === null) {
+      setOriginalInputBackup(currentInput);
+    }
+    try {
+      const res = await translateText({
+        text: currentInput,
+        targetLanguage: targetLang.langName,
+      });
+      if (res.translatedText) {
+        setCurrentInput(res.translatedText);
       }
+    } catch (err) {
+      console.error('Failed to translate input:', err);
+      alert('Could not translate text at this time. Please try again.');
+    } finally {
+      setIsTranslatingInput(false);
+    }
+  };
 
-      try {
-        const recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = 'en-US';
+  const handleUndoInputTranslation = () => {
+    if (originalInputBackup !== null) {
+      setCurrentInput(originalInputBackup);
+      setOriginalInputBackup(null);
+    }
+  };
 
-        recognition.onstart = () => {
-          setIsListening(true);
-        };
+  const handleTranslateTurn = async (turnId: string, turnText: string, targetLang: LanguageOption) => {
+    setShowTurnTransMenu(null);
+    setTranslatedTurns(prev => ({
+      ...prev,
+      [turnId]: { text: prev[turnId]?.text || '', lang: targetLang.langName, isTranslating: true },
+    }));
 
-        recognition.onerror = (event: any) => {
-          console.error('Speech recognition error:', event.error);
-          setIsListening(false);
-        };
-
-        recognition.onend = () => {
-          setIsListening(false);
-        };
-
-        recognition.onresult = (event: any) => {
-          let finalTranscript = '';
-          for (let i = event.resultIndex; i < event.results.length; ++i) {
-            if (event.results[i].isFinal) {
-              finalTranscript += event.results[i][0].transcript;
-            }
-          }
-          if (finalTranscript) {
-            setCurrentInput(prev => {
-              const trimmed = prev.trim();
-              return trimmed ? trimmed + ' ' + finalTranscript.trim() : finalTranscript.trim();
-            });
-          }
-        };
-
-        recognitionRef.current = recognition;
-        recognition.start();
-      } catch (err) {
-        console.error('Failed to start speech recognition:', err);
-        setIsListening(false);
+    try {
+      const res = await translateText({
+        text: turnText,
+        targetLanguage: targetLang.langName,
+      });
+      if (res.translatedText) {
+        setTranslatedTurns(prev => ({
+          ...prev,
+          [turnId]: { text: res.translatedText, lang: targetLang.langName, isTranslating: false },
+        }));
+        setActiveTurnView(prev => ({ ...prev, [turnId]: 'translated' }));
       }
+    } catch (err) {
+      console.error('Failed to translate turn:', err);
+      setTranslatedTurns(prev => {
+        const copy = { ...prev };
+        delete copy[turnId];
+        return copy;
+      });
+      alert('Could not translate this message right now.');
     }
   };
 
@@ -358,6 +566,52 @@ export const JournalChat: React.FC<JournalChatProps> = ({
       }
     };
   }, []);
+
+
+  useEffect(() => {
+    if (existingEntry) {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      setTitle(existingEntry.title || '');
+      setSelectedMood(existingEntry.mood || 'reflective');
+      setTags(existingEntry.tags && existingEntry.tags.length > 0 ? existingEntry.tags : ['daily-reflection']);
+
+      let turns: ChatTurn[] = [];
+      if (existingEntry.conversation && Array.isArray(existingEntry.conversation) && existingEntry.conversation.length > 0) {
+        turns = existingEntry.conversation;
+      } else if (existingEntry.content) {
+        turns = [
+          {
+            id: 'turn_user_' + (existingEntry.id || Date.now()),
+            role: 'user' as const,
+            text: existingEntry.content,
+            timestamp: existingEntry.createdAt,
+          },
+          ...(existingEntry.reflectionSummary ? [{
+            id: 'turn_assistant_' + (existingEntry.id || Date.now()),
+            role: 'assistant' as const,
+            text: existingEntry.reflectionSummary,
+            timestamp: existingEntry.createdAt,
+          }] : [])
+        ];
+      }
+      setConversation(turns);
+      setCurrentEntryId(existingEntry.id);
+      setEntryCreatedAt(existingEntry.createdAt);
+      if (existingEntry.sentiment) {
+        setEntrySentiment(existingEntry.sentiment);
+      } else {
+        setEntrySentiment(null);
+      }
+      setCurrentInput('');
+      setStreamingReply(null);
+      setEditingTurnId(null);
+      setEditingTurnText('');
+      setSaveStatus(null);
+      setIsContinuing(true);
+    }
+  }, [existingEntry]);
 
   // Auto-scroll when chat updates or tokens stream in
   useEffect(() => {
@@ -423,8 +677,10 @@ export const JournalChat: React.FC<JournalChatProps> = ({
       }
       setTags(newTags);
       setTitle(`Reflecting on ${prefillPrompt.tag}`);
+      setIsContinuing(false);
       
       onClearPrefill?.();
+      onClearExistingEntry?.();
     }
   }, [prefillPrompt]);
 
@@ -511,6 +767,9 @@ export const JournalChat: React.FC<JournalChatProps> = ({
 
   const handleSendThought = async () => {
     if (!currentInput.trim() || isLoading) return;
+
+    // Stop active dictation microphone session when message is sent
+    stopListening();
 
     const userText = currentInput.trim();
     setCurrentInput('');
@@ -655,13 +914,16 @@ export const JournalChat: React.FC<JournalChatProps> = ({
         conversation: chatTurns,
         reflectionSummary: fullReflection.slice(0, 500),
         sentiment: defaultSentiment,
-        createdAt: new Date().toISOString(),
+        createdAt: entryCreatedAt,
         updatedAt: new Date().toISOString(),
         wordCount: fullContent.split(/\s+/).filter(Boolean).length,
       };
 
       // Save to Firestore with unified sentiment in a single write
       await saveJournalEntry(userId, entry);
+      try {
+        localStorage.removeItem(`reflect_draft_${userId}`);
+      } catch {}
       setEntryCreatedAt(entry.createdAt);
       setEntrySentiment(defaultSentiment);
       onEntrySaved(entry);
@@ -771,6 +1033,9 @@ export const JournalChat: React.FC<JournalChatProps> = ({
   };
 
   const handleStartNewEntry = () => {
+    try {
+      localStorage.removeItem(`reflect_draft_${userId}`);
+    } catch {}
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -785,14 +1050,18 @@ export const JournalChat: React.FC<JournalChatProps> = ({
     setEditingTurnText('');
     setEntryCreatedAt(new Date().toISOString());
     setEntrySentiment(null);
+    setIsContinuing(false);
+    if (onClearExistingEntry) {
+      onClearExistingEntry();
+    }
   };
 
   return (
-    <div className={`max-w-3xl mx-auto space-y-8 transition-all duration-500 ${isFocusMode ? 'pt-2 sm:pt-4 max-w-3xl' : ''}`}>
+    <div className={`max-w-3xl mx-auto space-y-4 sm:space-y-8 transition-all duration-500 ${isFocusMode ? 'pt-2 sm:pt-4 max-w-3xl' : ''}`}>
       
       {/* Entry Header & Intention Controls */}
-      <div className="space-y-4">
-        {/* Personalized Greeting Card with Companion Mascot & Engagement Snapshot (Hidden in Deep Focus) */}
+      <div className="space-y-2.5 sm:space-y-4">
+        {/* Deep Focus Tranquil Sanctuary Header */}
         {!isFocusMode ? (
           <GreetingCard
             firstName={firstName}
@@ -808,17 +1077,17 @@ export const JournalChat: React.FC<JournalChatProps> = ({
           /* Deep Focus Tranquil Sanctuary Header */
           <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl rounded-2xl p-3.5 sm:p-4 shadow-xl border border-indigo-200/60 dark:border-indigo-800/40 flex items-center justify-between gap-3 animate-fade-in">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-8 h-8 rounded-xl bg-indigo-500/10 dark:bg-indigo-400/10 border border-indigo-300/60 dark:border-indigo-700/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0 shadow-2xs">
-                <Focus className="w-4 h-4 animate-pulse" />
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 dark:bg-indigo-400/10 border border-indigo-300/60 dark:border-indigo-700/60 flex items-center justify-center text-indigo-600 dark:text-indigo-300 shrink-0 shadow-2xs">
+                <Focus className="w-5 h-5 animate-pulse" />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-serif font-semibold text-slate-800 dark:text-slate-100">Deep Focus Mode</span>
+                  <span className="text-xs sm:text-sm font-serif font-semibold text-slate-800 dark:text-slate-100">Deep Focus Mode</span>
                   <span className="text-[10px] px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 font-mono font-medium">
                     {currentWordCount} {currentWordCount === 1 ? 'word' : 'words'}
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate hidden sm:block">
+                <p className="text-[11px] text-slate-600 dark:text-slate-300 truncate hidden sm:block">
                   Non-essentials hidden & background softened. Focus purely on your thoughts.
                 </p>
               </div>
@@ -827,12 +1096,51 @@ export const JournalChat: React.FC<JournalChatProps> = ({
               id="btn-exit-deep-focus-top"
               type="button"
               onClick={handleToggleFocus}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/70 dark:bg-slate-800/70 hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-white/80 dark:border-white/10 text-xs font-medium cursor-pointer transition-all shrink-0 shadow-2xs"
+              className="relative overflow-hidden flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/70 dark:bg-slate-800/70 hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-white/80 dark:border-white/10 text-xs font-medium cursor-pointer transition-all shrink-0 shadow-2xs"
               title="Exit Deep Focus (or press Esc)"
             >
-              <Minimize2 className="w-3.5 h-3.5" />
+              {isRippling && (
+                <motion.span
+                  initial={{ scale: 0, opacity: 0.8 }}
+                  animate={{ scale: 3, opacity: 0 }}
+                  transition={{ duration: 0.65, ease: 'easeOut' }}
+                  className="absolute inset-0 m-auto w-6 h-6 rounded-full bg-indigo-500/50 dark:bg-indigo-300/60 pointer-events-none"
+                />
+              )}
+              <Minimize2 className={`w-4 h-4 transition-transform duration-300 ${isRippling ? 'scale-125' : ''}`} />
               <span>Exit Focus</span>
-              <kbd className="hidden sm:inline-block px-1.5 py-0.2 bg-slate-200/60 dark:bg-slate-700/60 rounded text-[10px] font-mono text-slate-500 dark:text-slate-300">Esc</kbd>
+              <kbd className="hidden sm:inline-block px-1.5 py-0.2 bg-slate-200/60 dark:bg-slate-700/60 rounded text-[10px] font-mono text-slate-600 dark:text-slate-200">Esc</kbd>
+            </button>
+          </div>
+        )}
+
+        {/* Continuing Past Entry Indicator */}
+        {isContinuing && (
+          <div 
+            id="banner-continuing-journal"
+            className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-2xl bg-indigo-50/90 dark:bg-indigo-950/70 border border-indigo-200/80 dark:border-indigo-800/60 backdrop-blur-md text-xs text-indigo-950 dark:text-indigo-100 animate-fade-in shadow-xs"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+              <span className="truncate">
+                Continuing journal from{' '}
+                <span className="font-semibold font-mono">
+                  {new Date(entryCreatedAt).toLocaleDateString(undefined, {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                  })}
+                </span>
+                {title ? `: "${title}"` : ''}
+              </span>
+            </div>
+            <button
+              type="button"
+              id="btn-start-fresh-entry-banner"
+              onClick={handleStartNewEntry}
+              className="px-3 py-1.5 rounded-xl bg-white/90 dark:bg-slate-800/90 hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold border border-slate-200/80 dark:border-slate-700/80 transition-all shrink-0 cursor-pointer shadow-2xs"
+            >
+              Start New Entry
             </button>
           </div>
         )}
@@ -855,31 +1163,40 @@ export const JournalChat: React.FC<JournalChatProps> = ({
             id="btn-toggle-deep-focus"
             type="button"
             onClick={handleToggleFocus}
-            className={`px-3 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs backdrop-blur-md shrink-0 ${
+            className={`relative overflow-hidden px-3.5 py-2 sm:px-3 sm:py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all hover:-translate-y-0.5 cursor-pointer shadow-xs backdrop-blur-md shrink-0 ${
               isFocusMode
-                ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/25 border border-indigo-500'
-                : 'bg-white/50 dark:bg-slate-800/60 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 hover:text-indigo-600 dark:hover:text-indigo-300 text-slate-600 dark:text-slate-400 border border-white/60 dark:border-white/10'
+                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 border border-transparent'
+                : 'bg-white/80 dark:bg-slate-800/80 hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-white/10'
             }`}
             title={isFocusMode ? "Exit Deep Focus mode (Esc)" : "Enter Deep Focus mode (fades background and hides non-essential elements)"}
           >
-            <Focus className={`w-3.5 h-3.5 ${isFocusMode ? 'text-white' : 'text-indigo-500'}`} />
-            <span className="hidden xs:inline">{isFocusMode ? 'Focus Active' : 'Deep Focus'}</span>
+            {/* Ripple Wave Feedback */}
+            {isRippling && (
+              <motion.span
+                initial={{ scale: 0, opacity: 0.85 }}
+                animate={{ scale: 3.5, opacity: 0 }}
+                transition={{ duration: 0.65, ease: 'easeOut' }}
+                className="absolute inset-0 m-auto w-8 h-8 rounded-full bg-indigo-400/60 dark:bg-indigo-300/60 pointer-events-none"
+              />
+            )}
+            <Focus className={`w-5 h-5 sm:w-4 sm:h-4 shrink-0 transition-transform duration-300 ${isRippling ? 'scale-125 rotate-45' : ''} ${isFocusMode ? 'text-white' : 'text-indigo-600 dark:text-indigo-300'}`} />
+            <span className="inline-block whitespace-nowrap">{isFocusMode ? 'Focus Active' : 'Deep Focus'}</span>
           </button>
         </div>
 
         {/* Mood & Tags Bar (Clean and Muted) */}
-        <div className="flex flex-col md:flex-row md:items-start justify-between gap-3 pt-1 text-xs w-full">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 sm:gap-3 pt-0.5 text-xs w-full">
           {/* Mood Selector Chips */}
-          <div className="flex flex-wrap items-center gap-1.5 py-0.5 flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 py-0.5 overflow-x-auto scrollbar-none whitespace-nowrap md:flex-wrap flex-1 min-w-0 max-w-full">
             {MOODS.map((m) => (
               <button
                 key={m.type}
                 type="button"
                 onClick={() => setSelectedMood(m.type)}
-                className={`px-2.5 py-1 rounded-xl text-xs font-medium flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 transition-all cursor-pointer backdrop-blur-md shadow-2xs ${
+                className={`px-2.5 py-1 rounded-xl text-xs font-medium flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 transition-all hover:-translate-y-0.5 cursor-pointer backdrop-blur-md shadow-2xs ${
                   selectedMood === m.type
                     ? 'bg-indigo-50/90 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 font-semibold border border-indigo-300/80 dark:border-indigo-700'
-                    : 'bg-white/40 dark:bg-slate-900/40 text-slate-600 dark:text-slate-400 border border-white/60 dark:border-white/10 hover:bg-white/70 dark:hover:bg-slate-800/60'
+                    : 'bg-white/40 dark:bg-slate-900/40 text-slate-700 dark:text-slate-300 border border-white/60 dark:border-white/10 hover:bg-white/70 dark:hover:bg-slate-800/60'
                 }`}
               >
                 <span>{m.icon}</span>
@@ -893,12 +1210,12 @@ export const JournalChat: React.FC<JournalChatProps> = ({
             {Array.from(new Set(tags)).map((t, idx) => (
               <span
                 key={`${t}-${idx}`}
-                className="px-2 py-0.5 rounded-lg bg-white/60 dark:bg-slate-800/80 backdrop-blur-xs text-slate-700 dark:text-slate-300 text-[11px] font-sans flex items-center gap-1 whitespace-nowrap border border-white/60 dark:border-white/10 shadow-2xs"
+                className="px-2 py-0.5 rounded-lg bg-white/60 dark:bg-slate-800/80 backdrop-blur-xs text-slate-700 dark:text-slate-200 text-[11px] font-sans flex items-center gap-1 whitespace-nowrap border border-white/60 dark:border-white/10 shadow-2xs"
               >
                 #{t}
                 <button
                   onClick={() => handleRemoveTag(t)}
-                  className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer ml-0.5"
+                  className="text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer ml-0.5"
                 >
                   ×
                 </button>
@@ -911,7 +1228,7 @@ export const JournalChat: React.FC<JournalChatProps> = ({
               value={tagInput}
               onChange={(e) => setTagInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAddTag()}
-              className="w-14 px-1 py-0.5 bg-transparent border-b border-slate-300/60 dark:border-slate-700/60 text-[11px] text-slate-700 dark:text-slate-300 focus:outline-none focus:border-indigo-500 flex-shrink-0"
+              className="w-14 px-1 py-0.5 bg-transparent border-b border-slate-300/60 dark:border-slate-700/60 text-[11px] text-slate-700 dark:text-slate-200 focus:outline-none focus:border-indigo-500 flex-shrink-0"
             />
           </div>
         </div>
@@ -933,9 +1250,9 @@ export const JournalChat: React.FC<JournalChatProps> = ({
                     : 'bg-white/75 dark:bg-slate-900/75 shadow-md border border-white/80 dark:border-white/10 text-slate-800 dark:text-slate-100 mr-4 sm:mr-8'
                 }`}
               >
-                <div className="flex items-center justify-between text-xs text-slate-400 dark:text-slate-500 mb-2">
+                <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-2">
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-slate-700 dark:text-slate-300 font-serif">
+                    <span className="font-semibold text-slate-700 dark:text-slate-200 font-serif">
                       {isUser ? 'You' : 'Reflect'}
                     </span>
                     {isEditingThisTurn && (
@@ -943,18 +1260,82 @@ export const JournalChat: React.FC<JournalChatProps> = ({
                         Editing
                       </span>
                     )}
+                    {translatedTurns[turn.id] && !translatedTurns[turn.id].isTranslating && (
+                      <div className="flex items-center gap-1 bg-indigo-100/70 dark:bg-indigo-950/70 p-0.5 rounded-lg border border-indigo-200/60 dark:border-indigo-800/60 text-[10px]">
+                        <button
+                          type="button"
+                          onClick={() => setActiveTurnView(prev => ({ ...prev, [turn.id]: 'original' }))}
+                          className={`px-1.5 py-0.5 rounded font-medium transition-colors cursor-pointer ${
+                            (activeTurnView[turn.id] || 'translated') === 'original'
+                              ? 'bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-300 shadow-xs font-semibold'
+                              : 'text-slate-600 hover:text-slate-700 dark:hover:text-slate-300'
+                          }`}
+                        >
+                          Original
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTurnView(prev => ({ ...prev, [turn.id]: 'translated' }))}
+                          className={`px-1.5 py-0.5 rounded font-medium transition-colors cursor-pointer ${
+                            (activeTurnView[turn.id] || 'translated') === 'translated'
+                              ? 'bg-indigo-600 text-white shadow-xs font-semibold'
+                              : 'text-slate-600 hover:text-slate-700 dark:hover:text-slate-300'
+                          }`}
+                        >
+                          Translated ({translatedTurns[turn.id].lang})
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 relative">
                     <span className="text-[11px] font-mono">
                       {new Date(turn.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
+                    
+                    {/* Translate Turn Button */}
+                    {!isEditingThisTurn && !isLoading && (
+                      <div className="relative">
+                        <button
+                          id={`btn-translate-turn-${turn.id}`}
+                          type="button"
+                          onClick={() => setShowTurnTransMenu(prev => prev === turn.id ? null : turn.id)}
+                          title="Translate this message into another language"
+                          className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium text-slate-600 hover:text-indigo-600 dark:hover:text-indigo-600 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                        >
+                          <Languages className="w-3 h-3 text-indigo-600" />
+                          <span>Translate</span>
+                        </button>
+
+                        {/* Turn Translation Language Menu Dropdown */}
+                        {showTurnTransMenu === turn.id && (
+                          <div className="absolute right-0 top-full mt-1.5 w-56 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200/80 dark:border-slate-800 z-50 p-1.5 backdrop-blur-2xl animate-fade-in max-h-60 overflow-y-auto">
+                            <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 px-2 py-1 uppercase tracking-wider">
+                              Translate message into:
+                            </div>
+                            {SUPPORTED_LANGUAGES.map((lang) => (
+                              <button
+                                key={lang.code}
+                                type="button"
+                                onClick={() => handleTranslateTurn(turn.id, typeof turn.text === 'string' ? turn.text : String(turn.text || ''), lang)}
+                                className="w-full text-left px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 hover:text-indigo-600 dark:hover:text-indigo-600 flex items-center gap-2 transition-colors cursor-pointer"
+                              >
+                                <span className="text-sm">{lang.flag}</span>
+                                <span className="truncate">{lang.langName}</span>
+                                <span className="text-[10px] text-slate-500 ml-auto">{lang.nativeName}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {isUser && !isEditingThisTurn && !isLoading && (
                       <button
                         id={`btn-edit-turn-${turn.id}`}
                         type="button"
                         onClick={() => handleStartEditTurn(turn)}
                         title="Edit your reflection text"
-                        className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                        className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium text-slate-600 hover:text-indigo-600 dark:hover:text-indigo-600 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                       >
                         <Pencil className="w-3 h-3" />
                         <span>Edit</span>
@@ -980,11 +1361,11 @@ export const JournalChat: React.FC<JournalChatProps> = ({
                         }
                       }}
                       disabled={isEditingSaving}
-                      className="w-full p-3 rounded-xl bg-white/90 dark:bg-slate-950/90 text-slate-900 dark:text-slate-100 placeholder-slate-400 text-sm font-sans leading-relaxed border border-indigo-300 dark:border-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 resize-none backdrop-blur-md"
+                      className="w-full p-3 rounded-xl bg-white/90 dark:bg-slate-950/90 text-slate-900 dark:text-slate-100 placeholder-slate-500 text-sm font-sans leading-relaxed border border-indigo-300 dark:border-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 resize-none backdrop-blur-md"
                       autoFocus
                     />
                     <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
                         Press Esc to cancel, Ctrl+Enter to save
                       </span>
                       <div className="flex items-center gap-2">
@@ -993,7 +1374,7 @@ export const JournalChat: React.FC<JournalChatProps> = ({
                           type="button"
                           onClick={handleCancelEditTurn}
                           disabled={isEditingSaving}
-                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-200/70 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                         >
                           <X className="w-3.5 h-3.5" />
                           <span>Cancel</span>
@@ -1012,8 +1393,21 @@ export const JournalChat: React.FC<JournalChatProps> = ({
                     </div>
                   </div>
                 ) : (
-                  <div className="prose prose-slate dark:prose-invert max-w-none text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-sans">
-                    <Markdown>{typeof turn.text === 'string' ? turn.text : String(turn.text || '')}</Markdown>
+                  <div>
+                    {translatedTurns[turn.id]?.isTranslating ? (
+                      <div className="flex items-center gap-2 py-3 text-xs text-indigo-600 dark:text-indigo-300">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Translating message into {translatedTurns[turn.id].lang}...</span>
+                      </div>
+                    ) : (
+                      <div className="prose prose-slate dark:prose-invert max-w-none text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-sans">
+                        <Markdown>
+                          {(translatedTurns[turn.id] && (activeTurnView[turn.id] || 'translated') === 'translated')
+                            ? translatedTurns[turn.id].text
+                            : (typeof turn.text === 'string' ? turn.text : String(turn.text || ''))}
+                        </Markdown>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1023,13 +1417,13 @@ export const JournalChat: React.FC<JournalChatProps> = ({
           {/* Progressive Loading state with subtle SparkLoader */}
           {isLoading && (!streamingReply || streamingReply === '') && (
             <div className="p-5 rounded-3xl bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl border border-white/80 dark:border-white/10 text-slate-800 dark:text-slate-100 mr-4 sm:mr-8 shadow-md animate-fade-in space-y-2.5">
-              <div className="flex items-center justify-between text-xs text-slate-400 dark:text-slate-500">
-                <span className="font-semibold text-slate-700 dark:text-slate-300 font-serif">Reflect</span>
-                <span className="text-[11px] font-mono text-indigo-600 dark:text-indigo-400 font-medium">
+              <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                <span className="font-semibold text-slate-700 dark:text-slate-200 font-serif">Reflect</span>
+                <span className="text-[11px] font-mono text-indigo-600 dark:text-indigo-300 font-medium">
                   {loadingStage === 0 ? 'Loading context...' : loadingStage === 1 ? 'Holding space...' : 'Synthesizing...'}
                 </span>
               </div>
-              <div className="flex items-center gap-3 text-xs text-slate-600 dark:text-slate-300 py-1">
+              <div className="flex items-center gap-3 text-xs text-slate-700 dark:text-slate-200 py-1">
                 <SparkLoader size="sm" variant="indigo" />
                 <span className="italic">
                   {loadingStage === 0
@@ -1045,11 +1439,11 @@ export const JournalChat: React.FC<JournalChatProps> = ({
           {/* Live Streaming Token Box with Spark motif */}
           {streamingReply !== null && streamingReply !== '' && (
             <div className="p-5 rounded-3xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-2xl border border-indigo-400/50 dark:border-indigo-500/40 text-slate-800 dark:text-slate-100 mr-4 sm:mr-8 shadow-lg ring-1 ring-indigo-300/30 space-y-2">
-              <div className="flex items-center justify-between text-xs text-slate-400 dark:text-slate-500 mb-2">
+              <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mb-2">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-slate-700 dark:text-slate-300 font-serif">Reflect</span>
-                  <span className="inline-flex items-center gap-1.5 text-[10px] font-mono text-indigo-600 dark:text-indigo-400 font-medium">
-                    <Sparkles className="w-3 h-3 text-indigo-500 animate-spark-glimmer" />
+                  <span className="font-semibold text-slate-700 dark:text-slate-200 font-serif">Reflect</span>
+                  <span className="inline-flex items-center gap-1.5 text-[10px] font-mono text-indigo-600 dark:text-indigo-300 font-medium">
+                    <Sparkles className="w-3 h-3 text-indigo-600 animate-spark-glimmer" />
                     <span>Streaming reflection</span>
                   </span>
                 </div>
@@ -1058,7 +1452,7 @@ export const JournalChat: React.FC<JournalChatProps> = ({
               <div className="prose prose-slate dark:prose-invert max-w-none text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-sans">
                 <Markdown>{streamingReply}</Markdown>
                 <span className="inline-flex items-center gap-1 ml-1.5 align-middle">
-                  <Sparkles className="w-3 h-3 text-indigo-500 animate-spark-glimmer inline" />
+                  <Sparkles className="w-3 h-3 text-indigo-600 animate-spark-glimmer inline" />
                 </span>
               </div>
             </div>
@@ -1074,7 +1468,7 @@ export const JournalChat: React.FC<JournalChatProps> = ({
         {/* Integrated Quick Writing Starters */}
         <div className="flex items-center justify-between gap-2 overflow-x-auto pb-1 scrollbar-none text-xs">
           <div className="flex items-center gap-1.5 flex-1 min-w-0 overflow-x-auto scrollbar-none py-0.5">
-            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 flex-shrink-0">
+            <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300 flex-shrink-0">
               Prompt starters:
             </span>
             {activeStarters.map((starter, idx) => {
@@ -1086,10 +1480,10 @@ export const JournalChat: React.FC<JournalChatProps> = ({
                   id={`btn-starter-${idx}`}
                   type="button"
                   onClick={() => handleSelectStarter(starter)}
-                  className={`px-3 py-1 rounded-xl text-[11px] font-medium whitespace-nowrap transition-all flex-shrink-0 cursor-pointer flex items-center gap-1.5 backdrop-blur-md shadow-2xs ${
+                  className={`px-3 py-1 rounded-xl text-[11px] font-medium whitespace-nowrap transition-all hover:-translate-y-0.5 flex-shrink-0 cursor-pointer flex items-center gap-1.5 backdrop-blur-md shadow-2xs ${
                     isMatching
-                      ? 'bg-indigo-100/90 dark:bg-indigo-950/90 text-indigo-900 dark:text-indigo-200 border border-indigo-400/80 dark:border-indigo-500 ring-1.5 ring-indigo-400/80 shadow-xs'
-                      : 'bg-white/50 dark:bg-slate-800/60 hover:bg-white/80 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-indigo-700 dark:hover:text-indigo-300 border border-white/60 dark:border-white/10'
+                      ? 'bg-indigo-100/90 dark:bg-indigo-950/90 text-indigo-900 dark:text-indigo-200 border border-indigo-300/80 dark:border-indigo-700 shadow-xs'
+                      : 'bg-white/50 dark:bg-slate-800/60 hover:bg-white/80 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-white/60 dark:border-white/10'
                   }`}
                   title={isMatching ? `Matches active check-in above: "${starter.prompt}"` : starter.prompt}
                 >
@@ -1109,7 +1503,7 @@ export const JournalChat: React.FC<JournalChatProps> = ({
             id="btn-shuffle-starters"
             type="button"
             onClick={handleShuffleStarters}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white/60 dark:hover:bg-slate-800/60 transition-colors flex-shrink-0 cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-600 hover:bg-white/60 dark:hover:bg-slate-800/60 transition-colors flex-shrink-0 cursor-pointer"
             title="Rotate starters"
           >
             <Shuffle className="w-3.5 h-3.5" />
@@ -1117,7 +1511,46 @@ export const JournalChat: React.FC<JournalChatProps> = ({
         </div>
 
         {/* Textarea */}
-        <div className="space-y-3">
+        <div className="space-y-3 relative">
+          
+          {/* Active Voice Listening Banner */}
+          {isListening && (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 p-3 rounded-xl bg-rose-50/90 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/60 text-xs animate-fade-in shadow-xs">
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+                </span>
+                <span className="font-semibold text-rose-900 dark:text-rose-200">
+                  Listening in {activeDictateLang.nativeName} ({activeDictateLang.langName}) {activeDictateLang.flag}...
+                </span>
+              </div>
+              {interimSpeech && (
+                <div className="text-slate-700 dark:text-slate-200 italic font-mono text-[11px] truncate max-w-xs">
+                  "{interimSpeech}"
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Translation Status Badge */}
+          {originalInputBackup !== null && (
+            <div className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-xl bg-indigo-50/90 dark:bg-indigo-950/70 border border-indigo-200 dark:border-indigo-800 text-xs text-indigo-900 dark:text-indigo-200 animate-fade-in">
+              <div className="flex items-center gap-1.5 font-medium">
+                <Languages className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-300" />
+                <span>Text translated. You can reflect in this language or undo.</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleUndoInputTranslation}
+                className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-indigo-200/80 dark:bg-indigo-900/80 hover:bg-indigo-300 text-indigo-950 dark:text-indigo-100 font-semibold text-[11px] transition-colors cursor-pointer"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>Undo</span>
+              </button>
+            </div>
+          )}
+
           <textarea
             id="textarea-journal-input"
             ref={textareaRef}
@@ -1138,7 +1571,7 @@ export const JournalChat: React.FC<JournalChatProps> = ({
                 : "Continue your reflection..."
             }
             disabled={isLoading}
-            className={`w-full p-4 sm:p-5 rounded-2xl bg-white/50 dark:bg-slate-950/50 backdrop-blur-md text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 leading-relaxed focus:outline-none focus:bg-white/80 dark:focus:bg-slate-950/80 focus:ring-2 focus:ring-indigo-500/30 border border-white/60 dark:border-white/10 resize-none transition-all disabled:opacity-50 shadow-inner ${
+            className={`w-full p-4 sm:p-5 rounded-2xl bg-white/50 dark:bg-slate-950/50 backdrop-blur-md text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 leading-relaxed focus:outline-none focus:bg-white/80 dark:focus:bg-slate-950/80 focus:ring-2 focus:ring-indigo-500/30 border border-white/60 dark:border-white/10 resize-none transition-all disabled:opacity-50 shadow-inner ${
               isFocusMode ? 'text-base font-serif' : 'text-sm font-sans'
             }`}
           />
@@ -1146,8 +1579,8 @@ export const JournalChat: React.FC<JournalChatProps> = ({
           {/* Smart Tag Suggestions based on user typing and previous entries/themes */}
           {suggestedTags.length > 0 && (
             <div className="flex items-center gap-1.5 flex-wrap pt-1 px-1 animate-fade-in">
-              <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-indigo-500 dark:text-indigo-400" />
+              <span className="text-[11px] text-slate-600 dark:text-slate-300 font-medium flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-indigo-600 dark:text-indigo-300" />
                 Suggested tags:
               </span>
               {suggestedTags.map((sTag) => (
@@ -1168,51 +1601,146 @@ export const JournalChat: React.FC<JournalChatProps> = ({
             </div>
           )}
 
-          <div className="flex items-center justify-between pt-1">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
             <div className="flex items-center gap-2">
-              <span className="text-[11px] text-slate-400 dark:text-slate-500 hidden sm:inline font-sans">
-                Press <kbd className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-mono text-[10px]">Ctrl</kbd> + <kbd className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-mono text-[10px]">Enter</kbd> to reflect
+              <span className="text-[11px] text-slate-500 dark:text-slate-400 hidden sm:inline font-sans">
+                Press <kbd className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono text-[10px]">Ctrl</kbd> + <kbd className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono text-[10px]">Enter</kbd> to reflect
               </span>
               {currentInput.length > 0 && (
-                <span className="text-[11px] font-mono text-slate-400 dark:text-slate-500">
+                <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
                   • {currentWordCount} {currentWordCount === 1 ? 'word' : 'words'} ({currentInput.length} chars)
                 </span>
               )}
             </div>
 
-            <div className="flex items-center gap-2 ml-auto">
-              {speechSupported && (
+            <div className="flex items-center gap-2 ml-auto flex-wrap sm:flex-nowrap justify-end">
+              
+              {/* Translate Input Button & Language Dropdown */}
+              <div className="relative">
                 <button
-                  id="btn-voice-dictation"
+                  id="btn-translate-input"
                   type="button"
-                  onClick={toggleListening}
-                  disabled={isLoading}
-                  className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold border backdrop-blur-md transition-all cursor-pointer shadow-xs ${
-                    isListening
-                      ? 'bg-rose-500 hover:bg-rose-600 text-white border-rose-500 animate-pulse'
-                      : 'bg-white/60 dark:bg-slate-800/60 border-white/80 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-white/90 dark:hover:bg-slate-800/90'
-                  }`}
-                  title={isListening ? "Stop listening" : "Start speaking to dictate"}
+                  onClick={() => setShowInputTransMenu(prev => !prev)}
+                  disabled={!currentInput.trim() || isTranslatingInput || isLoading}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-white/60 dark:bg-slate-800/60 border border-white/80 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-white/90 dark:hover:bg-slate-800/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-xs"
+                  title="Translate your written or dictated text into another language"
                 >
-                  {isListening ? (
+                  {isTranslatingInput ? (
                     <>
-                      <MicOff className="w-3.5 h-3.5" />
-                      <span>Listening...</span>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600 dark:text-indigo-300" />
+                      <span>Translating...</span>
                     </>
                   ) : (
                     <>
-                      <Mic className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                      <span>Dictate</span>
+                      <Globe className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-300" />
+                      <span>Translate</span>
+                      <ChevronDown className="w-3 h-3 text-slate-500" />
                     </>
                   )}
                 </button>
+
+                {/* Input Translation Target Language Selector */}
+                {showInputTransMenu && (
+                  <div className="absolute right-0 bottom-full mb-2 w-60 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200/80 dark:border-slate-800 z-50 p-2 backdrop-blur-2xl animate-fade-in max-h-64 overflow-y-auto">
+                    <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 px-2.5 py-1 uppercase tracking-wider">
+                      Translate current text to:
+                    </div>
+                    {SUPPORTED_LANGUAGES.map((lang) => (
+                      <button
+                        key={lang.code}
+                        type="button"
+                        onClick={() => handleTranslateInput(lang)}
+                        className="w-full text-left px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 hover:text-indigo-600 dark:hover:text-indigo-600 flex items-center gap-2 transition-colors cursor-pointer"
+                      >
+                        <span className="text-base">{lang.flag}</span>
+                        <span className="truncate">{lang.langName}</span>
+                        <span className="text-[10px] text-slate-500 ml-auto">{lang.nativeName}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Multi-Language Dictate Tool Control */}
+              {speechSupported && (
+                <div className="flex items-center gap-1 bg-white/60 dark:bg-slate-800/60 border border-white/80 dark:border-white/10 rounded-xl p-0.5 shadow-xs relative">
+                  
+                  {/* Dictate Language Selector Button */}
+                  <div className="relative">
+                    <button
+                      id="btn-dictate-language"
+                      type="button"
+                      onClick={() => setShowDictateLangMenu(prev => !prev)}
+                      disabled={isLoading}
+                      className="flex items-center gap-1 px-2.5 py-2 rounded-lg text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors cursor-pointer"
+                      title="Select dictation spoken language"
+                    >
+                      <span className="text-base">{activeDictateLang.flag}</span>
+                      <span className="hidden md:inline text-[11px] font-semibold">{activeDictateLang.nativeName}</span>
+                      <ChevronDown className="w-3 h-3 text-slate-500" />
+                    </button>
+
+                    {/* Dictation Language Selection Menu */}
+                    {showDictateLangMenu && (
+                      <div className="absolute right-0 bottom-full mb-2 w-64 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200/80 dark:border-slate-800 z-50 p-2 backdrop-blur-2xl animate-fade-in max-h-64 overflow-y-auto">
+                        <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 px-2.5 py-1 uppercase tracking-wider">
+                          Speak in language:
+                        </div>
+                        {SUPPORTED_LANGUAGES.map((lang) => (
+                          <button
+                            key={lang.code}
+                            type="button"
+                            onClick={() => handleSelectDictateLang(lang.code)}
+                            className={`w-full text-left px-2.5 py-1.5 rounded-xl text-xs font-medium flex items-center gap-2 transition-colors cursor-pointer ${
+                              dictateLangCode === lang.code
+                                ? 'bg-indigo-600 text-white shadow-xs font-semibold'
+                                : 'text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 hover:text-indigo-600 dark:hover:text-indigo-600'
+                            }`}
+                          >
+                            <span className="text-base">{lang.flag}</span>
+                            <span className="truncate">{lang.langName}</span>
+                            <span className={`text-[10px] ml-auto ${dictateLangCode === lang.code ? 'text-indigo-100' : 'text-slate-500'}`}>
+                              {lang.nativeName}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Primary Dictate Button */}
+                  <button
+                    id="btn-voice-dictation"
+                    type="button"
+                    onClick={toggleListening}
+                    disabled={isLoading}
+                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      isListening
+                        ? 'bg-rose-500 hover:bg-rose-600 text-white shadow-sm animate-pulse'
+                        : 'bg-indigo-50/80 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/90'
+                    }`}
+                    title={isListening ? "Stop listening" : `Start speaking in ${activeDictateLang.langName}`}
+                  >
+                    {isListening ? (
+                      <>
+                        <MicOff className="w-3.5 h-3.5" />
+                        <span>Listening...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Mic className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-300" />
+                        <span>Dictate</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               )}
 
               {isLoading ? (
                 <button
                   id="btn-stop-streaming"
                   onClick={handleStopStreaming}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-rose-50/80 dark:bg-rose-950/60 hover:bg-rose-100/90 text-rose-700 dark:text-rose-300 backdrop-blur-md border border-rose-200/60 dark:border-rose-800/60 transition-colors cursor-pointer"
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-semibold bg-rose-50/80 dark:bg-rose-950/60 hover:bg-rose-100/90 text-rose-700 dark:text-rose-300 backdrop-blur-md border border-rose-200/60 dark:border-rose-800/60 transition-colors cursor-pointer"
                 >
                   <Square className="w-3 h-3 fill-current" />
                   <span>Stop</span>

@@ -12,6 +12,7 @@ import {
   Activity, 
   RefreshCw, 
   Pencil, 
+  Edit3, 
   Check, 
   X, 
   AlertTriangle, 
@@ -21,12 +22,16 @@ import {
   List,
   TrendingUp,
   Sun,
-  Bookmark
+  Bookmark,
+  Languages,
+  Loader2,
+  Globe
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { JournalEntry, MoodType } from '../types';
 import { deleteJournalEntry, saveJournalEntry } from '../lib/firebase';
-import { analyzeEntrySentiment } from '../lib/api';
+import { analyzeEntrySentiment, translateText } from '../lib/api';
+import { SUPPORTED_LANGUAGES, LanguageOption } from '../lib/languages';
 import { ConfidenceTooltip } from './ConfidenceTooltip';
 import { SparkLoader, SparkMotif, SparkEncouragement } from './SparkVisual';
 
@@ -34,6 +39,7 @@ interface EntryHistoryProps {
   userId: string;
   entries: JournalEntry[];
   onSelectEntryForReflection?: (entry: JournalEntry) => void;
+  onContinueEntry?: (entry: JournalEntry) => void;
   onStartWriting?: (starterPrompt?: string) => void;
   targetEntryId?: string | null;
   onClearTargetEntry?: () => void;
@@ -136,6 +142,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
   userId,
   entries,
   onSelectEntryForReflection,
+  onContinueEntry,
   onStartWriting,
   targetEntryId,
   onClearTargetEntry,
@@ -154,12 +161,53 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
 
+  // Translation State for EntryHistory
+  const [translatedEntries, setTranslatedEntries] = useState<Record<string, { content: string; lang: string; isTranslating?: boolean }>>({});
+  const [showEntryTransMenu, setShowEntryTransMenu] = useState<string | null>(null);
+
+  const handleTranslateEntry = async (entry: JournalEntry, targetLang: LanguageOption) => {
+    setShowEntryTransMenu(null);
+    setTranslatedEntries(prev => ({
+      ...prev,
+      [entry.id]: {
+        content: prev[entry.id]?.content || entry.content,
+        lang: targetLang.langName,
+        isTranslating: true,
+      },
+    }));
+
+    try {
+      const res = await translateText({
+        text: entry.content || '',
+        targetLanguage: targetLang.langName,
+      });
+
+      setTranslatedEntries(prev => ({
+        ...prev,
+        [entry.id]: {
+          content: res.translatedText || entry.content,
+          lang: targetLang.langName,
+          isTranslating: false,
+        },
+      }));
+    } catch (err) {
+      console.error('Failed to translate entry:', err);
+      setTranslatedEntries(prev => {
+        const copy = { ...prev };
+        delete copy[entry.id];
+        return copy;
+      });
+      alert('Could not translate entry content.');
+    }
+  };
+
   // Delete modal state
   const [entryToDelete, setEntryToDelete] = useState<JournalEntry | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Pagination / Batch loading state
-  const [visibleCount, setVisibleCount] = useState<number>(15);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const itemsPerPage = 10;
 
   // Close delete modal on Escape key
   useEffect(() => {
@@ -187,7 +235,15 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
       setSearchQuery('');
       setSelectedCalendarDate(null);
       setSortBy('newest');
-      setVisibleCount(100);
+      
+      const sortedEntries = [...entries].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      const idx = sortedEntries.findIndex(e => e.id === targetEntryId);
+      if (idx !== -1) {
+        const targetPage = Math.floor(idx / 10) + 1;
+        setCurrentPage(targetPage);
+      } else {
+        setCurrentPage(1);
+      }
 
       const timer = setTimeout(() => {
         const el = document.getElementById(`entry-card-${targetEntryId}`);
@@ -361,6 +417,10 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
       });
   }, [entries, searchQuery, selectedMoodFilter, selectedTagFilter, selectedDateRange, selectedCalendarDate, sortBy, showStarredOnly]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedMoodFilter, selectedTagFilter, selectedDateRange, selectedCalendarDate, sortBy, showStarredOnly]);
+
   const isFilterActive =
     searchQuery.trim() !== '' ||
     selectedMoodFilter !== 'all' ||
@@ -476,7 +536,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
     return (
       <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
         <div className="bg-white/80 dark:bg-slate-900/90 backdrop-blur-xl border border-slate-300 dark:border-slate-700 rounded-3xl p-8 sm:p-12 text-center shadow-md space-y-6">
-          <div className="w-16 h-16 rounded-3xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 mx-auto shadow-inner">
+          <div className="w-16 h-16 rounded-3xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-300 mx-auto shadow-inner">
             <Sparkles className="w-8 h-8 animate-spark-glimmer" />
           </div>
 
@@ -510,7 +570,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
             </button>
           </div>
 
-          <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-center gap-4 text-xs text-slate-500 dark:text-slate-400 font-mono">
+          <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-center gap-4 text-xs text-slate-600 dark:text-slate-300 font-mono">
             <span>🔒 Isolated user partition</span>
             <span>•</span>
             <span>🧠 Semantic profile memory</span>
@@ -521,15 +581,15 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-4 sm:space-y-6">
 
       {/* ========================================================================= */}
       {/* 1. WEEK MOOD BREAKDOWN CARD (Requested Feature) */}
       {/* ========================================================================= */}
-      <div className="bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl border border-white/80 dark:border-white/10 rounded-3xl p-5 sm:p-6 shadow-lg space-y-4">
+      <div className="bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl border border-white/80 dark:border-white/10 rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 shadow-lg space-y-3 sm:space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/60 dark:border-white/10 pb-3">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/80 flex items-center justify-center text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/60 shadow-xs">
+            <div className="w-8 h-8 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/80 flex items-center justify-center text-indigo-600 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60 shadow-xs">
               <TrendingUp className="w-4 h-4" />
             </div>
             <div>
@@ -539,7 +599,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                   Current Week
                 </span>
               </h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              <p className="text-[11px] text-slate-600 dark:text-slate-300">
                 Emotional flow & consistency across Mon–Sun
               </p>
             </div>
@@ -585,16 +645,16 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                     ? 'bg-indigo-50/80 dark:bg-indigo-950/50 border-indigo-300/80 dark:border-indigo-700/80 text-slate-800 dark:text-slate-100 hover:border-indigo-400 shadow-xs'
                     : hasEntries
                     ? 'bg-white/60 dark:bg-slate-800/60 border-white/80 dark:border-white/10 hover:border-indigo-400 text-slate-800 dark:text-slate-200 shadow-2xs hover:bg-white/90'
-                    : 'bg-white/30 dark:bg-slate-900/30 border-dashed border-white/60 dark:border-white/10 text-slate-400 dark:text-slate-500 hover:border-slate-300'
+                    : 'bg-white/30 dark:bg-slate-900/30 border-dashed border-white/60 dark:border-white/10 text-slate-500 dark:text-slate-400 hover:border-slate-300'
                 }`}
                 title={`${d.dayName} (${d.shortDate}): ${hasEntries ? `${d.entries.length} reflection(s)` : 'No reflections'}`}
               >
                 {/* Day Header */}
                 <div className="space-y-0.5">
-                  <div className={`text-[11px] font-semibold font-serif uppercase ${isSelected ? 'text-indigo-100' : 'text-slate-500 dark:text-slate-400'}`}>
+                  <div className={`text-[11px] font-semibold font-serif uppercase ${isSelected ? 'text-indigo-100' : 'text-slate-600 dark:text-slate-300'}`}>
                     {d.dayName}
                   </div>
-                  <div className={`text-[10px] font-mono ${isSelected ? 'text-white' : 'text-slate-700 dark:text-slate-300 font-bold'}`}>
+                  <div className={`text-[10px] font-mono ${isSelected ? 'text-white' : 'text-slate-700 dark:text-slate-200 font-bold'}`}>
                     {d.shortDate}
                   </div>
                 </div>
@@ -611,7 +671,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                       )}
                     </div>
                   ) : (
-                    <span className="text-xs italic text-slate-400 dark:text-slate-500">Rest</span>
+                    <span className="text-xs italic text-slate-500 dark:text-slate-400">Rest</span>
                   )}
                 </div>
 
@@ -643,7 +703,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                 </span>
               )}
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
               {filteredEntries.length} matching reflection{filteredEntries.length === 1 ? '' : 's'} ({entries.length} total stored)
             </p>
           </div>
@@ -656,8 +716,8 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                 onClick={() => setViewMode('list')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                   viewMode === 'list'
-                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-300 shadow-xs'
+                    : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <List className="w-3.5 h-3.5" />
@@ -668,8 +728,8 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                 onClick={() => setViewMode('calendar')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                   viewMode === 'calendar'
-                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-300 shadow-xs'
+                    : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <CalendarIcon className="w-3.5 h-3.5" />
@@ -683,19 +743,19 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 text-xs">
           {/* Search Input */}
           <div className="relative flex-1 min-w-[200px]">
-            <Search className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               id="input-search-entries"
               type="text"
               placeholder="Search title, content, tags..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-8 py-2 rounded-xl bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border border-white/70 dark:border-white/10 text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 text-xs focus:outline-none focus:border-indigo-500 transition-colors shadow-2xs"
+              className="w-full pl-8 pr-8 py-2 rounded-xl bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border border-white/70 dark:border-white/10 text-slate-800 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 text-xs focus:outline-none focus:border-indigo-500 transition-colors shadow-2xs"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -713,7 +773,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                 className={`appearance-none bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border ${
                   selectedMoodFilter !== 'all'
                     ? 'border-indigo-500 text-indigo-700 dark:text-indigo-300 font-semibold bg-indigo-50/70 dark:bg-indigo-950/60'
-                    : 'border-white/70 dark:border-white/10 text-slate-700 dark:text-slate-300'
+                    : 'border-white/70 dark:border-white/10 text-slate-700 dark:text-slate-200'
                 } text-xs rounded-xl pl-3 pr-7 py-2 focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer shadow-2xs`}
               >
                 <option value="all">All Moods ({entries.length})</option>
@@ -726,7 +786,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                   );
                 })}
               </select>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 pointer-events-none" />
+              <ChevronDown className="w-3.5 h-3.5 text-slate-500 absolute right-2.5 pointer-events-none" />
             </div>
 
             {/* Tag Dropdown */}
@@ -739,7 +799,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                   className={`appearance-none bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border ${
                     selectedTagFilter !== 'all'
                       ? 'border-indigo-500 text-indigo-700 dark:text-indigo-300 font-semibold bg-indigo-50/70 dark:bg-indigo-950/60'
-                      : 'border-white/70 dark:border-white/10 text-slate-700 dark:text-slate-300'
+                      : 'border-white/70 dark:border-white/10 text-slate-700 dark:text-slate-200'
                   } text-xs rounded-xl pl-3 pr-7 py-2 focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer shadow-2xs`}
                 >
                   <option value="all">All Tags ({availableTags.length})</option>
@@ -749,7 +809,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 pointer-events-none" />
+                <ChevronDown className="w-3.5 h-3.5 text-slate-500 absolute right-2.5 pointer-events-none" />
               </div>
             )}
 
@@ -767,7 +827,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                 className={`appearance-none bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border ${
                   selectedDateRange !== 'all' || selectedCalendarDate
                     ? 'border-indigo-500 text-indigo-700 dark:text-indigo-300 font-semibold bg-indigo-50/70 dark:bg-indigo-950/60'
-                    : 'border-white/70 dark:border-white/10 text-slate-700 dark:text-slate-300'
+                    : 'border-white/70 dark:border-white/10 text-slate-700 dark:text-slate-200'
                 } text-xs rounded-xl pl-3 pr-7 py-2 focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer shadow-2xs`}
               >
                 <option value="all">All Time</option>
@@ -781,7 +841,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                   </option>
                 )}
               </select>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 pointer-events-none" />
+              <ChevronDown className="w-3.5 h-3.5 text-slate-500 absolute right-2.5 pointer-events-none" />
             </div>
 
             {/* Starred Toggle Button */}
@@ -790,7 +850,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
               className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border backdrop-blur-md transition-colors cursor-pointer shadow-2xs ${
                 showStarredOnly
                   ? 'bg-amber-100/90 dark:bg-amber-900/60 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300'
-                  : 'bg-white/50 dark:bg-slate-800/50 border-white/70 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-white/80 dark:hover:bg-slate-800'
+                  : 'bg-white/50 dark:bg-slate-800/50 border-white/70 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-white/80 dark:hover:bg-slate-800'
               }`}
               title="Show only bookmarked entries"
             >
@@ -804,13 +864,13 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                 id="select-sort-order"
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
-                className="appearance-none bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border border-white/70 dark:border-white/10 text-slate-700 dark:text-slate-300 text-xs rounded-xl pl-3 pr-7 py-2 focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer shadow-2xs"
+                className="appearance-none bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border border-white/70 dark:border-white/10 text-slate-700 dark:text-slate-200 text-xs rounded-xl pl-3 pr-7 py-2 focus:outline-none focus:border-indigo-500 transition-colors cursor-pointer shadow-2xs"
               >
                 <option value="newest">Sort: Newest First</option>
                 <option value="oldest">Sort: Oldest First</option>
                 <option value="title">Sort: Title (A–Z)</option>
               </select>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 pointer-events-none" />
+              <ChevronDown className="w-3.5 h-3.5 text-slate-500 absolute right-2.5 pointer-events-none" />
             </div>
 
             {/* Reset Filters Button */}
@@ -818,7 +878,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
               <button
                 id="btn-reset-filters"
                 onClick={handleResetFilters}
-                className="flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold bg-rose-50/80 dark:bg-rose-950/60 backdrop-blur-md text-rose-600 dark:text-rose-400 border border-rose-200/80 dark:border-rose-800/80 hover:bg-rose-100/90 dark:hover:bg-rose-900/70 transition-colors cursor-pointer shadow-2xs"
+                className="flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold bg-rose-50/80 dark:bg-rose-950/60 backdrop-blur-md text-rose-600 dark:text-rose-300 border border-rose-200/80 dark:border-rose-800/80 hover:bg-rose-100/90 dark:hover:bg-rose-900/70 transition-colors cursor-pointer shadow-2xs"
                 title="Reset all search and filter options"
               >
                 <X className="w-3.5 h-3.5" />
@@ -851,14 +911,14 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
             <div className="flex items-center gap-1">
               <button
                 onClick={handlePrevMonth}
-                className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 border border-white/60 dark:border-white/10 cursor-pointer"
+                className="p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/60 border border-white/60 dark:border-white/10 cursor-pointer"
                 title="Previous Month"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <button
                 onClick={handleNextMonth}
-                className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 border border-white/60 dark:border-white/10 cursor-pointer"
+                className="p-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/60 border border-white/60 dark:border-white/10 cursor-pointer"
                 title="Next Month"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -867,7 +927,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
           </div>
 
           {/* Days of Week Headers */}
-          <div className="grid grid-cols-7 gap-1 text-center font-mono text-xs font-semibold text-slate-400 dark:text-slate-500 py-1">
+          <div className="grid grid-cols-7 gap-1 text-center font-mono text-xs font-semibold text-slate-500 dark:text-slate-400 py-1">
             <span>Sun</span>
             <span>Mon</span>
             <span>Tue</span>
@@ -906,11 +966,11 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                       ? 'bg-indigo-50/80 dark:bg-indigo-950/50 border-indigo-400 dark:border-indigo-600 text-slate-900 dark:text-white shadow-xs'
                       : hasEntries
                       ? 'bg-white/60 dark:bg-slate-800/60 border-white/80 dark:border-white/10 hover:border-indigo-400 text-slate-900 dark:text-slate-100 shadow-2xs hover:bg-white/85'
-                      : 'bg-white/30 dark:bg-slate-900/30 border-white/60 dark:border-white/10 text-slate-400 dark:text-slate-500 hover:border-slate-300'
+                      : 'bg-white/30 dark:bg-slate-900/30 border-white/60 dark:border-white/10 text-slate-500 dark:text-slate-400 hover:border-slate-300'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className={`text-xs font-mono font-bold ${isSelected ? 'text-white' : dayItem.isToday ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300'}`}>
+                    <span className={`text-xs font-mono font-bold ${isSelected ? 'text-white' : dayItem.isToday ? 'text-indigo-600 dark:text-indigo-300' : 'text-slate-700 dark:text-slate-200'}`}>
                       {dayItem.dayNumber}
                     </span>
                     {dayItem.isToday && (
@@ -930,14 +990,14 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                           </span>
                         ))}
                         {dayItem.entries.length > 2 && (
-                          <span className={`text-[10px] font-mono px-1 rounded ${isSelected ? 'bg-indigo-700 text-white' : 'bg-slate-100/80 dark:bg-slate-700/80 text-slate-700 dark:text-slate-300'}`}>
+                          <span className={`text-[10px] font-mono px-1 rounded ${isSelected ? 'bg-indigo-700 text-white' : 'bg-slate-100/80 dark:bg-slate-700/80 text-slate-700 dark:text-slate-200'}`}>
                             +{dayItem.entries.length - 2}
                           </span>
                         )}
                       </div>
                     </div>
                   ) : (
-                    <div className="text-[10px] text-slate-400 dark:text-slate-500 italic">No entry</div>
+                    <div className="text-[10px] text-slate-500 dark:text-slate-400 italic">No entry</div>
                   )}
                 </div>
               );
@@ -950,13 +1010,13 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
       {/* 4. ENTRIES LIST (Filtered by search, mood, and selected date) */}
       {/* ========================================================================= */}
       {filteredEntries.length === 0 ? (
-        <div className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-dashed border-white/80 dark:border-white/10 rounded-3xl p-10 text-center text-slate-500 dark:text-slate-400 space-y-4">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400 mx-auto">
+        <div className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-dashed border-white/80 dark:border-white/10 rounded-3xl p-10 text-center text-slate-600 dark:text-slate-300 space-y-4">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 flex items-center justify-center text-indigo-600 dark:text-indigo-300 mx-auto">
             <Sparkles className="w-6 h-6 animate-spark-glimmer" />
           </div>
           <div className="space-y-1">
-            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 font-serif">No matching reflections found</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200 font-serif">No matching reflections found</h3>
+            <p className="text-xs text-slate-600 dark:text-slate-300 max-w-sm mx-auto">
               {selectedCalendarDate 
                 ? `No reflections recorded on ${selectedCalendarDate}. Clear the filter to view all reflections.`
                 : 'Try adjusting your search keywords or mood filter to explore your archive.'}
@@ -973,7 +1033,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
         </div>
       ) : (
         <div className="space-y-3.5" role="feed" aria-label="Journal reflections feed">
-          {filteredEntries.slice(0, visibleCount).map((entry) => {
+          {filteredEntries.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((entry) => {
             const isExpanded = expandedEntryId === entry.id;
             const isAnalyzing = analyzingIds[entry.id];
             const isOwner = entry.userId === userId;
@@ -1007,7 +1067,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                 {isTarget && (
                   <div className="bg-indigo-600 text-white px-4 py-1.5 text-xs font-mono font-semibold flex items-center justify-between">
                     <span className="flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                      <Sparkles className="w-3.5 h-3.5 text-amber-600" />
                       <span>Referenced in Mindful Insights</span>
                     </span>
                     {onClearTargetEntry && (
@@ -1078,9 +1138,9 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                             disabled={isAnalyzing}
                             title="Derive visual sentiment indicator using Gemini"
                             aria-label={`Derive visual sentiment indicator for ${entry.title || 'reflection'}`}
-                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-white/60 dark:bg-slate-800/60 backdrop-blur-xs hover:bg-indigo-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-indigo-700 dark:hover:text-white border border-white/80 dark:border-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-white/60 dark:bg-slate-800/60 backdrop-blur-xs hover:bg-indigo-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 hover:text-indigo-700 dark:hover:text-white border border-white/80 dark:border-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                           >
-                            <Sparkles className={`w-3 h-3 ${isAnalyzing ? 'animate-spark-glimmer text-indigo-600 dark:text-indigo-400' : 'text-indigo-500 dark:text-indigo-400'}`} />
+                            <Sparkles className={`w-3 h-3 ${isAnalyzing ? 'animate-spark-glimmer text-indigo-600 dark:text-indigo-300' : 'text-indigo-600 dark:text-indigo-300'}`} />
                             <span>{isAnalyzing ? 'Evaluating...' : 'Detect Sentiment'}</span>
                           </button>
                         )}
@@ -1088,7 +1148,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                         {entry.isEdited && (
                           <span 
                             title={entry.editedAt ? `Edited on ${new Date(entry.editedAt).toLocaleString()}` : 'Entry narrative edited'}
-                            className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-white/60 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 border border-white/80 dark:border-white/10 font-mono"
+                            className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-white/60 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 border border-white/80 dark:border-white/10 font-mono"
                           >
                             <Pencil className="w-2.5 h-2.5" />
                             <span>edited</span>
@@ -1098,22 +1158,22 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                         {entry.tags && entry.tags.map((t) => (
                           <span
                             key={t}
-                            className="text-[10px] px-2 py-0.5 rounded-full bg-white/60 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 border border-white/80 dark:border-white/10 font-mono"
+                            className="text-[10px] px-2 py-0.5 rounded-full bg-white/60 dark:bg-slate-800/60 text-slate-700 dark:text-slate-200 border border-white/80 dark:border-white/10 font-mono"
                           >
                             #{t}
                           </span>
                         ))}
                       </div>
 
-                      <div className="flex items-center gap-2.5 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
+                      <div className="flex items-center gap-2.5 text-xs text-slate-600 dark:text-slate-300 flex-wrap">
                         <span className="flex items-center gap-1 font-mono text-[11px]">
-                          <CalendarIcon className="w-3 h-3 text-slate-400 dark:text-slate-500" aria-hidden="true" />
+                          <CalendarIcon className="w-3 h-3 text-slate-500 dark:text-slate-400" aria-hidden="true" />
                           {dateStr} at {timeStr}
                         </span>
                         <span aria-hidden="true">•</span>
                         <span className="font-mono text-[11px]">{entry.wordCount || 0} words</span>
                         <span aria-hidden="true">•</span>
-                        <span className="text-slate-600 dark:text-slate-400 font-medium capitalize flex items-center gap-1">
+                        <span className="text-slate-700 dark:text-slate-300 font-medium capitalize flex items-center gap-1">
                           <span>User mood:</span>
                           <span className="text-slate-800 dark:text-slate-200 font-semibold">{entry.mood.replace('_', ' ')}</span>
                         </span>
@@ -1129,25 +1189,36 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                       aria-label={entry.isBookmarked ? "Remove bookmark" : "Bookmark reflection"}
                       className={`p-2 rounded-xl transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 ${
                         entry.isBookmarked 
-                          ? 'text-amber-500 hover:text-amber-600 bg-amber-50/80 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-950/60' 
-                          : 'text-slate-400 dark:text-slate-500 hover:text-amber-500 hover:bg-amber-50/60 dark:hover:bg-amber-950/30'
+                          ? 'text-amber-600 hover:text-amber-600 bg-amber-50/80 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-950/60' 
+                          : 'text-slate-500 dark:text-slate-400 hover:text-amber-600 hover:bg-amber-50/60 dark:hover:bg-amber-950/30'
                       }`}
                     >
                       <Bookmark className={`w-4 h-4 ${entry.isBookmarked ? 'fill-current' : ''}`} />
                     </button>
+                    {isOwner && onContinueEntry && (
+                      <button
+                        id={`btn-continue-entry-${entry.id}`}
+                        onClick={(e) => { e.stopPropagation(); onContinueEntry(entry); }}
+                        title="Continue this reflection"
+                        aria-label={`Continue reflection ${entry.title || 'Untitled'}`}
+                        className="p-2 rounded-xl text-slate-500 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50/80 dark:hover:bg-indigo-900/40 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                    )}
                     {isOwner && (
                       <button
                         id={`btn-delete-entry-${entry.id}`}
                         onClick={(e) => handleOpenDelete(entry, e)}
                         title="Delete reflection from Firestore"
                         aria-label={`Delete reflection ${entry.title || 'Untitled'}`}
-                        className="p-2 rounded-xl text-slate-400 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50/80 dark:hover:bg-rose-950/60 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+                        className="p-2 rounded-xl text-slate-500 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-600 hover:bg-rose-50/80 dark:hover:bg-rose-950/60 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     )}
 
-                    <div className="p-1 text-slate-400 dark:text-slate-500" aria-hidden="true">
+                    <div className="p-1 text-slate-500 dark:text-slate-400" aria-hidden="true">
                       {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                     </div>
                   </div>
@@ -1177,7 +1248,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                                   Color: {entry.sentiment.color.toUpperCase()}
                                 </span>
                               </div>
-                              <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
+                              <p className="text-xs text-slate-700 dark:text-slate-200 mt-0.5">
                                 {entry.sentiment.summary || 'Mindful psychological sentiment distilled from your writing.'}
                               </p>
                             </div>
@@ -1185,7 +1256,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
 
                           <div className="flex items-center gap-3 bg-white/70 dark:bg-slate-800/70 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-white/80 dark:border-white/10 shadow-2xs">
                             <div className="text-right">
-                              <div className="text-[10px] text-slate-400 dark:text-slate-400 font-mono uppercase">Harmonic Score</div>
+                              <div className="text-[10px] text-slate-500 dark:text-slate-300 font-mono uppercase">Harmonic Score</div>
                               <div className="text-xs font-bold font-mono text-slate-800 dark:text-white flex items-center justify-end">
                                 <ConfidenceTooltip explanation="Gemini's estimated confidence based on language and sentiment in this entry.">
                                   <span>{entry.sentiment.score}/100</span>
@@ -1203,9 +1274,9 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                               disabled={isAnalyzing}
                               title="Re-analyze with Gemini"
                               aria-label="Re-analyze sentiment with Gemini"
-                              className="p-1 rounded-lg text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white/60 dark:hover:bg-slate-700/60 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                              className="p-1 rounded-lg text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-600 hover:bg-white/60 dark:hover:bg-slate-700/60 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                             >
-                              <RefreshCw className={`w-3.5 h-3.5 ${isAnalyzing ? 'animate-spin text-indigo-600 dark:text-indigo-400' : ''}`} />
+                              <RefreshCw className={`w-3.5 h-3.5 ${isAnalyzing ? 'animate-spin text-indigo-600 dark:text-indigo-300' : ''}`} />
                             </button>
                           </div>
                         </div>
@@ -1213,7 +1284,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                     ) : (
                       <div className="p-4 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/40 backdrop-blur-md border border-indigo-200/80 dark:border-indigo-800/80 flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2.5 text-xs text-indigo-900 dark:text-indigo-300">
-                          <Sparkles className="w-4 h-4 text-amber-500 flex-shrink-0" aria-hidden="true" />
+                          <Sparkles className="w-4 h-4 text-amber-600 flex-shrink-0" aria-hidden="true" />
                           <span>No sentiment indicator derived yet for this entry.</span>
                         </div>
                         <button
@@ -1231,21 +1302,63 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                     {/* Narrative Text */}
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider font-mono">
-                          <Feather className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" aria-hidden="true" />
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 uppercase tracking-wider font-mono">
+                          <Feather className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" aria-hidden="true" />
                           <span>Journal Entry Narrative</span>
                         </div>
+
+                        {/* Translate Entry Button */}
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => setShowEntryTransMenu(prev => prev === entry.id ? null : entry.id)}
+                            className="flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-medium bg-white/60 dark:bg-slate-800/60 border border-white/80 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-white/90 dark:hover:bg-slate-800 transition-colors cursor-pointer shadow-2xs"
+                            title="Translate entry narrative into another language"
+                          >
+                            <Languages className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-300" />
+                            <span>{translatedEntries[entry.id] ? `Translated (${translatedEntries[entry.id].lang})` : 'Translate'}</span>
+                          </button>
+
+                          {/* Entry Translation Dropdown */}
+                          {showEntryTransMenu === entry.id && (
+                            <div className="absolute right-0 top-full mt-1.5 w-56 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200/80 dark:border-slate-800 z-50 p-1.5 backdrop-blur-2xl animate-fade-in max-h-60 overflow-y-auto">
+                              <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 px-2 py-1 uppercase tracking-wider">
+                                Translate entry to:
+                              </div>
+                              {SUPPORTED_LANGUAGES.map((lang) => (
+                                <button
+                                  key={lang.code}
+                                  type="button"
+                                  onClick={() => handleTranslateEntry(entry, lang)}
+                                  className="w-full text-left px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 hover:text-indigo-600 dark:hover:text-indigo-600 flex items-center gap-2 transition-colors cursor-pointer"
+                                >
+                                  <span className="text-sm">{lang.flag}</span>
+                                  <span className="truncate">{lang.langName}</span>
+                                  <span className="text-[10px] text-slate-500 ml-auto">{lang.nativeName}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="p-4 rounded-2xl bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border border-white/80 dark:border-white/10 text-sm text-slate-800 dark:text-slate-100 leading-relaxed font-sans whitespace-pre-wrap shadow-inner">
-                        {entry.content || '(No narrative text)'}
-                      </div>
+
+                      {translatedEntries[entry.id]?.isTranslating ? (
+                        <div className="p-4 rounded-2xl bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border border-white/80 dark:border-white/10 text-xs text-indigo-600 dark:text-indigo-300 flex items-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Translating narrative into {translatedEntries[entry.id].lang}...</span>
+                        </div>
+                      ) : (
+                        <div className="p-4 rounded-2xl bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border border-white/80 dark:border-white/10 text-sm text-slate-800 dark:text-slate-100 leading-relaxed font-sans whitespace-pre-wrap shadow-inner">
+                          {translatedEntries[entry.id]?.content || entry.content || '(No narrative text)'}
+                        </div>
+                      )}
                     </div>
 
                     {/* Dialogue / Reflections */}
                     {entry.conversation && entry.conversation.length > 0 && (
                       <div className="space-y-2">
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider font-mono">
-                          <Sparkles className="w-3.5 h-3.5 text-amber-500" aria-hidden="true" />
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider font-mono">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-600" aria-hidden="true" />
                           <span>Gemini Reflective Dialogue ({entry.conversation.length} turns)</span>
                         </div>
                         <div className="space-y-2.5">
@@ -1254,17 +1367,41 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                               key={turn.id}
                               className={`p-4 rounded-2xl text-xs sm:text-sm ${
                                 turn.role === 'user'
-                                  ? 'bg-indigo-50/80 dark:bg-indigo-950/60 backdrop-blur-md border border-indigo-200/80 dark:border-indigo-800/80 text-slate-800 dark:text-slate-100 ml-4'
-                                  : 'bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border border-white/80 dark:border-white/10 text-slate-800 dark:text-slate-100 mr-4 shadow-xs'
+                                  ? 'bg-indigo-50/80 dark:bg-indigo-950/60 backdrop-blur-md border border-indigo-200/80 dark:border-indigo-800/80 text-slate-800 dark:text-slate-100 ml-4 prose-sm prose-slate dark:prose-invert max-w-none'
+                                  : 'bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border border-white/80 dark:border-white/10 text-slate-800 dark:text-slate-100 mr-4 shadow-xs prose-sm prose-slate dark:prose-invert max-w-none'
                               }`}
                             >
-                              <div className="font-semibold text-xs mb-1 font-serif text-slate-600 dark:text-slate-400">
+                              <div className="font-semibold text-xs mb-1 font-serif text-slate-700 dark:text-slate-300 not-prose">
                                 {turn.role === 'user' ? 'You' : 'Reflect AI Companion'}
                               </div>
-                              <Markdown>{typeof turn.text === 'string' ? turn.text : String(turn.text || '')}</Markdown>
+                              <div className="prose prose-sm prose-slate dark:prose-invert max-w-none leading-relaxed">
+                                <Markdown>{typeof turn.text === 'string' ? turn.text : String(turn.text || '')}</Markdown>
+                              </div>
                             </div>
                           ))}
                         </div>
+                      </div>
+                    )}
+
+                    {/* Bottom Action: Continue Journal */}
+                    {isOwner && onContinueEntry && (
+                      <div className="pt-4 border-t border-white/60 dark:border-white/10 flex items-center justify-between flex-wrap gap-3">
+                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                          Pick up where you left off or add more thoughts to this reflection.
+                        </p>
+                        <button
+                          id={`btn-continue-expanded-${entry.id}`}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onContinueEntry(entry);
+                          }}
+                          className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-md shadow-indigo-600/20 hover:shadow-indigo-600/30 transition-all flex items-center gap-2 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 active:scale-95"
+                          title="Continue this journal entry"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                          <span>Continue</span>
+                        </button>
                       </div>
                     )}
                   </div>
@@ -1273,30 +1410,36 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
             );
           })}
 
-          {/* Load More Pagination Trigger */}
-          {filteredEntries.length > visibleCount && (
+          {/* Pagination Controls */}
+          {filteredEntries.length > itemsPerPage && (
             <div className="pt-4 pb-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-white/60 dark:border-white/10">
-              <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
-                Showing {Math.min(visibleCount, filteredEntries.length)} of {filteredEntries.length} reflections
+              <span className="text-xs text-slate-600 dark:text-slate-300 font-mono">
+                Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredEntries.length)} - {Math.min(currentPage * itemsPerPage, filteredEntries.length)} of {filteredEntries.length} reflections
               </span>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  id="btn-load-more-entries"
-                  onClick={() => setVisibleCount((prev) => prev + 15)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-50/80 dark:bg-indigo-950/80 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800/80 transition-colors shadow-2xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                  aria-label="Load 15 more reflections"
+                  onClick={() => {
+                    setCurrentPage((prev) => Math.max(prev - 1, 1));
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  disabled={currentPage === 1}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-white/60 dark:bg-slate-800/60 hover:bg-white/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-white/70 dark:border-white/10 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                  aria-label="Previous page"
                 >
-                  Load More Reflections (+15)
+                  Previous
                 </button>
                 <button
                   type="button"
-                  id="btn-show-all-entries"
-                  onClick={() => setVisibleCount(filteredEntries.length)}
-                  className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white/60 dark:bg-slate-800/60 hover:bg-white/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-white/70 dark:border-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                  aria-label={`Show all ${filteredEntries.length} reflections`}
+                  onClick={() => {
+                    setCurrentPage((prev) => Math.min(prev + 1, Math.ceil(filteredEntries.length / itemsPerPage)));
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  disabled={currentPage >= Math.ceil(filteredEntries.length / itemsPerPage)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-50/80 dark:bg-indigo-950/80 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800/80 transition-colors shadow-2xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                  aria-label="Next page"
                 >
-                  Show All ({filteredEntries.length})
+                  Next
                 </button>
               </div>
             </div>
@@ -1320,14 +1463,14 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
             {/* Modal Header */}
             <div className="p-5 border-b border-white/60 dark:border-white/10 flex items-center justify-between bg-rose-50/50 dark:bg-rose-950/30">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-rose-100/80 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 flex items-center justify-center text-rose-600 dark:text-rose-400 shadow-xs" aria-hidden="true">
+                <div className="w-10 h-10 rounded-2xl bg-rose-100/80 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 flex items-center justify-center text-rose-600 dark:text-rose-300 shadow-xs" aria-hidden="true">
                   <Trash2 className="w-5 h-5" />
                 </div>
                 <div>
                   <h3 id="delete-dialog-title" className="text-base font-serif font-bold text-slate-900 dark:text-white">
                     Delete Journal Entry
                   </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                  <p className="text-xs text-slate-600 dark:text-slate-300">
                     Confirm deletion from your Firestore partition
                   </p>
                 </div>
@@ -1338,7 +1481,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                 onClick={() => setEntryToDelete(null)}
                 disabled={isDeleting}
                 aria-label="Close delete confirmation dialog"
-                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/60 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
+                className="p-2 rounded-xl text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/60 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1350,7 +1493,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                 <div className="font-serif font-bold text-slate-900 dark:text-white">
                   "{entryToDelete.title || 'Untitled Reflection'}"
                 </div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                <div className="text-[11px] text-slate-600 dark:text-slate-300 font-mono">
                   Created on {new Date(entryToDelete.createdAt).toLocaleDateString(undefined, {
                     weekday: 'short',
                     year: 'numeric',
@@ -1360,12 +1503,12 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                 </div>
               </div>
 
-              <p id="delete-dialog-desc" className="text-slate-600 dark:text-slate-300 leading-relaxed text-xs">
+              <p id="delete-dialog-desc" className="text-slate-700 dark:text-slate-200 leading-relaxed text-xs">
                 Are you sure you want to permanently delete this reflection? This entry and its reflective dialogue will be removed from your personal journal archive.
               </p>
 
               <div className="p-3 rounded-2xl bg-amber-50/80 dark:bg-amber-950/40 backdrop-blur-xs border border-amber-200/80 dark:border-amber-900/60 text-amber-900 dark:text-amber-300 text-[11px] flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" aria-hidden="true" />
+                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-300 flex-shrink-0 mt-0.5" aria-hidden="true" />
                 <span>
                   <strong>Note:</strong> Deleting an entry removes this reflection directly. Your continuous memory profile is preserved and only updates through its normal periodic reflection cycle.
                 </span>
@@ -1378,7 +1521,7 @@ export const EntryHistory: React.FC<EntryHistoryProps> = ({
                 id="btn-cancel-delete"
                 onClick={() => setEntryToDelete(null)}
                 disabled={isDeleting}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-white/60 dark:bg-slate-800/60 hover:bg-white/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-white/70 dark:border-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-white/60 dark:bg-slate-800/60 hover:bg-white/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-white/70 dark:border-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500"
               >
                 Cancel
               </button>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Lock, LogOut, ShieldAlert, KeyRound, Check, RefreshCw, X, AlertTriangle, ArrowRight, ShieldCheck } from 'lucide-react';
+import { motion } from 'motion/react';
 import { AppUser } from '../types';
 import { verifyPin, savePinSettings, getLocalPinSettings, calculateRotationStatus, hashPin } from '../lib/pinSecurity';
 import { signOut } from 'firebase/auth';
@@ -105,6 +106,8 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
 
   const handleSignOut = async () => {
     try {
+      localStorage.setItem('reflect_force_select_account', 'true');
+      sessionStorage.removeItem('reflect_session_timeout');
       await signOut(auth);
     } catch (err) {
       console.error('Failed to sign out:', err);
@@ -168,20 +171,26 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in text-slate-100">
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.25 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 text-slate-100 bg-slate-950"
+    >
       <BackgroundPattern intensity="vibrant" />
       <div className="w-full max-w-sm flex flex-col items-center space-y-5 text-center bg-slate-900/80 backdrop-blur-2xl p-7 rounded-3xl border border-white/10 shadow-2xl relative z-10">
         
         {/* App Logo & Header */}
         <div className="flex flex-col items-center space-y-2.5">
-          <div className="w-14 h-14 rounded-3xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shadow-lg shadow-indigo-950/50">
+          <div className="w-14 h-14 rounded-3xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-600 shadow-lg shadow-indigo-950/50">
             <Lock className="w-7 h-7" />
           </div>
           <div>
             <h1 className="text-xl font-serif font-bold text-white tracking-wide">
               Reflect Journal
             </h1>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-500 mt-0.5">
               Welcome back, <span className="text-slate-200 font-medium">{user.displayName || 'Author'}</span>
             </p>
           </div>
@@ -189,13 +198,13 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
 
         {/* 90-Day Rotation Policy Status Notice */}
         {rotationStatus.isExpired ? (
-          <div className="w-full px-3.5 py-2 rounded-2xl bg-rose-950/60 border border-rose-800/80 text-rose-300 text-[11px] flex items-center justify-center gap-1.5 animate-pulse">
-            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 text-rose-400" />
+          <div className="w-full px-3.5 py-2 rounded-2xl bg-rose-950/60 border border-rose-800/80 text-rose-600 text-[11px] flex items-center justify-center gap-1.5 animate-pulse">
+            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 text-rose-600" />
             <span>90-Day Secret Rotation Required upon unlocking</span>
           </div>
         ) : rotationStatus.isExpiringSoon ? (
-          <div className="w-full px-3.5 py-1.5 rounded-2xl bg-amber-950/50 border border-amber-800/60 text-amber-300 text-[11px] flex items-center justify-center gap-1.5">
-            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 text-amber-400" />
+          <div className="w-full px-3.5 py-1.5 rounded-2xl bg-amber-950/50 border border-amber-800/60 text-amber-600 text-[11px] flex items-center justify-center gap-1.5">
+            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 text-amber-600" />
             <span>PIN expires in {rotationStatus.daysRemaining} days (90-day policy)</span>
           </div>
         ) : null}
@@ -205,7 +214,7 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
           <h2 className="text-sm font-semibold text-slate-200">
             Enter 6-Digit Security PIN
           </h2>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-500">
             Your journal is protected with encrypted PIN lock security
           </p>
         </div>
@@ -224,7 +233,7 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
                 className={`w-10 h-11 rounded-2xl border flex items-center justify-center transition-all ${
                   isFilled
                     ? 'border-indigo-500 bg-indigo-600/30 text-white shadow-md shadow-indigo-950/50'
-                    : 'border-slate-700 bg-slate-800/60 text-slate-600'
+                    : 'border-slate-700 bg-slate-800/60 text-slate-700'
                 }`}
               >
                 {isFilled ? (
@@ -239,7 +248,7 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
 
         {/* Error message */}
         {errorMessage && (
-          <div className="text-xs text-rose-400 font-medium flex items-center gap-1.5 animate-fade-in">
+          <div className="text-xs text-rose-600 font-medium flex items-center gap-1.5 animate-fade-in">
             <ShieldAlert className="w-3.5 h-3.5 flex-shrink-0" />
             <span>{errorMessage}</span>
           </div>
@@ -262,7 +271,7 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
             type="button"
             onClick={handleClear}
             disabled={pin.length === 0}
-            className="h-12 rounded-2xl bg-slate-800/40 hover:bg-slate-800 border border-slate-800 text-slate-400 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-30 flex items-center justify-center"
+            className="h-12 rounded-2xl bg-slate-800/40 hover:bg-slate-800 border border-slate-800 text-slate-500 text-xs font-semibold transition-colors cursor-pointer disabled:opacity-30 flex items-center justify-center"
           >
             Clear
           </button>
@@ -289,7 +298,7 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
           <button
             type="button"
             onClick={() => setShowForgotModal(true)}
-            className="text-slate-400 hover:text-indigo-400 transition-colors cursor-pointer flex items-center gap-1.5"
+            className="text-slate-500 hover:text-indigo-600 transition-colors cursor-pointer flex items-center gap-1.5"
           >
             <KeyRound className="w-3.5 h-3.5" />
             <span>Forgot PIN?</span>
@@ -297,7 +306,7 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
           <button
             type="button"
             onClick={handleSignOut}
-            className="text-slate-400 hover:text-rose-400 transition-colors cursor-pointer flex items-center gap-1.5"
+            className="text-slate-500 hover:text-rose-600 transition-colors cursor-pointer flex items-center gap-1.5"
           >
             <LogOut className="w-3.5 h-3.5" />
             <span>Sign Out</span>
@@ -317,12 +326,12 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
         >
           <div className="bg-slate-900 border border-slate-700 rounded-3xl p-6 max-w-sm w-full space-y-4 relative shadow-2xl text-left">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-amber-950 border border-amber-800 flex items-center justify-center text-amber-400 flex-shrink-0">
+              <div className="w-10 h-10 rounded-2xl bg-amber-950 border border-amber-800 flex items-center justify-center text-amber-600 flex-shrink-0">
                 <RefreshCw className="w-5 h-5" />
               </div>
               <div>
                 <h3 id="mandatory-rotation-title" className="text-base font-bold text-white">90-Day PIN Rotation Required</h3>
-                <p id="mandatory-rotation-desc" className="text-xs text-slate-400">Policy: Rotate secret every 90 days</p>
+                <p id="mandatory-rotation-desc" className="text-xs text-slate-500">Policy: Rotate secret every 90 days</p>
               </div>
             </div>
 
@@ -331,7 +340,7 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
             </p>
 
             {rotationError && (
-              <p className="text-xs text-rose-400 font-medium">
+              <p className="text-xs text-rose-600 font-medium">
                 {rotationError}
               </p>
             )}
@@ -414,18 +423,18 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
               type="button"
               onClick={() => setShowForgotModal(false)}
               aria-label="Close forgot PIN modal"
-              className="absolute top-4 right-4 text-slate-400 hover:text-white"
+              className="absolute top-4 right-4 text-slate-500 hover:text-white"
             >
               <X className="w-5 h-5" />
             </button>
 
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-indigo-950 border border-indigo-800 flex items-center justify-center text-indigo-400">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-950 border border-indigo-800 flex items-center justify-center text-indigo-600">
                 <KeyRound className="w-5 h-5" />
               </div>
               <div>
                 <h3 id="forgot-pin-title" className="text-base font-bold text-white">Reset App PIN Lock</h3>
-                <p id="forgot-pin-desc" className="text-xs text-slate-400">Verify your Google account to reset PIN</p>
+                <p id="forgot-pin-desc" className="text-xs text-slate-500">Verify your Google account to reset PIN</p>
               </div>
             </div>
 
@@ -434,7 +443,7 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
             </p>
 
             {resetError && (
-              <p className="text-xs text-rose-400 font-medium">
+              <p className="text-xs text-rose-600 font-medium">
                 {resetError}
               </p>
             )}
@@ -466,7 +475,7 @@ export const PinLockScreen: React.FC<PinLockScreenProps> = ({
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };
 

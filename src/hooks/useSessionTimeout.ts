@@ -9,6 +9,11 @@ export function useSessionTimeout(isAuthenticated: boolean) {
 
   const handleLogout = useCallback(async () => {
     try {
+      if (auth.currentUser?.email) {
+        localStorage.setItem('reflect_last_user_email', auth.currentUser.email);
+      }
+      localStorage.setItem('reflect_force_select_account', 'false');
+      sessionStorage.setItem('reflect_session_timeout', 'true');
       await signOut(auth);
     } catch (error) {
       console.error('Error during session timeout logout:', error);

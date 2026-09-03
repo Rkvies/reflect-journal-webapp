@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { motion } from 'motion/react';
 import { 
   BookOpen, 
   Brain, 
@@ -58,7 +59,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       const rect = profileButtonRef.current.getBoundingClientRect();
       setProfileCoords({
         top: rect.bottom + 8,
-        right: window.innerWidth - rect.right,
+        right: Math.max(12, window.innerWidth - rect.right),
       });
     }
     setIsMenuOpen(!isMenuOpen);
@@ -83,19 +84,19 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <>
-      <header className="sticky top-0 z-50 bg-white/60 dark:bg-slate-950/60 backdrop-blur-2xl border-b border-white/60 dark:border-white/10 text-slate-800 dark:text-slate-100 transition-colors shadow-xs overflow-visible">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <header className="sticky top-0 z-50 bg-sky-100/75 dark:bg-slate-950/80 backdrop-blur-2xl border-b border-sky-200/60 dark:border-white/10 text-slate-800 dark:text-slate-100 transition-colors shadow-xs overflow-visible">
+      <div className="max-w-5xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
         
         {/* Brand */}
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 flex items-center justify-center">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="w-8 h-8 sm:w-12 sm:h-12 flex items-center justify-center">
             <img src="/reflect_logo.png" alt="Reflect Logo" className="w-full h-full object-contain dark:invert drop-shadow-xs" />
           </div>
           <div>
-            <h1 className="font-serif text-lg font-bold tracking-tight text-slate-900 dark:text-white leading-none">
+            <h1 className="font-serif text-sm sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white leading-none">
               Reflect
             </h1>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 font-sans">
+            <p className="text-[9px] sm:text-[11px] text-slate-600 dark:text-slate-300 mt-0.5 font-sans">
               Mindful Journal
             </p>
           </div>
@@ -103,50 +104,78 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Primary Navigation Tabs (Desktop & Tablet) */}
         {user && (
-          <nav className="hidden md:flex items-center p-1 bg-white/40 dark:bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-white/60 dark:border-white/10 shadow-xs">
+          <nav className="hidden md:flex items-center p-1 bg-white/40 dark:bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-white/60 dark:border-white/10 shadow-xs relative">
             <button
               id="nav-tab-journal"
               onClick={() => setActiveTab('journal')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+              className={`relative px-3.5 py-1.5 rounded-xl text-xs font-medium transition-colors cursor-pointer ${
                 activeTab === 'journal'
-                  ? 'bg-white/90 dark:bg-slate-800/90 text-indigo-600 dark:text-indigo-400 shadow-xs font-semibold backdrop-blur-md'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/30 dark:hover:bg-slate-800/40'
+                  ? 'text-indigo-600 dark:text-indigo-300 font-semibold'
+                  : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/30 dark:hover:bg-slate-800/40'
               }`}
             >
-              Daily Reflection
+              {activeTab === 'journal' && (
+                <motion.span
+                  layoutId="activeTabPillDesktop"
+                  className="absolute inset-0 bg-white/90 dark:bg-slate-800/90 rounded-xl shadow-xs backdrop-blur-md -z-10"
+                  transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                />
+              )}
+              <span className="relative z-10">Daily Reflection</span>
             </button>
             <button
               id="nav-tab-history"
               onClick={() => setActiveTab('history')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+              className={`relative px-3.5 py-1.5 rounded-xl text-xs font-medium transition-colors cursor-pointer ${
                 activeTab === 'history'
-                  ? 'bg-white/90 dark:bg-slate-800/90 text-indigo-600 dark:text-indigo-400 shadow-xs font-semibold backdrop-blur-md'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/30 dark:hover:bg-slate-800/40'
+                  ? 'text-indigo-600 dark:text-indigo-300 font-semibold'
+                  : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/30 dark:hover:bg-slate-800/40'
               }`}
             >
-              Past Entries
+              {activeTab === 'history' && (
+                <motion.span
+                  layoutId="activeTabPillDesktop"
+                  className="absolute inset-0 bg-white/90 dark:bg-slate-800/90 rounded-xl shadow-xs backdrop-blur-md -z-10"
+                  transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                />
+              )}
+              <span className="relative z-10">Past Entries</span>
             </button>
             <button
               id="nav-tab-insights"
               onClick={() => setActiveTab('insights')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+              className={`relative px-3.5 py-1.5 rounded-xl text-xs font-medium transition-colors cursor-pointer ${
                 activeTab === 'insights'
-                  ? 'bg-white/90 dark:bg-slate-800/90 text-indigo-600 dark:text-indigo-400 shadow-xs font-semibold backdrop-blur-md'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/30 dark:hover:bg-slate-800/40'
+                  ? 'text-indigo-600 dark:text-indigo-300 font-semibold'
+                  : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/30 dark:hover:bg-slate-800/40'
               }`}
             >
-              Insights
+              {activeTab === 'insights' && (
+                <motion.span
+                  layoutId="activeTabPillDesktop"
+                  className="absolute inset-0 bg-white/90 dark:bg-slate-800/90 rounded-xl shadow-xs backdrop-blur-md -z-10"
+                  transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                />
+              )}
+              <span className="relative z-10">Insights</span>
             </button>
             <button
               id="nav-tab-gratitude"
               onClick={() => setActiveTab('gratitude')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+              className={`relative px-3.5 py-1.5 rounded-xl text-xs font-medium transition-colors cursor-pointer ${
                 activeTab === 'gratitude'
-                  ? 'bg-white/90 dark:bg-slate-800/90 text-indigo-600 dark:text-indigo-400 shadow-xs font-semibold backdrop-blur-md'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-white/30 dark:hover:bg-slate-800/40'
+                  ? 'text-indigo-600 dark:text-indigo-300 font-semibold'
+                  : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/30 dark:hover:bg-slate-800/40'
               }`}
             >
-              Daily Gratitude
+              {activeTab === 'gratitude' && (
+                <motion.span
+                  layoutId="activeTabPillDesktop"
+                  className="absolute inset-0 bg-white/90 dark:bg-slate-800/90 rounded-xl shadow-xs backdrop-blur-md -z-10"
+                  transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                />
+              )}
+              <span className="relative z-10">Daily Gratitude</span>
             </button>
           </nav>
         )}
@@ -176,7 +205,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <User className="w-3.5 h-3.5" />
                   </div>
                 )}
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+                <ChevronDown className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
               </button>
 
               {/* Dropdown Card */}
@@ -195,7 +224,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <p className="font-semibold text-slate-900 dark:text-white truncate">
                       {user.displayName || 'Journal Author'}
                     </p>
-                    <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate mt-0.5">
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
                       {user.email || 'Authenticated with Google'}
                     </p>
                   </div>
@@ -210,7 +239,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors cursor-pointer"
                   >
-                    <Settings className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    <Settings className="w-4 h-4 text-indigo-600 dark:text-indigo-300" />
                     <span>Settings & Preferences</span>
                   </button>
 
@@ -225,13 +254,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                   >
                     <div className="flex items-center gap-2.5">
                       {theme === 'dark' ? (
-                        <Sun className="w-4 h-4 text-amber-500" />
+                        <Sun className="w-4 h-4 text-amber-600" />
                       ) : (
                         <Moon className="w-4 h-4 text-indigo-600" />
                       )}
                       <span>Appearance</span>
                     </div>
-                    <span className="text-[11px] text-slate-400 dark:text-slate-500 capitalize">
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 capitalize">
                       {theme} mode
                     </span>
                   </button>
@@ -246,7 +275,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors cursor-pointer"
                   >
-                    <Brain className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    <Brain className="w-4 h-4 text-indigo-600 dark:text-indigo-300" />
                     <span>Memory Context Layer</span>
                   </button>
 
@@ -260,7 +289,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-100/80 dark:hover:bg-slate-800/80 transition-colors cursor-pointer"
                   >
-                    <ShieldCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    <ShieldCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-300" />
                     <span>Security & Transparency</span>
                   </button>
 
@@ -273,7 +302,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         setIsMenuOpen(false);
                         onLockApp();
                       }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors cursor-pointer font-medium"
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-indigo-600 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors cursor-pointer font-medium"
                     >
                       <Lock className="w-4 h-4" />
                       <span>Lock Application Now</span>
@@ -290,7 +319,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       setIsMenuOpen(false);
                       onOpenDeactivateModal();
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors cursor-pointer"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-amber-600 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors cursor-pointer"
                   >
                     <UserX className="w-4 h-4" />
                     <span>Deactivate Account</span>
@@ -304,7 +333,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       setIsMenuOpen(false);
                       onOpenDeleteModal();
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-rose-600 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
                   >
                     <Trash2 className="w-4 h-4" />
                     <span>Delete Account Permanently</span>
@@ -320,7 +349,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       setIsMenuOpen(false);
                       onSignOut();
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-rose-600 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
                   >
                     <LogOut className="w-4 h-4" />
                     <span>Sign Out</span>
@@ -330,30 +359,44 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </div>
           ) : (
-            <div className="text-xs text-slate-500 font-medium">
+            <div className="text-xs text-slate-600 font-medium">
               Private Journal
             </div>
           )}
         </div>
 
       </div>
+
+
     </header>
 
+
+
+
+
+
     {/* Mobile Bottom Navigation Bar (Phone & Narrow Screens) */}
-    {user && (
+    {user && createPortal(
       <nav 
         id="mobile-bottom-nav"
-        className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white/70 dark:bg-slate-950/70 backdrop-blur-2xl border-t border-white/60 dark:border-white/10 px-2 py-1.5 flex items-center justify-around shadow-2xl transition-colors"
+        className="fixed bottom-0 left-0 right-0 z-[2147483640] md:hidden bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border-t border-slate-200/80 dark:border-slate-800/80 px-2 py-2 flex items-center justify-around shadow-2xl transition-colors"
       >
         <button
           id="mobile-nav-tab-journal"
           onClick={() => setActiveTab('journal')}
-          className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl text-[10px] font-medium transition-all cursor-pointer min-w-[56px] ${
+          className={`relative flex flex-col items-center gap-1 py-1.5 px-2 rounded-xl text-[10px] font-medium transition-colors cursor-pointer min-w-[56px] ${
             activeTab === 'journal'
-              ? 'text-indigo-600 dark:text-indigo-400 font-semibold scale-105'
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              ? 'text-indigo-600 dark:text-indigo-300 font-semibold'
+              : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
+          {activeTab === 'journal' && (
+            <motion.span
+              layoutId="activeTabPillMobile"
+              className="absolute inset-0 bg-indigo-500/10 dark:bg-indigo-400/15 rounded-xl -z-10"
+              transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+            />
+          )}
           <BookOpen className="w-4 h-4" />
           <span>Reflection</span>
         </button>
@@ -361,12 +404,19 @@ export const Navbar: React.FC<NavbarProps> = ({
         <button
           id="mobile-nav-tab-history"
           onClick={() => setActiveTab('history')}
-          className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl text-[10px] font-medium transition-all cursor-pointer min-w-[56px] ${
+          className={`relative flex flex-col items-center gap-1 py-1.5 px-2 rounded-xl text-[10px] font-medium transition-colors cursor-pointer min-w-[56px] ${
             activeTab === 'history'
-              ? 'text-indigo-600 dark:text-indigo-400 font-semibold scale-105'
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              ? 'text-indigo-600 dark:text-indigo-300 font-semibold'
+              : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
+          {activeTab === 'history' && (
+            <motion.span
+              layoutId="activeTabPillMobile"
+              className="absolute inset-0 bg-indigo-500/10 dark:bg-indigo-400/15 rounded-xl -z-10"
+              transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+            />
+          )}
           <FileText className="w-4 h-4" />
           <span>Past Entries</span>
         </button>
@@ -374,12 +424,19 @@ export const Navbar: React.FC<NavbarProps> = ({
         <button
           id="mobile-nav-tab-insights"
           onClick={() => setActiveTab('insights')}
-          className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl text-[10px] font-medium transition-all cursor-pointer min-w-[56px] ${
+          className={`relative flex flex-col items-center gap-1 py-1.5 px-2 rounded-xl text-[10px] font-medium transition-colors cursor-pointer min-w-[56px] ${
             activeTab === 'insights'
-              ? 'text-indigo-600 dark:text-indigo-400 font-semibold scale-105'
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              ? 'text-indigo-600 dark:text-indigo-300 font-semibold'
+              : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
+          {activeTab === 'insights' && (
+            <motion.span
+              layoutId="activeTabPillMobile"
+              className="absolute inset-0 bg-indigo-500/10 dark:bg-indigo-400/15 rounded-xl -z-10"
+              transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+            />
+          )}
           <Sparkles className="w-4 h-4" />
           <span>Insights</span>
         </button>
@@ -387,12 +444,19 @@ export const Navbar: React.FC<NavbarProps> = ({
         <button
           id="mobile-nav-tab-gratitude"
           onClick={() => setActiveTab('gratitude')}
-          className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl text-[10px] font-medium transition-all cursor-pointer min-w-[56px] ${
+          className={`relative flex flex-col items-center gap-1 py-1.5 px-2 rounded-xl text-[10px] font-medium transition-colors cursor-pointer min-w-[56px] ${
             activeTab === 'gratitude'
-              ? 'text-indigo-600 dark:text-indigo-400 font-semibold scale-105'
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              ? 'text-indigo-600 dark:text-indigo-300 font-semibold'
+              : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
+          {activeTab === 'gratitude' && (
+            <motion.span
+              layoutId="activeTabPillMobile"
+              className="absolute inset-0 bg-indigo-500/10 dark:bg-indigo-400/15 rounded-xl -z-10"
+              transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+            />
+          )}
           <Heart className="w-4 h-4" />
           <span>Gratitude</span>
         </button>
@@ -400,17 +464,26 @@ export const Navbar: React.FC<NavbarProps> = ({
         <button
           id="mobile-nav-tab-settings"
           onClick={() => setActiveTab('settings')}
-          className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl text-[10px] font-medium transition-all cursor-pointer min-w-[56px] ${
+          className={`relative flex flex-col items-center gap-1 py-1.5 px-1.5 rounded-xl text-[10px] font-medium transition-colors cursor-pointer min-w-[48px] ${
             activeTab === 'settings'
-              ? 'text-indigo-600 dark:text-indigo-400 font-semibold scale-105'
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              ? 'text-indigo-600 dark:text-indigo-300 font-semibold'
+              : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
+          {activeTab === 'settings' && (
+            <motion.span
+              layoutId="activeTabPillMobile"
+              className="absolute inset-0 bg-indigo-500/10 dark:bg-indigo-400/15 rounded-xl -z-10"
+              transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+            />
+          )}
           <Settings className="w-4 h-4" />
           <span>Settings</span>
         </button>
-      </nav>
+      </nav>,
+      document.body
     )}
     </>
   );
 };
+

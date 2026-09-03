@@ -37,13 +37,48 @@ export const db = firebaseConfig.firestoreDatabaseId
 
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
-googleProvider.setCustomParameters({
-  prompt: 'select_account'
-});
 
-export async function signInWithGoogle() {
+export interface GoogleSignInOptions {
+  forceSelectAccount?: boolean;
+  loginHint?: string;
+}
+
+export function createGoogleProvider(forceSelectAccount = true, loginHint?: string | null): GoogleAuthProvider {
+  const provider = new GoogleAuthProvider();
+  const customParams: Record<string, string> = {};
+  if (forceSelectAccount) {
+    customParams.prompt = 'select_account';
+  } else if (loginHint) {
+    customParams.login_hint = loginHint;
+  }
+  if (Object.keys(customParams).length > 0) {
+    provider.setCustomParameters(customParams);
+  }
+  return provider;
+}
+
+export async function signInWithGoogle(options?: GoogleSignInOptions) {
   try {
-    const result = await signInWithPopup(auth, googleProvider);
+    const isTimeout = 
+      sessionStorage.getItem('reflect_session_timeout') === 'true' || 
+      localStorage.getItem('reflect_force_select_account') === 'false';
+
+    const forceSelect = options?.forceSelectAccount !== undefined
+      ? options.forceSelectAccount
+      : !isTimeout;
+
+    const loginHint = options?.loginHint ?? (localStorage.getItem('reflect_last_user_email') || undefined);
+
+    const provider = createGoogleProvider(forceSelect, loginHint);
+    const result = await signInWithPopup(auth, provider);
+
+    // Reset timeout and selection states upon successful authentication
+    sessionStorage.removeItem('reflect_session_timeout');
+    localStorage.removeItem('reflect_force_select_account');
+    if (result.user.email) {
+      localStorage.setItem('reflect_last_user_email', result.user.email);
+    }
+
     return result.user;
   } catch (error: any) {
     console.error('Google Sign In Error:', error);
@@ -55,7 +90,11 @@ export async function signInWithGoogle() {
   }
 }
 
-export async function logOut() {
+export async function logOut(isManual = true) {
+  if (isManual) {
+    localStorage.setItem('reflect_force_select_account', 'true');
+    sessionStorage.removeItem('reflect_session_timeout');
+  }
   return fbSignOut(auth);
 }
 
@@ -518,5 +557,53 @@ export function subscribeToMilestones(uid: string, callback: (milestones: UserMi
   }, (err) => {
     console.warn('Milestones subscription error:', err);
   });
+}
+
+/**
+ * Deactivates user account directly in Firestore under users/{uid}/profile/summary.
+ * Sets deactivated: true and deactivatedAt timestamp while preserving all journal data.
+ */
+export async function deactivateAccountDirect(uid: string): Promise<void> {
+  if (!uid) throw new Error('Unauthenticated user cannot be deactivated.');
+  const summaryRef = doc(db, 'users', uid, 'profile', 'summary');
+  const now = new Date().toISOString();
+  await setDoc(summaryRef, {
+    deactivated: true,
+    deactivatedAt: now,
+  }, { merge: true });
+}
+
+/**
+ * Permanently deletes all user collections and documents under users/{uid}/*
+ */
+export async function purgeUserAccountData(uid: string): Promise<void> {
+  if (!uid) throw new Error('Unauthenticated user cannot purge account.');
+  
+  const subcollectionNames = ['entries', 'gratitude', 'insights', 'nudges', 'notifications'];
+  for (const name of subcollectionNames) {
+    try {
+      const colRef = collection(db, 'users', uid, name);
+      const snap = await getDocs(colRef);
+      for (const docSnap of snap.docs) {
+        await deleteDoc(docSnap.ref);
+      }
+    } catch (colErr) {
+      console.warn(`Error purging collection ${name}:`, colErr);
+    }
+  }
+
+  // Delete profile documents
+  try {
+    const summaryRef = doc(db, 'users', uid, 'profile', 'summary');
+    await deleteDoc(summaryRef);
+  } catch {}
+  try {
+    const milestonesRef = doc(db, 'users', uid, 'profile', 'milestones');
+    await deleteDoc(milestonesRef);
+  } catch {}
+  try {
+    const settingsRef = doc(db, 'users', uid, 'profile', 'settings');
+    await deleteDoc(settingsRef);
+  } catch {}
 }
 

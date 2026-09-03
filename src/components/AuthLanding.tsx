@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { signInWithGoogle } from '../lib/firebase';
+import { signInWithGoogle, GoogleSignInOptions } from '../lib/firebase';
 import { BackgroundPattern } from './BackgroundPattern';
+import { Clock } from 'lucide-react';
 
 interface AuthLandingProps {
   onSignedIn: () => void;
@@ -10,11 +11,19 @@ export const AuthLanding: React.FC<AuthLandingProps> = ({ onSignedIn }) => {
   const [isLoadingGoogle, setIsLoadingGoogle] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleGoogleSignIn = async () => {
+  const isSessionTimeout = 
+    sessionStorage.getItem('reflect_session_timeout') === 'true' || 
+    localStorage.getItem('reflect_force_select_account') === 'false';
+  const savedEmail = localStorage.getItem('reflect_last_user_email');
+
+  const handleGoogleSignIn = async (options?: GoogleSignInOptions) => {
     setIsLoadingGoogle(true);
     setErrorMessage(null);
     try {
-      await signInWithGoogle();
+      // If options are provided (e.g. forced account selection), use them.
+      // Otherwise, signInWithGoogle automatically detects session timeout
+      // to sign in automatically with the already logged-in account.
+      await signInWithGoogle(options);
       onSignedIn();
     } catch (err: any) {
       console.error('Sign-in failed:', err);
@@ -55,18 +64,34 @@ export const AuthLanding: React.FC<AuthLandingProps> = ({ onSignedIn }) => {
         </div>
 
         {/* Text */}
-        <div className="text-center mb-8 space-y-2">
+        <div className="text-center mb-6 space-y-2">
           <h2 className="text-2xl font-serif font-bold text-slate-900 dark:text-white tracking-tight">Reflect</h2>
-          <p className="text-slate-600 dark:text-slate-400 text-xs leading-relaxed">
+          <p className="text-slate-700 dark:text-slate-300 text-xs leading-relaxed">
             A private mindful space for thoughts, memories, and personal growth.
           </p>
         </div>
 
+        {/* Session Timeout Banner */}
+        {isSessionTimeout && (
+          <div 
+            id="session-timeout-banner" 
+            className="mb-5 w-full p-3 rounded-2xl bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/60 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2.5 shadow-2xs"
+          >
+            <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-xs">Session timed out</p>
+              <p className="text-[11px] text-amber-800 dark:text-amber-300 mt-0.5 leading-snug">
+                Your session was paused due to inactivity. Click Continue with Google to automatically resume.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Action */}
-        <div className="w-full space-y-4">
+        <div className="w-full space-y-3">
           <button
             id="btn-signin-google"
-            onClick={handleGoogleSignIn}
+            onClick={() => handleGoogleSignIn()}
             disabled={isLoadingGoogle}
             className="w-full flex items-center justify-center gap-3 px-4 py-3 rounded-2xl text-xs font-semibold bg-white dark:bg-zinc-800 text-slate-800 dark:text-zinc-100 border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all shadow-sm hover:shadow-md disabled:opacity-50 cursor-pointer"
           >
@@ -88,18 +113,39 @@ export const AuthLanding: React.FC<AuthLandingProps> = ({ onSignedIn }) => {
                 d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.37 0 3.27 2.57 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
               />
             </svg>
-            <span>{isLoadingGoogle ? 'Connecting...' : 'Continue with Google'}</span>
+            <span>
+              {isLoadingGoogle 
+                ? 'Connecting...' 
+                : isSessionTimeout && savedEmail 
+                  ? 'Continue with Google' 
+                  : 'Continue with Google'}
+            </span>
           </button>
 
+          {/* Option to switch accounts when recovering from session timeout */}
+          {isSessionTimeout && (
+            <div className="pt-1 text-center">
+              <button
+                id="btn-switch-account"
+                type="button"
+                onClick={() => handleGoogleSignIn({ forceSelectAccount: true })}
+                disabled={isLoadingGoogle}
+                className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium hover:underline cursor-pointer focus-visible:outline-none"
+              >
+                Sign in with a different account
+              </button>
+            </div>
+          )}
+
           {errorMessage && (
-            <div className="p-3 text-center rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-900/50 text-xs text-rose-600 dark:text-rose-400">
+            <div className="p-3 text-center rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-100 dark:border-rose-900/50 text-xs text-rose-600 dark:text-rose-300">
               {errorMessage}
             </div>
           )}
         </div>
         
         {/* Footer info */}
-        <div className="mt-10 text-center text-xs text-slate-400 dark:text-slate-500 max-w-[280px]">
+        <div className="mt-10 text-center text-xs text-slate-500 dark:text-slate-400 max-w-[280px]">
           By continuing, you agree to Reflect's strictly private data model. All entries are secured to your account.
         </div>
       </div>

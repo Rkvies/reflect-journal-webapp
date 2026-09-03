@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Brain, X, Shield, Check, Sparkles, RefreshCw } from 'lucide-react';
 import Markdown from 'react-markdown';
+import { motion, AnimatePresence } from 'motion/react';
 import { ProfileSummary } from '../types';
 import { saveProfileSummary } from '../lib/firebase';
 import { triggerMemoryUpdate } from '../lib/api';
@@ -86,16 +87,28 @@ export const ProfileSummaryModal: React.FC<ProfileSummaryModalProps> = ({
   };
 
   return (
-    <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-md animate-fade-in"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="memory-layer-title"
-      aria-describedby="memory-layer-desc"
-    >
-      <div className="w-full max-w-2xl bg-white/85 dark:bg-slate-900/85 backdrop-blur-2xl border border-white/80 dark:border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] transition-colors">
-        
-        {/* Header */}
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.25 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-md"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="memory-layer-title"
+          aria-describedby="memory-layer-desc"
+        >
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 12 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 12 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            className="w-full max-w-2xl bg-white/85 dark:bg-slate-900/85 backdrop-blur-2xl border border-white/80 dark:border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] transition-colors"
+          >
+            
+            {/* Header */}
         <div className="p-5 sm:p-6 border-b border-white/60 dark:border-white/10 flex items-center justify-between bg-white/40 dark:bg-slate-950/40">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/70 border border-indigo-200/60 dark:border-indigo-800/60 flex items-center justify-center text-indigo-700 dark:text-indigo-300 shadow-2xs" aria-hidden="true">
@@ -108,7 +121,7 @@ export const ProfileSummaryModal: React.FC<ProfileSummaryModalProps> = ({
                   Continuous Context Memory
                 </span>
               </h3>
-              <p id="memory-layer-desc" className="text-xs text-slate-500 dark:text-slate-400">
+              <p id="memory-layer-desc" className="text-xs text-slate-600 dark:text-slate-300">
                 Living contextual summary maintained asynchronously by Gemini
               </p>
             </div>
@@ -118,14 +131,14 @@ export const ProfileSummaryModal: React.FC<ProfileSummaryModalProps> = ({
             type="button"
             onClick={onClose}
             aria-label="Close memory inspector dialog"
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/60 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+            className="p-2 rounded-xl text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/60 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Status bar */}
-        <div className="px-6 py-2.5 bg-white/40 dark:bg-slate-950/50 backdrop-blur-xs border-b border-white/60 dark:border-white/10 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 font-mono">
+        <div className="px-6 py-2.5 bg-white/40 dark:bg-slate-950/50 backdrop-blur-xs border-b border-white/60 dark:border-white/10 flex items-center justify-between text-xs text-slate-600 dark:text-slate-300 font-mono">
           <div className="flex items-center gap-3">
             <span>Memory footprint: ~{estimatedTokens} / 2,000 max tokens</span>
             <span>•</span>
@@ -147,7 +160,7 @@ export const ProfileSummaryModal: React.FC<ProfileSummaryModalProps> = ({
                 setEditedText(profileSummary?.summary || '');
                 setIsEditing(!isEditing);
               }}
-              className="text-indigo-700 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 text-xs font-semibold underline cursor-pointer"
+              className="text-indigo-700 dark:text-indigo-300 hover:text-indigo-900 dark:hover:text-indigo-600 text-xs font-semibold underline cursor-pointer"
             >
               {isEditing ? 'Cancel Edit' : 'Edit Memory'}
             </button>
@@ -158,7 +171,7 @@ export const ProfileSummaryModal: React.FC<ProfileSummaryModalProps> = ({
         <div className="p-5 sm:p-6 overflow-y-auto space-y-4 text-xs sm:text-sm text-slate-700 dark:text-slate-200">
           {isEditing ? (
             <div className="space-y-3">
-              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200">
                 Direct Memory Summary Editor (User Data Sovereignty)
               </label>
               <textarea
@@ -170,7 +183,7 @@ export const ProfileSummaryModal: React.FC<ProfileSummaryModalProps> = ({
               <div className="flex justify-end gap-2">
                 <button
                   onClick={() => setIsEditing(false)}
-                  className="px-3.5 py-1.5 rounded-xl text-xs font-medium bg-white/60 dark:bg-slate-800/60 border border-white/70 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:bg-white/80 dark:hover:bg-slate-700 cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-medium bg-white/60 dark:bg-slate-800/60 border border-white/70 dark:border-white/10 text-slate-700 dark:text-slate-200 hover:bg-white/80 dark:hover:bg-slate-700 cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -189,28 +202,28 @@ export const ProfileSummaryModal: React.FC<ProfileSummaryModalProps> = ({
               <Markdown>{profileSummary.summary}</Markdown>
             </div>
           ) : (
-            <div className="text-center py-8 text-slate-500 dark:text-slate-400 space-y-2">
-              <Sparkles className="w-8 h-8 text-amber-500 mx-auto" />
+            <div className="text-center py-8 text-slate-600 dark:text-slate-300 space-y-2">
+              <Sparkles className="w-8 h-8 text-amber-600 mx-auto" />
               <p className="font-serif font-bold text-slate-800 dark:text-slate-200">Memory Layer Initializing</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+              <p className="text-xs text-slate-600 dark:text-slate-300 max-w-md mx-auto">
                 As you write journal entries and reflect with Gemini, the backend synthesizes recurring themes, personal values, and growth patterns into this memory profile.
               </p>
             </div>
           )}
 
           {/* Technical & Storage Architecture Details (Collapsible) */}
-          <details className="group p-4 rounded-2xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-md border border-white/80 dark:border-white/10 text-xs text-slate-600 dark:text-slate-400 transition-all">
-            <summary className="font-semibold text-slate-700 dark:text-slate-300 cursor-pointer flex items-center justify-between select-none">
-              <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-slate-600 dark:text-slate-300">
-                <Shield className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+          <details className="group p-4 rounded-2xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-md border border-white/80 dark:border-white/10 text-xs text-slate-700 dark:text-slate-300 transition-all">
+            <summary className="font-semibold text-slate-700 dark:text-slate-200 cursor-pointer flex items-center justify-between select-none">
+              <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-slate-700 dark:text-slate-200">
+                <Shield className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-300" />
                 <span>Security & Storage Architecture</span>
               </span>
-              <span className="text-[10px] font-mono text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+              <span className="text-[10px] font-mono text-slate-500 group-open:rotate-180 transition-transform">▼</span>
             </summary>
             <div className="mt-3 pt-3 border-t border-white/60 dark:border-white/10 space-y-2 text-[11px] font-sans leading-relaxed">
-              <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+              <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
                 <span className="font-semibold text-slate-700 dark:text-slate-200">Storage Partition:</span>
-                <code className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/70 dark:bg-slate-900/80 border border-white/80 dark:border-slate-700 text-indigo-600 dark:text-indigo-400">
+                <code className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/70 dark:bg-slate-900/80 border border-white/80 dark:border-slate-700 text-indigo-600 dark:text-indigo-300">
                   users/{'{uid}'}/profile/summary
                 </code>
               </div>
@@ -231,7 +244,9 @@ export const ProfileSummaryModal: React.FC<ProfileSummaryModalProps> = ({
           </button>
         </div>
 
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
+      )}
+    </AnimatePresence>
   );
 };

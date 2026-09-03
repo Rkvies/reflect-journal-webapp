@@ -403,3 +403,48 @@ export async function deleteAccount(idToken: string): Promise<{ success: boolean
   return response.json();
 }
 
+export async function requestDailyAffirmation(params: {
+  entries: JournalEntry[];
+  profileSummary: ProfileSummary | null;
+}): Promise<{
+  affirmation: string;
+  theme: string;
+  explanation: string;
+  promptText: string;
+}> {
+  const response = await fetchWithTimeout('/api/journal/daily-affirmation', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  }, 14000);
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: 'Failed to generate daily affirmation' }));
+    throw new Error(err.error || `Server error ${response.status}`);
+  }
+
+  return response.json();
+}
+
+export async function translateText(params: {
+  text: string;
+  targetLanguage: string;
+  sourceLanguage?: string;
+  signal?: AbortSignal;
+}): Promise<{ translatedText: string; targetLanguage: string; sourceLanguageDetected?: string }> {
+  const response = await fetchWithTimeout('/api/journal/translate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+    signal: params.signal,
+  }, 15000);
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: 'Translation failed' }));
+    throw new Error(err.error || `Server error ${response.status}`);
+  }
+
+  return response.json();
+}
+
+

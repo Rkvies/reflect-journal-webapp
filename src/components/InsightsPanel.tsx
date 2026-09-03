@@ -15,6 +15,7 @@ import { requestInsights } from '../lib/api';
 import { saveInsightReport } from '../lib/firebase';
 import { ConfidenceTooltip } from './ConfidenceTooltip';
 import { SparkLoader, SparkMotif, SparkEncouragement } from './SparkVisual';
+import { SentimentHeatmap } from './SentimentHeatmap';
 
 interface InsightsPanelProps {
   userId: string;
@@ -174,7 +175,7 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
+    <div className="max-w-5xl mx-auto space-y-4 sm:space-y-8">
       
       {/* Header Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -182,7 +183,7 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
           <h2 className="text-xl font-serif font-bold text-slate-900 dark:text-white">
             Insights & Patterns
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xl">
+          <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 max-w-xl">
             On-demand synthesis across your reflections, revealing emotional trajectories, recurring themes, and actionable growth horizons.
           </p>
         </div>
@@ -194,15 +195,15 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
               value={startDate} 
               onChange={e => setStartDate(e.target.value)}
               title="Start Date"
-              className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border border-white/80 dark:border-white/10 rounded-xl px-2.5 py-2 text-slate-700 dark:text-slate-300 outline-none focus:border-indigo-500 transition-colors shadow-2xs"
+              className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border border-white/80 dark:border-white/10 rounded-xl px-2.5 py-2 text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500 transition-colors shadow-2xs"
             />
-            <span className="text-slate-400 font-mono text-xs">to</span>
+            <span className="text-slate-500 font-mono text-xs">to</span>
             <input 
               type="date" 
               value={endDate} 
               onChange={e => setEndDate(e.target.value)}
               title="End Date"
-              className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border border-white/80 dark:border-white/10 rounded-xl px-2.5 py-2 text-slate-700 dark:text-slate-300 outline-none focus:border-indigo-500 transition-colors shadow-2xs"
+              className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border border-white/80 dark:border-white/10 rounded-xl px-2.5 py-2 text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500 transition-colors shadow-2xs"
             />
           </div>
 
@@ -227,28 +228,29 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
       {/* Main Analysis Display */}
       {isGenerating ? (
         <div className="bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl border border-white/80 dark:border-white/10 rounded-3xl p-10 text-center space-y-4 shadow-lg animate-fade-in">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400 mx-auto">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 flex items-center justify-center text-indigo-600 dark:text-indigo-300 mx-auto">
             <Sparkles className="w-6 h-6 animate-spark-glimmer" />
           </div>
           <div className="space-y-1">
             <h3 className="text-sm font-serif font-semibold text-slate-900 dark:text-white">
               Synthesizing Emotional Patterns & Themes...
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
+            <p className="text-xs text-slate-600 dark:text-slate-300 max-w-md mx-auto leading-relaxed">
               Reviewing your reflections, analyzing sentiment trajectory, and discovering meaningful connections.
             </p>
           </div>
         </div>
       ) : latestInsight ? (
         <div className="space-y-6">
+          <SentimentHeatmap entries={entries} />
           
           {/* Top Mood & Trajectory Card */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
             
             {/* Trajectory */}
             <div className="md:col-span-8 bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl border border-white/80 dark:border-white/10 rounded-3xl p-6 space-y-3 shadow-sm hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300">
-              <div className="flex items-center justify-between text-xs text-slate-400 dark:text-slate-500">
-                <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 font-medium">
+              <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-300 font-medium">
                   <TrendingUp className="w-4 h-4" />
                   <span>Emotional Trajectory</span>
                 </span>
@@ -264,7 +266,7 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
               </h3>
 
               <div className="flex items-center gap-2 pt-2 border-t border-white/60 dark:border-white/10 text-xs">
-                <span className="text-slate-400 dark:text-slate-500">Dominant State:</span>
+                <span className="text-slate-500 dark:text-slate-400">Dominant State:</span>
                 <span className="px-2.5 py-0.5 rounded-lg bg-indigo-50/80 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 font-medium font-serif border border-indigo-200/60 dark:border-indigo-800/60">
                   {latestInsight.primaryMood}
                 </span>
@@ -273,15 +275,15 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
 
             {/* Sentiment Balance breakdown */}
             <div className="md:col-span-4 bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl border border-white/80 dark:border-white/10 rounded-3xl p-6 space-y-3 shadow-sm hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300">
-              <div className="text-xs font-semibold flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
-                <BarChart3 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <div className="text-xs font-semibold flex items-center gap-1.5 text-slate-700 dark:text-slate-200">
+                <BarChart3 className="w-4 h-4 text-indigo-600 dark:text-indigo-300" />
                 <span>Sentiment Balance</span>
               </div>
 
               <div className="space-y-2.5 pt-1 text-xs">
                 {sentimentDistributionList.map((item) => (
                   <div key={item.label}>
-                    <div className="flex justify-between text-slate-600 dark:text-slate-400 mb-1">
+                    <div className="flex justify-between text-slate-700 dark:text-slate-300 mb-1">
                       <span>{item.label}</span>
                       <ConfidenceTooltip explanation="Gemini's estimated confidence based on language and sentiment across analyzed reflections.">
                         <span className="font-mono">{item.value}%</span>
@@ -302,7 +304,7 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
 
           {/* Theme Breakdown Cards with Evidence Attribution */}
           <div className="space-y-3">
-            <h4 className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <h4 className="text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
               <Compass className="w-3.5 h-3.5" />
               <span>Core Themes & Focus Areas</span>
             </h4>
@@ -323,7 +325,7 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
                             ? 'bg-emerald-50/80 text-emerald-700 border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60' 
                             : th.score >= 50 
                             ? 'bg-amber-50/80 text-amber-700 border-amber-200/80 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60'
-                            : 'bg-slate-50/80 text-slate-600 border-slate-200/80 dark:bg-slate-800/80 dark:text-slate-400 dark:border-slate-700'
+                            : 'bg-slate-50/80 text-slate-700 border-slate-200/80 dark:bg-slate-800/80 dark:text-slate-300 dark:border-slate-700'
                         }`}>
                           <ConfidenceTooltip explanation="Gemini's estimated confidence based on language and sentiment in this entry.">
                             <span>{th.score}% resonance</span>
@@ -331,7 +333,7 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
                         </span>
                       </div>
 
-                      <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-sans">
+                      <p className="text-xs text-slate-700 dark:text-slate-200 leading-relaxed font-sans">
                         {th.observation}
                       </p>
                     </div>
@@ -339,7 +341,7 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
                     {/* Attributed Evidence Links */}
                     {hasEvidence && (
                       <div className="pt-2.5 border-t border-white/60 dark:border-white/10 space-y-1.5">
-                        <div className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-slate-500">
+                        <div className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400">
                           <FileText className="w-3 h-3" />
                           <span>Referenced in {th.influencedBy!.length} reflections:</span>
                         </div>
@@ -354,7 +356,7 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
                                 id={`btn-insight-entry-${entryId}`}
                                 onClick={() => onNavigateToEntry?.(entryId)}
                                 title={`Open: "${entry?.title || entryId}"`}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white/60 dark:bg-slate-800/60 hover:bg-indigo-50 dark:hover:bg-indigo-950 text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-300 text-[11px] border border-white/70 dark:border-white/10 transition-colors cursor-pointer shadow-2xs"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white/60 dark:bg-slate-800/60 hover:bg-indigo-50 dark:hover:bg-indigo-950 text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-600 text-[11px] border border-white/70 dark:border-white/10 transition-colors cursor-pointer shadow-2xs"
                               >
                                 <span>{emoji}</span>
                                 <span className="truncate max-w-[120px]">{title}</span>
@@ -377,8 +379,8 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
             {/* Shift */}
             <div className="p-6 rounded-3xl bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl border border-white/80 dark:border-white/10 flex flex-col justify-between space-y-3 shadow-sm hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300">
               <div className="space-y-2">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  <Flame className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
+                  <Flame className="w-4 h-4 text-indigo-600 dark:text-indigo-300" />
                   <span>Notable Perspective Shift</span>
                 </div>
                 <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-serif">
@@ -388,7 +390,7 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
 
               {latestInsight.notableShiftInfluencedBy && latestInsight.notableShiftInfluencedBy.length > 0 && (
                 <div className="pt-3 border-t border-white/60 dark:border-white/10 space-y-1.5">
-                  <div className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-slate-500">
+                  <div className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400">
                     <FileText className="w-3 h-3" />
                     <span>Evident in {latestInsight.notableShiftInfluencedBy.length} reflections:</span>
                   </div>
@@ -402,7 +404,7 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
                           key={entryId}
                           id={`btn-shift-entry-${entryId}`}
                           onClick={() => onNavigateToEntry?.(entryId)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white/60 dark:bg-slate-800/60 hover:bg-indigo-50 dark:hover:bg-indigo-950 text-slate-700 dark:text-slate-300 text-[11px] border border-white/70 dark:border-white/10 cursor-pointer transition-colors shadow-2xs"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white/60 dark:bg-slate-800/60 hover:bg-indigo-50 dark:hover:bg-indigo-950 text-slate-700 dark:text-slate-200 text-[11px] border border-white/70 dark:border-white/10 cursor-pointer transition-colors shadow-2xs"
                         >
                           <span>{emoji}</span>
                           <span className="truncate max-w-[130px]">{title}</span>
@@ -419,7 +421,7 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
             <div className="p-6 rounded-3xl bg-indigo-50/70 dark:bg-indigo-950/40 backdrop-blur-2xl border border-indigo-200/80 dark:border-indigo-900/60 flex flex-col justify-between space-y-3 shadow-sm hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300">
               <div className="space-y-2">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-indigo-700 dark:text-indigo-300">
-                  <Lightbulb className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <Lightbulb className="w-4 h-4 text-indigo-600 dark:text-indigo-300" />
                   <span>Recommended Focus</span>
                 </div>
                 <p className="text-sm text-slate-800 dark:text-slate-100 leading-relaxed font-sans">
@@ -429,7 +431,7 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
                 <button
                   id="btn-reflect-suggestion"
                   onClick={() => onReflectOnSuggestion(latestInsight.suggestion, 'insight-prompt')}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline pt-1 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-300 hover:underline pt-1 cursor-pointer"
                 >
                   <span>Reflect on this prompt in a new entry</span>
                   <ArrowUpRight className="w-3.5 h-3.5" />
@@ -438,7 +440,7 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
 
               {latestInsight.suggestionInfluencedBy && latestInsight.suggestionInfluencedBy.length > 0 && (
                 <div className="pt-3 border-t border-indigo-200/60 dark:border-indigo-900/50 space-y-1.5">
-                  <div className="flex items-center gap-1 text-[11px] text-indigo-600/80 dark:text-indigo-400">
+                  <div className="flex items-center gap-1 text-[11px] text-indigo-600/80 dark:text-indigo-300">
                     <FileText className="w-3 h-3" />
                     <span>Inspired by reflections:</span>
                   </div>
@@ -452,7 +454,7 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
                           key={entryId}
                           id={`btn-sugg-entry-${entryId}`}
                           onClick={() => onNavigateToEntry?.(entryId)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white/70 dark:bg-slate-800/70 border border-white/80 dark:border-white/10 text-slate-700 dark:text-slate-300 text-[11px] cursor-pointer shadow-2xs"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white/70 dark:bg-slate-800/70 border border-white/80 dark:border-white/10 text-slate-700 dark:text-slate-200 text-[11px] cursor-pointer shadow-2xs"
                         >
                           <span>{emoji}</span>
                           <span className="truncate max-w-[130px]">{title}</span>
@@ -469,12 +471,12 @@ export const InsightsPanel: React.FC<InsightsPanelProps> = ({
 
         </div>
       ) : (
-        <div className="bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl border border-white/80 dark:border-white/10 rounded-3xl p-10 sm:p-12 text-center text-slate-500 dark:text-slate-400 space-y-4 shadow-sm">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400 mx-auto">
+        <div className="bg-white/75 dark:bg-slate-900/75 backdrop-blur-2xl border border-white/80 dark:border-white/10 rounded-3xl p-10 sm:p-12 text-center text-slate-600 dark:text-slate-300 space-y-4 shadow-sm">
+          <div className="w-12 h-12 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 flex items-center justify-center text-indigo-600 dark:text-indigo-300 mx-auto">
             <Sparkles className="w-6 h-6 animate-spark-glimmer" />
           </div>
           <div className="space-y-1.5 max-w-md mx-auto">
-            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 font-serif">No insights generated yet</h3>
+            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200 font-serif">No insights generated yet</h3>
             <div className="inline-flex items-center justify-center pt-1">
               <SparkEncouragement
                 message="Your reflections hold patterns waiting to be discovered."

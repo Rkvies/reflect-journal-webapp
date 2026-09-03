@@ -30,13 +30,13 @@ export const SparkLoader: React.FC<SparkLoaderProps> = ({
 
   const colorClasses = variant === 'sage'
     ? {
-        icon: 'text-emerald-600 dark:text-emerald-400',
+        icon: 'text-emerald-600 dark:text-emerald-300',
         bg: 'bg-emerald-50/90 dark:bg-emerald-950/50 border-emerald-200/70 dark:border-emerald-900/50',
         glow: 'from-emerald-500/10 to-teal-500/10',
         text: 'text-emerald-800 dark:text-emerald-300',
       }
     : {
-        icon: 'text-indigo-600 dark:text-indigo-400',
+        icon: 'text-indigo-600 dark:text-indigo-300',
         bg: 'bg-indigo-50/90 dark:bg-indigo-950/50 border-indigo-200/70 dark:border-indigo-900/50',
         glow: 'from-indigo-500/10 to-purple-500/10',
         text: 'text-indigo-800 dark:text-indigo-300',
@@ -88,13 +88,13 @@ export const SparkMotif: React.FC<SparkMotifProps> = ({
     ? {
         bg: 'bg-emerald-50 dark:bg-emerald-950/60',
         border: 'border-emerald-200/80 dark:border-emerald-800/60',
-        icon: 'text-emerald-600 dark:text-emerald-400',
+        icon: 'text-emerald-600 dark:text-emerald-300',
         shadow: 'shadow-emerald-500/5',
       }
     : {
         bg: 'bg-indigo-50 dark:bg-indigo-950/60',
         border: 'border-indigo-200/80 dark:border-indigo-800/60',
-        icon: 'text-indigo-600 dark:text-indigo-400',
+        icon: 'text-indigo-600 dark:text-indigo-300',
         shadow: 'shadow-indigo-500/5',
       };
 
@@ -136,7 +136,7 @@ export const SparkEncouragement: React.FC<SparkEncouragementProps> = ({
     >
       <IconComponent
         className={`w-3.5 h-3.5 flex-shrink-0 animate-spark-glimmer ${
-          isSage ? 'text-emerald-600 dark:text-emerald-400' : 'text-indigo-600 dark:text-indigo-400'
+          isSage ? 'text-emerald-600 dark:text-emerald-300' : 'text-indigo-600 dark:text-indigo-300'
         }`}
       />
       <div className="text-left">

@@ -157,3 +157,17 @@ export const MINDFUL_QUOTES: QuoteItem[] = [
     theme: "Sanctuary"
   }
 ];
+
+/**
+ * Returns a stable, deterministic mindful quote for a given date.
+ * Ensures the daily quote does not flicker, glitch, or change across re-renders on the same day.
+ */
+export function getDailyQuoteForDate(dateStr: string = new Date().toISOString().split('T')[0]): QuoteItem {
+  let hash = 0;
+  for (let i = 0; i < dateStr.length; i++) {
+    hash = (hash << 5) - hash + dateStr.charCodeAt(i);
+    hash |= 0;
+  }
+  const index = Math.abs(hash) % MINDFUL_QUOTES.length;
+  return MINDFUL_QUOTES[index];
+}
